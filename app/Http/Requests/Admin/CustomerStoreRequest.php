@@ -25,7 +25,7 @@ class CustomerStoreRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'password' => ['required', 'string', 'min:8'],
             'whatsapp_number' => ['nullable', 'string', 'max:20'],
             'status_pelanggan' => ['required', Rule::enum(CustomerTier::class)],

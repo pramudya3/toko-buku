@@ -11,6 +11,7 @@ use App\Services\PricingService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -20,9 +21,7 @@ use RuntimeException;
  */
 class CheckoutController extends Controller
 {
-    public function __construct(private readonly PricingService $pricing)
-    {
-    }
+    public function __construct(private readonly PricingService $pricing) {}
 
     /**
      * Halaman checkout: item keranjang + form data diri.
@@ -64,6 +63,14 @@ class CheckoutController extends Controller
         $cart[$bookId] = ($cart[$bookId] ?? 0) + (int) $validated['qty'];
         session(['cart' => $cart]);
 
+        $book = Book::find($bookId);
+        $label = $book?->judul ?? 'Buku';
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$label} ditambahkan ke keranjang.",
+        ]);
+
         return redirect()->route('checkout.index');
     }
 
@@ -73,8 +80,16 @@ class CheckoutController extends Controller
     public function remove(int $bookId): RedirectResponse
     {
         $cart = $this->cart();
+        $book = Book::find($bookId);
+        $label = $book?->judul ?? 'Item';
+
         unset($cart[$bookId]);
         session(['cart' => $cart]);
+
+        Inertia::flash('toast', [
+            'type' => 'info',
+            'message' => "{$label} dihapus dari keranjang.",
+        ]);
 
         return back();
     }
@@ -120,7 +135,7 @@ class CheckoutController extends Controller
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
-                $order = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $cart): Order {
+                $order = DB::transaction(function () use ($data, $cart): Order {
                     // Lock baris buku agar tidak oversell saat 2 checkout bersamaan.
                     $lockedBooks = Book::query()
                         ->whereKey(array_keys($cart))

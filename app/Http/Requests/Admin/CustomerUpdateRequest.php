@@ -25,7 +25,7 @@ class CustomerUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->route('user'))],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($this->route('user'))],
             'whatsapp_number' => ['nullable', 'string', 'max:20'],
             'status_pelanggan' => ['required', Rule::enum(CustomerTier::class)],
             'is_active' => ['boolean'],

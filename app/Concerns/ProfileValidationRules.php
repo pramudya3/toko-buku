@@ -18,6 +18,23 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            ...$this->addressRules(),
+        ];
+    }
+
+    /**
+     * Rules alamat lengkap (disimpan untuk checkout lebih cepat).
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function addressRules(): array
+    {
+        return [
+            'alamat' => ['nullable', 'string'],
+            'provinsi' => ['nullable', 'string', 'max:100'],
+            'kabupaten_kota' => ['nullable', 'string', 'max:100'],
+            'kecamatan' => ['nullable', 'string', 'max:100'],
+            'kode_pos' => ['nullable', 'string', 'max:10'],
         ];
     }
 
@@ -44,8 +61,8 @@ trait ProfileValidationRules
             'email',
             'max:255',
             $userId === null
-                ? Rule::unique(User::class)
-                : Rule::unique(User::class)->ignore($userId),
+                ? Rule::unique(User::class)->whereNull('deleted_at')
+                : Rule::unique(User::class)->whereNull('deleted_at')->ignore($userId),
         ];
     }
 }
