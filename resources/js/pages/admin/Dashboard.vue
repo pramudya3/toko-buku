@@ -1,0 +1,294 @@
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
+import {
+    AlertTriangle,
+    Banknote,
+    BookOpen,
+    ShoppingCart,
+    TrendingUp,
+} from '@lucide/vue';
+import EmptyState from '@/components/EmptyState.vue';
+import Money from '@/components/Money.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { index as booksIndex } from '@/routes/admin/books';
+import { index as ordersIndex } from '@/routes/admin/orders';
+
+type SalesPoint = {
+    date: string;
+    total: number;
+};
+
+type Props = {
+    period: number;
+    stats: {
+        revenue: number;
+        orders_count: number;
+        cash_in_month: number;
+        book_count: number;
+        total_stock: number;
+    };
+    lowStockBooks: Array<{
+        id: number;
+        judul: string;
+        kode_sku: string | null;
+        stok: number;
+    }>;
+    recentOrders: Array<{
+        id: number;
+        no_order: string;
+        nama_pembeli: string;
+        total: number;
+        status: string;
+        created_at: string;
+    }>;
+    salesChart: SalesPoint[];
+    statusOptions: Record<string, string>;
+};
+
+defineProps<Props>();
+
+const statusVariant: Record<
+    string,
+    'success' | 'warning' | 'danger' | 'info' | 'neutral'
+> = {
+    menunggu_konfirmasi: 'warning',
+    diproses: 'info',
+    dikirim: 'info',
+    selesai: 'success',
+    batal: 'danger',
+};
+</script>
+
+<template>
+    <Head title="Dashboard" />
+
+    <div class="flex flex-col gap-4 p-4 md:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">Dashboard</h1>
+                <p class="text-sm text-muted-foreground">
+                    Ringkasan operasional toko
+                </p>
+            </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card class="p-6">
+                <CardHeader class="p-0">
+                    <CardTitle
+                        class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
+                        <TrendingUp class="size-4" />
+                        Penjualan ({{ period }} hari)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent class="p-0 pt-3">
+                    <p class="text-2xl font-semibold tabular-nums">
+                        <Money :value="stats.revenue" />
+                    </p>
+                </CardContent>
+            </Card>
+            <Card class="p-6">
+                <CardHeader class="p-0">
+                    <CardTitle
+                        class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
+                        <ShoppingCart class="size-4" />
+                        Jumlah Order ({{ period }} hari)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent class="p-0 pt-3">
+                    <p class="text-2xl font-semibold tabular-nums">
+                        {{ stats.orders_count }}
+                    </p>
+                </CardContent>
+            </Card>
+            <Card class="p-6">
+                <CardHeader class="p-0">
+                    <CardTitle
+                        class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
+                        <Banknote class="size-4" />
+                        Kas Masuk Bulan Ini
+                    </CardTitle>
+                </CardHeader>
+                <CardContent class="p-0 pt-3">
+                    <p class="text-2xl font-semibold tabular-nums">
+                        <Money :value="stats.cash_in_month" />
+                    </p>
+                </CardContent>
+            </Card>
+            <Card class="p-6">
+                <CardHeader class="p-0">
+                    <CardTitle
+                        class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
+                        <BookOpen class="size-4" />
+                        Buku / Stok Total
+                    </CardTitle>
+                </CardHeader>
+                <CardContent class="p-0 pt-3">
+                    <p class="text-2xl font-semibold tabular-nums">
+                        {{ stats.book_count }}
+                        <span class="text-sm font-normal text-muted-foreground"
+                            >buku</span
+                        >
+                        · {{ stats.total_stock }}
+                        <span class="text-sm font-normal text-muted-foreground"
+                            >stok</span
+                        >
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+            <!-- Grafik penjualan -->
+            <Card class="lg:col-span-2">
+                <CardHeader>
+                    <CardTitle class="text-base font-medium"
+                        >Penjualan per Hari</CardTitle
+                    >
+                </CardHeader>
+                <CardContent>
+                    <div
+                        v-if="salesChart.length"
+                        class="flex h-40 items-end gap-1"
+                    >
+                        <div
+                            v-for="point in salesChart"
+                            :key="point.date"
+                            class="group relative flex-1 rounded-t bg-primary/15 transition-colors hover:bg-primary/30"
+                            :style="{
+                                height: `${Math.max((point.total / Math.max(...salesChart.map((p) => p.total), 1)) * 100, 2)}%`,
+                            }"
+                        >
+                            <div
+                                class="absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 rounded-md border bg-background px-2 py-1 text-xs shadow-sm group-hover:block"
+                            >
+                                {{ point.date }}:
+                                <Money :value="point.total" />
+                            </div>
+                        </div>
+                    </div>
+                    <EmptyState
+                        v-else
+                        title="Belum ada penjualan"
+                        description="Order yang selesai akan muncul di grafik ini."
+                    />
+                </CardContent>
+            </Card>
+
+            <!-- Peringatan stok menipis -->
+            <Card>
+                <CardHeader>
+                    <CardTitle
+                        class="flex items-center gap-2 text-base font-medium"
+                    >
+                        <AlertTriangle class="size-4 text-amber-500" />
+                        Stok Menipis
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ul v-if="lowStockBooks.length" class="space-y-2">
+                        <li
+                            v-for="book in lowStockBooks"
+                            :key="book.id"
+                            class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                        >
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-medium">
+                                    {{ book.judul }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ book.kode_sku }}
+                                </p>
+                            </div>
+                            <StatusBadge
+                                variant="warning"
+                                :label="`${book.stok} stok`"
+                            />
+                        </li>
+                    </ul>
+                    <EmptyState
+                        v-else
+                        title="Stok aman"
+                        description="Tidak ada buku dengan stok menipis."
+                    >
+                        <Button variant="outline" size="sm" as-child>
+                            <Link :href="booksIndex()">Kelola Buku</Link>
+                        </Button>
+                    </EmptyState>
+                </CardContent>
+            </Card>
+        </div>
+
+        <!-- Pesanan terbaru -->
+        <Card>
+            <CardHeader>
+                <CardTitle class="text-base font-medium"
+                    >Pesanan Terbaru</CardTitle
+                >
+                <div data-slot="card-action">
+                    <Button variant="ghost" size="sm" as-child>
+                        <Link :href="ordersIndex()">Lihat semua</Link>
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent class="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>No. Order</TableHead>
+                            <TableHead>Pembeli</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Tanggal</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-for="order in recentOrders" :key="order.id">
+                            <TableCell class="font-medium">{{
+                                order.no_order
+                            }}</TableCell>
+                            <TableCell>{{ order.nama_pembeli }}</TableCell>
+                            <TableCell>
+                                <Money :value="order.total" />
+                            </TableCell>
+                            <TableCell>
+                                <StatusBadge
+                                    :variant="
+                                        statusVariant[order.status] ?? 'neutral'
+                                    "
+                                    :label="
+                                        statusOptions[order.status] ??
+                                        order.status
+                                    "
+                                />
+                            </TableCell>
+                            <TableCell class="text-muted-foreground">{{
+                                new Date(order.created_at).toLocaleDateString(
+                                    'id-ID',
+                                )
+                            }}</TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+                <EmptyState
+                    v-if="!recentOrders.length"
+                    title="Belum ada pesanan"
+                />
+            </CardContent>
+        </Card>
+    </div>
+</template>
