@@ -84,17 +84,13 @@ const navItems = computed(() => {
             >
                 <!-- Logo → Beranda -->
                 <Link :href="home()" class="flex items-center gap-2">
-                    <span
-                        class="flex size-8 items-center justify-center overflow-hidden rounded-md bg-primary text-primary-foreground"
-                    >
-                        <img
-                            v-if="storeLogoUrl"
-                            :src="storeLogoUrl"
-                            :alt="storeName"
-                            class="size-full object-contain"
-                        />
-                        <AppLogoIcon v-else class="size-5 fill-current" />
-                    </span>
+                    <img
+                        v-if="storeLogoUrl"
+                        :src="storeLogoUrl"
+                        :alt="storeName"
+                        class="h-8 w-auto object-contain"
+                    />
+                    <AppLogoIcon v-else class="size-5 fill-current" />
                     <span class="text-sm font-semibold">{{ storeName }}</span>
                 </Link>
 

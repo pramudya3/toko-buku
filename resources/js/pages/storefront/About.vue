@@ -62,7 +62,7 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-muted-foreground';
                 v-if="props.logo_url"
                 :src="props.logo_url"
                 :alt="props.nama_lembaga || 'Logo'"
-                class="size-20 rounded-xl border bg-muted object-contain p-2"
+                class="h-20 w-auto object-contain"
             />
             <div>
                 <h1 class="text-3xl font-bold tracking-tight">Tentang Kami</h1>
