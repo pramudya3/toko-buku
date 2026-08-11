@@ -106,3 +106,4 @@ Proyek internal — hubungi pemilik repository untuk detail lisensi.
 - Wayfinder (resources/js/{routes,actions,wayfinder}) di-generate otomatis
   di dalam Docker build — tidak perlu generate manual.
 # test
+# e2e test 2
