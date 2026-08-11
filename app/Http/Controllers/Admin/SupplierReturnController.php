@@ -106,38 +106,44 @@ class SupplierReturnController extends Controller
     {
         $search = trim($request->string('search')->toString());
 
-        return response()->json(
-            Book::query()
-                ->where('aktif', true)
-                ->whereHas('inventoryStocks', fn ($query) => $query->where('qty', '>', 0))
-                ->when($search !== '', function ($query) use ($search): void {
-                    $query->where(function ($query) use ($search): void {
-                        $query->whereLike('judul', "%{$search}%")
-                            ->orWhereLike('kode_sku', "%{$search}%");
-                    });
-                })
-                ->with('inventoryStocks.warehouse')
-                ->orderBy('judul')
-                ->limit(50)
-                ->get()
-                ->map(function (Book $book): array {
-                    $stockDefect = $book->inventoryStocks
-                        ->filter(fn ($stock) => $stock->warehouse->is_defect)
-                        ->sum('qty');
-                    $stockNormal = $book->inventoryStocks
-                        ->reject(fn ($stock) => $stock->warehouse->is_defect)
-                        ->sum('qty');
-                    $book->unsetRelation('inventoryStocks');
+        $books = Book::query()
+            ->where('aktif', true)
+            ->whereHas('inventoryStocks', fn ($query) => $query->where('qty', '>', 0))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->whereLike('judul', "%{$search}%")
+                        ->orWhereLike('kode_sku', "%{$search}%");
+                });
+            })
+            ->with('inventoryStocks.warehouse')
+            ->orderBy('judul')
+            ->paginate(20)
+            ->withQueryString();
 
-                    return [
-                        'id' => $book->id,
-                        'judul' => $book->judul,
-                        'kode_sku' => $book->kode_sku,
-                        'stock_defect' => $stockDefect,
-                        'stock_normal' => $stockNormal,
-                    ];
-                }),
-        );
+        $books->getCollection()->transform(function (Book $book): array {
+            $stockDefect = $book->inventoryStocks
+                ->filter(fn ($stock) => $stock->warehouse->is_defect)
+                ->sum('qty');
+            $stockNormal = $book->inventoryStocks
+                ->reject(fn ($stock) => $stock->warehouse->is_defect)
+                ->sum('qty');
+            $book->unsetRelation('inventoryStocks');
+
+            return [
+                'id' => $book->id,
+                'judul' => $book->judul,
+                'kode_sku' => $book->kode_sku,
+                'stock_defect' => $stockDefect,
+                'stock_normal' => $stockNormal,
+            ];
+        });
+
+        return response()->json([
+            'data' => $books->items(),
+            'current_page' => $books->currentPage(),
+            'last_page' => $books->lastPage(),
+            'total' => $books->total(),
+        ]);
     }
 
     /**

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CashFlow;
+use App\Models\CashFlowMonth;
 use App\Models\Order;
 use App\Models\User;
 
@@ -181,4 +182,62 @@ it('validates manual cash entries', function (): void {
             'description' => 'x',
         ])
         ->assertSessionHasErrors('flow_type');
+});
+
+it('creates an empty month and shows it in the cash recording list', function (): void {
+    $bulan = '2026-09';
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.months.store'), ['bulan' => $bulan])
+        ->assertRedirect(route('admin.kas.detail', $bulan));
+
+    expect(CashFlowMonth::where('bulan', $bulan)->exists())->toBeTrue();
+
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.kas.index')));
+
+    expect($props['months'][0])->toMatchArray([
+        'key' => $bulan,
+        'count' => 0,
+        'masuk' => 0,
+        'keluar' => 0,
+    ]);
+});
+
+it('blocks opening a month that already has cash entries', function (): void {
+    CashFlow::factory()->expense(5000)->create([
+        'entry_date' => '2026-08-15',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.months.store'), ['bulan' => '2026-08'])
+        ->assertRedirect();
+
+    expect(CashFlowMonth::where('bulan', '2026-08')->exists())->toBeFalse();
+});
+
+it('blocks opening the same month twice', function (): void {
+    CashFlowMonth::create(['bulan' => '2026-07']);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.months.store'), ['bulan' => '2026-07'])
+        ->assertRedirect();
+
+    expect(CashFlowMonth::where('bulan', '2026-07')->count())->toBe(1);
+});
+
+it('validates the month format', function (): void {
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.months.store'), ['bulan' => 'bukan-bulan'])
+        ->assertSessionHasErrors('bulan');
+
+    expect(CashFlowMonth::count())->toBe(0);
+});
+
+it('includes manually opened months in the report filter options', function (): void {
+    CashFlowMonth::create(['bulan' => '2026-06']);
+
+    $props = inertiaProps($this->actingAs($this->admin)
+        ->get(route('admin.kas.laporan')));
+
+    expect(collect($props['monthOptions'])->pluck('value'))->toContain('2026-06');
 });

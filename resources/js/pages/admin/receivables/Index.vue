@@ -140,16 +140,12 @@ function searchCustomers() {
     }
 
     customerSearchTimer = setTimeout(() => {
-        customerSearchRequest.get(
-            customerOptions({
-                query: { search: customerSearch.value.trim() },
-            }).url,
-            {
-                onSuccess: (data) => {
-                    availableCustomers.value = data as Customer[];
-                },
+        customerSearchRequest.search = customerSearch.value.trim();
+        customerSearchRequest.get(customerOptions().url, {
+            onSuccess: (data) => {
+                availableCustomers.value = data as Customer[];
             },
-        );
+        });
     }, 250);
 }
 

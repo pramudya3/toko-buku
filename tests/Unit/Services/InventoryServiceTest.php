@@ -206,3 +206,66 @@ it('rejects edition movements when the edition belongs to another book', functio
         edition: $bookB->editions()->orderBy('cetakan_ke')->first(),
     ))->toThrow(RuntimeException::class);
 });
+
+it('adjusts stock up with a positive qty (opname surplus)', function (): void {
+    $book = Book::factory()->withStock(malang: 5)->create();
+
+    $movement = $this->service->adjust(
+        book: $book,
+        warehouse: $this->malang,
+        qty: 3,
+        userId: $this->user->id,
+        notes: 'Koreksi opname Januari',
+    );
+
+    expect($movement)->toBeInstanceOf(InventoryMovement::class)
+        ->and($movement->type)->toBe(MovementType::Adjustment)
+        ->and($movement->qty)->toBe(3)
+        ->and($movement->to_warehouse_id)->toBe($this->malang->id)
+        ->and($movement->from_warehouse_id)->toBeNull()
+        ->and($book->fresh()->stok)->toBe(8);
+});
+
+it('adjusts stock down with a negative qty (opname minus)', function (): void {
+    $book = Book::factory()->withStock(malang: 5)->create();
+
+    $movement = $this->service->adjust(
+        book: $book,
+        warehouse: $this->malang,
+        qty: -2,
+        userId: $this->user->id,
+        notes: 'Selisih opname Januari',
+    );
+
+    expect($movement->qty)->toBe(-2)
+        ->and($movement->from_warehouse_id)->toBe($this->malang->id)
+        ->and($movement->to_warehouse_id)->toBeNull()
+        ->and($book->fresh()->stok)->toBe(3);
+});
+
+it('rejects a zero adjustment', function (): void {
+    $book = Book::factory()->withStock(malang: 5)->create();
+
+    expect(fn () => $this->service->adjust(
+        book: $book,
+        warehouse: $this->malang,
+        qty: 0,
+        notes: 'Tidak ada selisih',
+    ))->toThrow(RuntimeException::class);
+
+    expect(InventoryMovement::count())->toBe(0);
+});
+
+it('rejects an adjustment below the available stock', function (): void {
+    $book = Book::factory()->withStock(malang: 2)->create();
+
+    expect(fn () => $this->service->adjust(
+        book: $book,
+        warehouse: $this->malang,
+        qty: -5,
+        notes: 'Koreksi opname',
+    ))->toThrow(RuntimeException::class);
+
+    expect($book->fresh()->stok)->toBe(2)
+        ->and(InventoryMovement::count())->toBe(0);
+});

@@ -25,7 +25,7 @@ class CustomerUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($this->route('user'))],
+            'email' => ['nullable', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($this->route('user'))],
             'whatsapp_number' => ['nullable', 'string', 'max:20'],
             'status_pelanggan' => ['required', Rule::enum(CustomerTier::class)],
             'is_active' => ['boolean'],
@@ -33,6 +33,8 @@ class CustomerUpdateRequest extends FormRequest
             'provinsi' => ['nullable', 'string', 'max:100'],
             'kabupaten_kota' => ['nullable', 'string', 'max:100'],
             'kecamatan' => ['nullable', 'string', 'max:100'],
+            'kelurahan' => ['nullable', 'string', 'max:100'],
+            'village_code' => ['nullable', 'string', 'max:20'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
         ];
     }

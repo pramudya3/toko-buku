@@ -264,9 +264,9 @@ function onDistrictChange(value: string) {
 
     const district = districts.value.find((d) => d.name === value);
 
-    if (district?.kode_pos) {
-        kodePos.value = district.kode_pos;
-    }
+    // Kode pos kecamatan sebagai dasar; nanti di-override kelurahan saat dipilih.
+    // Kecamatan tanpa data → kosongkan (jangan simpan nilai stale).
+    kodePos.value = district?.kode_pos ?? '';
 
     syncToParent();
 
@@ -283,12 +283,9 @@ function onVillageChange(value: string) {
     if (village) {
         villageCode.value = village.code;
 
-        // Kode pos resmi per kelurahan/desa — override nilai sementara dari
-        // kecamatan. Kalau kelurahan tidak punya data, kode pos kecamatan
-        // tetap dipakai sebagai fallback.
-        if (village.kode_pos) {
-            kodePos.value = village.kode_pos;
-        }
+        // Prioritas kode pos kelurahan/desa; fallback ke kode pos kecamatan.
+        const district = districts.value.find((d) => d.name === districtName.value);
+        kodePos.value = village.kode_pos ?? district?.kode_pos ?? '';
     }
 
     syncToParent();
@@ -324,13 +321,16 @@ async function hydrateFromPreset() {
     villageName.value = preset.kelurahan ?? '';
     villageCode.value = preset.village_code ?? '';
 
-    // Kode pos kosong di preset → coba ambil dari data kelurahan yang dimuat.
-    if (!kodePos.value && preset.kelurahan) {
-        const village = villages.value.find((v) => v.name === preset.kelurahan);
+    // Kode pos kosong di preset → coba dari kelurahan, fallback ke kecamatan.
+    if (!kodePos.value) {
+        const village = preset.kelurahan
+            ? villages.value.find((v) => v.name === preset.kelurahan)
+            : undefined;
+        const district = preset.kecamatan
+            ? districts.value.find((d) => d.name === preset.kecamatan)
+            : undefined;
 
-        if (village?.kode_pos) {
-            kodePos.value = village.kode_pos;
-        }
+        kodePos.value = village?.kode_pos ?? district?.kode_pos ?? '';
     }
 
     hydrating.value = false;

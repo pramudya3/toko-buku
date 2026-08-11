@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DailyRecapController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DropshipController;
+use App\Http\Controllers\Admin\InventoryAdjustmentController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\InventoryReportController;
 use App\Http\Controllers\Admin\OrderController;
@@ -99,6 +100,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('customers/{user}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
     Route::put('customers/{user}', [CustomerController::class, 'update'])->name('customers.update');
     Route::get('customers/{user}/summary', [CustomerController::class, 'summary'])->name('customers.summary');
+    Route::post('customers/import', [CustomerController::class, 'importCsv'])->name('customers.import');
 
     // Nonaktifkan via is_active — tanpa hapus (destroy).
     Route::resource('users', UserController::class)->except(['show', 'destroy']);
@@ -124,6 +126,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::post('inventory/movements', [InventoryController::class, 'store'])->name('inventory.movements.store');
 
+    // Koreksi stok opname fisik — tipe mutasi terpisah dari in/out/transfer.
+    Route::get('inventory-adjustments/options/books', [InventoryAdjustmentController::class, 'bookOptions'])->name('inventory-adjustments.options.books');
+    Route::get('inventory-adjustments', [InventoryAdjustmentController::class, 'index'])->name('inventory-adjustments.index');
+    Route::post('inventory-adjustments', [InventoryAdjustmentController::class, 'store'])->name('inventory-adjustments.store');
+
     Route::post('warehouses/{warehouse}/restore', [WarehouseController::class, 'restore'])->name('warehouses.restore')->withTrashed();
     Route::resource('warehouses', WarehouseController::class)->except(['show']);
 
@@ -135,6 +142,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Kas: pencatatan (index bulanan + detail 2 tabel) & laporan.
     Route::get('kas/laporan', [CashFlowController::class, 'laporan'])->name('kas.laporan');
+    Route::post('kas/months', [CashFlowController::class, 'storeMonth'])->name('kas.months.store');
     Route::get('kas/{bulan}', [CashFlowController::class, 'detail'])->name('kas.detail')->where('bulan', '[0-9]{4}-[0-9]{2}');
     Route::get('kas', [CashFlowController::class, 'pencatatan'])->name('kas.index');
     Route::post('kas', [CashFlowController::class, 'store'])->name('kas.store');

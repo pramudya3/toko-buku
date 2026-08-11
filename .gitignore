@@ -32,3 +32,4 @@ yarn-error.log
 /.agents
 /.pi
 /storage/logs/*.log
+PELANGGAN.csv

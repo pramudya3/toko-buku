@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import {
-    BookOpen,
-    Check,
-    ChevronsUpDown,
-    Loader2,
-    Search,
-    X,
-} from '@lucide/vue';
+import { useHttp } from '@inertiajs/vue3';
+import { Check, ChevronsUpDown, Loader2, Search, X } from '@lucide/vue';
 import { PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { Input } from '@/components/ui/input';
@@ -23,12 +17,10 @@ type Book = {
 const props = withDefaults(
     defineProps<{
         modelValue: Book[];
-        initialBooks?: Book[];
         placeholder?: string;
         emptyHint?: string;
     }>(),
     {
-        initialBooks: () => [],
         placeholder: 'Pilih buku...',
         emptyHint: 'Belum ada buku dipilih.',
     },
@@ -42,45 +34,68 @@ const MIN_SEARCH_LENGTH = 2;
 
 const open = ref(false);
 const query = ref('');
-const serverResults = ref<Book[]>([]);
+const results = ref<Book[]>([]);
+const page = ref(1);
+const lastPage = ref(1);
 const isSearching = ref(false);
+const request = useHttp({ search: '', page: 1 });
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const selected = computed(() => props.modelValue);
 
-// Filter instan (client-side) dari buku awal — tanpa debounce.
-const clientFiltered = computed(() => {
-    const q = query.value.trim().toLowerCase();
-
-    if (!q) {
-        return props.initialBooks;
+// Pencarian paginated: buka → halaman 1, ketik → reset, scroll bawah → append.
+function fetchBooks(reset: boolean) {
+    if (isSearching.value) {
+        return;
     }
 
-    return props.initialBooks.filter(
-        (book) =>
-            book.judul.toLowerCase().includes(q) ||
-            (book.kode_sku?.toLowerCase().includes(q) ?? false),
-    );
-});
+    isSearching.value = true;
 
-// < 2 karakter: hasil instan dari batch awal. >= 2 karakter: hasil server (mencakup semua buku).
-const options = computed(() =>
-    query.value.trim().length < MIN_SEARCH_LENGTH
-        ? clientFiltered.value
-        : serverResults.value,
-);
+    const nextPage = reset ? 1 : page.value + 1;
+    const q = query.value.trim();
 
-const showInitialHint = computed(
-    () =>
-        query.value.trim().length < MIN_SEARCH_LENGTH &&
-        props.initialBooks.length > 0,
-);
+    request.search = q.length >= MIN_SEARCH_LENGTH ? q : '';
+    request.page = nextPage;
+
+    request.get(bookOptions().url, {
+        onSuccess: (data) => {
+            const payload = data as {
+                data: Book[];
+                current_page: number;
+                last_page: number;
+                total: number;
+            };
+
+            results.value = reset
+                ? payload.data
+                : [...results.value, ...payload.data];
+            page.value = payload.current_page;
+            lastPage.value = payload.last_page;
+        },
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+}
+
+function loadMore() {
+    if (page.value >= lastPage.value) {
+        return;
+    }
+
+    fetchBooks(false);
+}
+
+function onScroll(event: Event) {
+    const el = event.currentTarget as HTMLElement;
+
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+        loadMore();
+    }
+}
 
 const showEmpty = computed(
-    () =>
-        query.value.trim().length >= MIN_SEARCH_LENGTH &&
-        !isSearching.value &&
-        serverResults.value.length === 0,
+    () => !isSearching.value && results.value.length === 0,
 );
 
 function isSelected(bookId: string): boolean {
@@ -99,46 +114,30 @@ function toggle(book: Book) {
 }
 
 /**
- * Pencarian server (debounce) — dipakai saat query >= 2 karakter agar
- * bisa menemukan buku di luar batch awal (semua katalog aktif).
+ * Pencarian server (debounce): reset ke halaman 1 dengan query, atau
+ * tanpa query (browse semua buku) saat kolom dikosongkan.
  */
-watch(query, (value) => {
+watch(query, () => {
     clearTimeout(searchTimer);
 
-    if (value.trim().length < MIN_SEARCH_LENGTH) {
-        serverResults.value = [];
-
-        return;
-    }
-
-    isSearching.value = true;
-
-    searchTimer = setTimeout(async () => {
-        try {
-            const url = bookOptions({ query: { search: value.trim() } }).url;
-            const response = await fetch(url, {
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            serverResults.value = response.ok ? await response.json() : [];
-        } catch {
-            serverResults.value = [];
-        } finally {
-            isSearching.value = false;
-        }
+    searchTimer = setTimeout(() => {
+        fetchBooks(true);
     }, 250);
 });
 
 function onOpenChange(value: boolean) {
     open.value = value;
 
-    // Reset pencarian tiap dropdown ditutup.
-    if (!value) {
+    if (value) {
+        // Pertama kali dibuka → muat halaman 1 (semua buku, browse via scroll).
+        if (!results.value.length) {
+            fetchBooks(true);
+        }
+    } else {
         query.value = '';
-        serverResults.value = [];
+        results.value = [];
+        page.value = 1;
+        lastPage.value = 1;
     }
 }
 </script>
@@ -202,34 +201,20 @@ function onOpenChange(value: boolean) {
             </div>
 
             <!-- Daftar opsi -->
-            <div class="max-h-64 overflow-y-auto p-1">
+            <div
+                class="max-h-64 overflow-y-auto p-1"
+                @scroll="onScroll"
+            >
                 <p
-                    v-if="
-                        query.trim().length < MIN_SEARCH_LENGTH &&
-                        clientFiltered.length === 0
-                    "
-                    class="flex flex-col items-center gap-1 px-3 py-6 text-center text-xs text-muted-foreground"
-                >
-                    <BookOpen class="size-6 text-muted-foreground/50" />
-                    Ketik minimal {{ MIN_SEARCH_LENGTH }} karakter untuk mencari
-                    buku
-                </p>
-                <p
-                    v-else-if="showEmpty"
+                    v-if="showEmpty"
                     class="px-3 py-6 text-center text-xs text-muted-foreground"
                 >
-                    Tidak ada buku ditemukan untuk "{{ query }}"
+                    Tidak ada buku ditemukan
+                    <template v-if="query.trim()"> untuk "{{ query }}"</template>.
                 </p>
                 <template v-else>
-                    <p
-                        v-if="showInitialHint"
-                        class="px-3 pt-2 pb-1 text-xs text-muted-foreground"
-                    >
-                        Menampilkan {{ clientFiltered.length }} buku pertama —
-                        ketik untuk mencari lebih spesifik
-                    </p>
                     <button
-                        v-for="book in options"
+                        v-for="book in results"
                         :key="book.id"
                         type="button"
                         class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted/60"

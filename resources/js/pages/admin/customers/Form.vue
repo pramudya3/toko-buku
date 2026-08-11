@@ -116,13 +116,13 @@ const tierVariant = computed(() => {
                         />
                     </div>
                     <div class="grid gap-2">
-                        <Label for="email">Email *</Label>
+                        <Label for="email">Email</Label>
                         <Input
                             id="email"
                             name="email"
                             type="email"
-                            :default-value="customer?.email"
-                            required
+                            :default-value="customer?.email ?? undefined"
+                            placeholder="Kosongkan untuk pelanggan tanpa email"
                         />
                     </div>
                     <div class="grid gap-2">
