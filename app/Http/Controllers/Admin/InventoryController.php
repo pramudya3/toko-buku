@@ -71,7 +71,7 @@ class InventoryController extends Controller
             'books' => $books,
             'warehouses' => Warehouse::query()->orderBy('is_defect')->orderBy('nama')->get(['id', 'kode', 'nama', 'is_defect', 'is_active']),
             'filters' => $request->only(['search', 'low_stock']),
-            'movementOptions' => MovementType::options(),
+            'movementOptions' => collect(MovementType::options())->except('adjustment')->all(),
             'lowStockThreshold' => config('pricing.low_stock_threshold'),
         ]);
     }

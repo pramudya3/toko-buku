@@ -43,7 +43,6 @@ type Promotion = {
 const props = defineProps<{
     promotion: Promotion | null;
     typeOptions: Record<string, string>;
-    books: Book[];
 }>();
 
 const isEdit = Boolean(props.promotion);
@@ -162,7 +161,6 @@ const bookIdsValue = computed(() =>
                         <!-- Pilih buku (combobox + filter teks) -->
                         <BookCombobox
                             :model-value="targetBooks"
-                            :initial-books="books"
                             :empty-hint="
                                 promoMode === 'bundle'
                                     ? 'Pilih minimal 2 judul buku untuk membentuk paket.'

@@ -125,7 +125,7 @@ class WilayahSeeder extends Seeder
         $map = [];
 
         foreach ($this->readCsv($path) as $row) {
-            $map[$row[0]] = trim($row[1]);
+            $map[$this->normalizeCsvKey($row[0])] = trim($row[1]);
         }
 
         $districts = DB::table('districts')
@@ -137,7 +137,7 @@ class WilayahSeeder extends Seeder
         $updates = [];
 
         foreach ($districts as $district) {
-            $key = $this->normalize($district->province).'|'.$this->normalize($district->city).'|'.$this->normalize($district->district);
+            $key = $this->provinceKey($district->province).'|'.$this->normalize($district->city).'|'.$this->normalize($district->district);
 
             if (isset($map[$key])) {
                 $updates[] = ['code' => $district->code, 'kode_pos' => $map[$key]];
@@ -145,11 +145,7 @@ class WilayahSeeder extends Seeder
         }
 
         foreach (array_chunk($updates, 500) as $chunk) {
-            foreach ($chunk as $row) {
-                DB::table('districts')
-                    ->where('code', $row['code'])
-                    ->update(['kode_pos' => $row['kode_pos']]);
-            }
+            $this->bulkUpdateKodePos('districts', $chunk);
         }
     }
 
@@ -169,7 +165,7 @@ class WilayahSeeder extends Seeder
         $map = [];
 
         foreach ($this->readCsv($path) as $row) {
-            $map[$row[0]] = trim($row[1]);
+            $map[$this->normalizeCsvKey($row[0])] = trim($row[1]);
         }
 
         $villages = DB::table('villages')
@@ -182,7 +178,7 @@ class WilayahSeeder extends Seeder
         $updates = [];
 
         foreach ($villages as $village) {
-            $key = $this->normalize($village->province).'|'.$this->normalize($village->city).'|'.$this->normalize($village->district).'|'.$this->normalize($village->name);
+            $key = $this->provinceKey($village->province).'|'.$this->normalize($village->city).'|'.$this->normalize($village->district).'|'.$this->normalize($village->name);
 
             if (isset($map[$key])) {
                 $updates[] = ['code' => $village->code, 'kode_pos' => $map[$key]];
@@ -190,20 +186,71 @@ class WilayahSeeder extends Seeder
         }
 
         foreach (array_chunk($updates, 500) as $chunk) {
-            foreach ($chunk as $row) {
-                DB::table('villages')
-                    ->where('code', $row['code'])
-                    ->update(['kode_pos' => $row['kode_pos']]);
-            }
+            $this->bulkUpdateKodePos('villages', $chunk);
         }
+    }
+
+    /**
+     * Normalisasi key dari file data kode pos (segmen dipisah pipe).
+     *
+     * File data sudah ternormalisasi, kecuali DKI Jakarta yang menulis
+     * "administrasijakartaselatan" (tanpa spasi) — buang prefix administrasi.
+     */
+    private function normalizeCsvKey(string $key): string
+    {
+        return implode('|', array_map(function (string $segment): string {
+            $segment = strtolower(trim($segment));
+            $segment = (string) preg_replace('/^administrasi/', '', $segment);
+
+            return preg_replace('/[^a-z0-9]/', '', $segment) ?? '';
+        }, explode('|', $key)));
+    }
+
+    /**
+     * Update kode_pos massal via CASE WHEN.
+     *
+     * Upsert/ON CONFLICT tidak bisa dipakai: PostgreSQL membangun tuple
+     * spekulatif lebih dulu (mengisi default kolom yang tak disediakan),
+     * jadi baris parsial melanggar NOT NULL sebelum deteksi konflik.
+     *
+     * @param  array<int, array{code: string, kode_pos: string}>  $chunk
+     */
+    private function bulkUpdateKodePos(string $table, array $chunk): void
+    {
+        $bindings = [];
+        $cases = '';
+
+        foreach ($chunk as $row) {
+            $cases .= ' WHEN ? THEN ?';
+            array_push($bindings, $row['code'], $row['kode_pos']);
+        }
+
+        $codes = array_column($chunk, 'code');
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+
+        DB::statement(
+            "UPDATE {$table} SET kode_pos = CASE code{$cases} END WHERE code IN ({$placeholders})",
+            [...$bindings, ...$codes],
+        );
     }
 
     private function normalize(string $name): string
     {
         $name = strtolower(trim($name));
-        $name = preg_replace('/^(kabupaten|kota)\s+/', '', $name);
+        $name = preg_replace('/^(kabupaten|kota|administrasi)\s+/', '', $name);
 
         return preg_replace('/[^a-z0-9]/', '', $name) ?? '';
+    }
+
+    /**
+     * Kunci provinsi versi file data kode pos — DB menulis "DI YOGYAKARTA",
+     * file data menulis "daerahistimewayogyakarta".
+     */
+    private function provinceKey(string $provinceName): string
+    {
+        $key = $this->normalize($provinceName);
+
+        return $key === 'diyogyakarta' ? 'daerahistimewayogyakarta' : $key;
     }
 
     /**

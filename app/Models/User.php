@@ -31,6 +31,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $provinsi
  * @property string|null $kabupaten_kota
  * @property string|null $kecamatan
+ * @property string|null $kelurahan
+ * @property string|null $village_code
  * @property string|null $kode_pos
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -38,7 +40,8 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'name', 'email', 'password', 'is_admin', 'is_active', 'whatsapp_number',
     'status_pelanggan', 'alamat', 'provinsi',
-    'kabupaten_kota', 'kecamatan', 'kode_pos', 'email_verified_at',
+    'kabupaten_kota', 'kecamatan', 'kelurahan', 'village_code',
+    'kode_pos', 'email_verified_at',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 #[ObservedBy([UserObserver::class])]

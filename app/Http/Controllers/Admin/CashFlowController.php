@@ -6,6 +6,7 @@ use App\Enums\ActivityAction;
 use App\Enums\FlowType;
 use App\Http\Controllers\Controller;
 use App\Models\CashFlow;
+use App\Models\CashFlowMonth;
 use App\Support\ActivityLogger;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
@@ -41,10 +42,22 @@ class CashFlowController extends Controller
                     'masuk' => $sum(true),
                     'keluar' => $sum(false),
                 ];
-            })
-            ->sortKeysDesc()
-            ->values()
-            ->all();
+            });
+
+        // Bulan yang dibuka manual (belum punya entri) ikut tampil.
+        foreach (CashFlowMonth::all() as $month) {
+            if (! $months->has($month->bulan)) {
+                $months->put($month->bulan, [
+                    'key' => $month->bulan,
+                    'label' => $this->monthLabel(Carbon::createFromFormat('Y-m', $month->bulan)),
+                    'count' => 0,
+                    'masuk' => 0,
+                    'keluar' => 0,
+                ]);
+            }
+        }
+
+        $months = $months->sortKeysDesc()->values()->all();
 
         return Inertia::render('admin/kas/Pencatatan', [
             'months' => $months,
@@ -100,6 +113,51 @@ class CashFlowController extends Controller
             'pencatatan' => $masuk,
             'pengeluaran' => $keluar,
         ]);
+    }
+
+    /**
+     * Buka bulan baru untuk pencatatan kas (belum ada entri sama sekali).
+     * Gagal bila bulan sudah punya entri atau sudah pernah dibuka.
+     */
+    public function storeMonth(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'bulan' => ['required', 'string', 'regex:/^\d{4}-\d{2}$/'],
+        ]);
+
+        $bulan = $validated['bulan'];
+        $date = Carbon::createFromFormat('Y-m', $bulan);
+
+        $exists = CashFlowMonth::query()->where('bulan', $bulan)->exists()
+            || CashFlow::query()
+                ->whereYear('entry_date', $date->year)
+                ->whereMonth('entry_date', $date->month)
+                ->exists();
+
+        if ($exists) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => "Bulan {$this->monthLabel($date)} sudah ada.",
+            ]);
+
+            return back();
+        }
+
+        $month = CashFlowMonth::create(['bulan' => $bulan]);
+
+        ActivityLogger::log(
+            ActivityAction::CashMonthCreate,
+            "Bulan {$this->monthLabel($date)} dibuka untuk pencatatan",
+            $month,
+            ['bulan' => $bulan],
+        );
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "Bulan {$this->monthLabel($date)} berhasil dibuka — silakan catat entri kas.",
+        ]);
+
+        return to_route('admin.kas.detail', $bulan);
     }
 
     /**
@@ -190,14 +248,24 @@ class CashFlowController extends Controller
      */
     private function monthOptions(): array
     {
-        return CashFlow::query()
+        $options = collect();
+
+        // Bulan yang dibuka manual ikut tersedia di filter laporan.
+        foreach (CashFlowMonth::all() as $month) {
+            $options->put($month->bulan, $this->monthLabel(Carbon::createFromFormat('Y-m', $month->bulan)));
+        }
+
+        CashFlow::query()
             ->orderByDesc('entry_date')
             ->get(['entry_date'])
             ->groupBy(fn (CashFlow $flow): string => $flow->entry_date->format('Y-m'))
-            ->map(fn ($grouped) => [
-                'value' => $grouped->first()->entry_date->format('Y-m'),
-                'label' => $this->monthLabel($grouped->first()->entry_date),
-            ])
+            ->each(function ($grouped) use ($options): void {
+                $options->put($grouped->first()->entry_date->format('Y-m'), $this->monthLabel($grouped->first()->entry_date));
+            });
+
+        return $options
+            ->sortKeysDesc()
+            ->map(fn (string $label, string $value): array => ['value' => $value, 'label' => $label])
             ->values()
             ->all();
     }

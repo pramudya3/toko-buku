@@ -34,6 +34,7 @@ enum ActivityAction: string
 
     // Kas
     case CashEntry = 'cash.entry';
+    case CashMonthCreate = 'cash.month_create';
 
     // Pembelian
     case SupplierCreate = 'supplier.create';
@@ -50,6 +51,7 @@ enum ActivityAction: string
     case UserCreate = 'user.create';
     case UserUpdate = 'user.update';
     case UserDelete = 'user.delete';
+    case CustomerImport = 'customer.import';
     case PromotionCreate = 'promotion.create';
     case PromotionUpdate = 'promotion.update';
     case PromotionDelete = 'promotion.delete';
@@ -89,6 +91,7 @@ enum ActivityAction: string
             self::ReceivablePay => 'Bayar Piutang',
             self::SalesReturnCreate => 'Retur Penjualan',
             self::CashEntry => 'Catat Kas',
+            self::CashMonthCreate => 'Buka Bulan Kas',
             self::SupplierCreate => 'Buat Supplier',
             self::SupplierUpdate => 'Ubah Supplier',
             self::SupplierDelete => 'Hapus Supplier',
@@ -101,6 +104,7 @@ enum ActivityAction: string
             self::UserCreate => 'Buat User',
             self::UserUpdate => 'Ubah User',
             self::UserDelete => 'Hapus User',
+            self::CustomerImport => 'Import Pelanggan',
             self::PromotionCreate => 'Buat Promosi',
             self::PromotionUpdate => 'Ubah Promosi',
             self::PromotionDelete => 'Hapus Promosi',

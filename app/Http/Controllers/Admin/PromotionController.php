@@ -55,19 +55,24 @@ class PromotionController extends Controller
     {
         $search = trim($request->string('search')->toString());
 
-        return response()->json(
-            Book::query()
-                ->where('aktif', true)
-                ->when($search !== '', function ($query) use ($search): void {
-                    $query->where(function ($query) use ($search): void {
-                        $query->whereLike('judul', "%{$search}%")
-                            ->orWhereLike('kode_sku', "%{$search}%");
-                    });
-                })
-                ->orderBy('judul')
-                ->limit(50)
-                ->get(['id', 'judul', 'kode_sku', 'harga', 'cover_url']),
-        );
+        $books = Book::query()
+            ->where('aktif', true)
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->whereLike('judul', "%{$search}%")
+                        ->orWhereLike('kode_sku', "%{$search}%");
+                });
+            })
+            ->orderBy('judul')
+            ->paginate(20)
+            ->withQueryString();
+
+        return response()->json([
+            'data' => $books->items(),
+            'current_page' => $books->currentPage(),
+            'last_page' => $books->lastPage(),
+            'total' => $books->total(),
+        ]);
     }
 
     /**

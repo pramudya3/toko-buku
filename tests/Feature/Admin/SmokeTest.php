@@ -46,18 +46,20 @@ it('limits large picker payloads and supports server-side option search', functi
     $this->actingAs($admin)
         ->getJson(route('admin.orders.options.books'))
         ->assertSuccessful()
-        ->assertJsonCount(50);
+        ->assertJsonCount(20, 'data')
+        ->assertJsonPath('total', 52)
+        ->assertJsonPath('last_page', 3);
 
     $this->actingAs($admin)
         ->getJson(route('admin.orders.options.books', ['search' => 'Target Pencarian']))
         ->assertSuccessful()
-        ->assertJsonCount(1)
-        ->assertJsonPath('0.judul', 'Buku Target Pencarian');
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.judul', 'Buku Target Pencarian');
 
     $this->actingAs($admin)
         ->getJson(route('admin.promotions.options.books', ['search' => 'Target Pencarian']))
         ->assertSuccessful()
-        ->assertJsonCount(1);
+        ->assertJsonCount(1, 'data');
 });
 
 it('renders every remaining admin module', function (): void {

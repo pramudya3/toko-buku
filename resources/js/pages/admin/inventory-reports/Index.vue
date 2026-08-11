@@ -171,6 +171,7 @@ const typeVariant: Record<
     transfer: 'info',
     defect: 'warning',
     return: 'neutral',
+    adjustment: 'info',
 };
 
 const typeLabel: Record<string, string> = {
@@ -179,6 +180,7 @@ const typeLabel: Record<string, string> = {
     transfer: 'Transfer',
     defect: 'Defect',
     return: 'Retur',
+    adjustment: 'Adjustment',
 };
 </script>
 
@@ -340,6 +342,19 @@ const typeLabel: Record<string, string> = {
             </template>
             <template #cell-to_warehouse="{ row }">
                 {{ row.to_warehouse?.nama ?? '—' }}
+            </template>
+            <template #cell-qty="{ row }">
+                <span
+                    v-if="row.type === 'adjustment'"
+                    :class="
+                        row.qty > 0
+                            ? 'text-green-600'
+                            : 'text-destructive'
+                    "
+                >
+                    {{ row.qty > 0 ? `+${row.qty}` : row.qty }}
+                </span>
+                <template v-else>{{ row.qty }}</template>
             </template>
             <template #cell-user="{ row }">
                 {{ row.user?.name ?? '—' }}

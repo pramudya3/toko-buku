@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Search, Trash2, Undo2 } from '@lucide/vue';
+import { Trash2, Undo2 } from '@lucide/vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import SupplierReturnController from '@/actions/App/Http/Controllers/Admin/SupplierReturnController';
+import BookPicker from '@/components/BookPicker.vue';
+import type { BookOption } from '@/components/BookPicker.vue';
 import CurrencyInput from '@/components/CurrencyInput.vue';
 import FieldHint from '@/components/FieldHint.vue';
 import FormErrorAlert from '@/components/FormErrorAlert.vue';
@@ -144,20 +146,8 @@ watch(
 );
 
 // ── Pencarian buku ────────────────────────────────────────────────
-const search = ref('');
-const results = ref<ReturnBook[]>([]);
-
-async function searchBooks() {
-    const query = search.value.trim();
-
-    if (!query) {
-        results.value = [];
-
-        return;
-    }
-
-    const response = await fetch(bookOptions({ query: { search: query } }).url);
-    results.value = (await response.json()) as ReturnBook[];
+function onBookSelect(book: BookOption) {
+    addItem(book as ReturnBook);
 }
 
 function addItem(book: ReturnBook) {
@@ -178,8 +168,6 @@ function addItem(book: ReturnBook) {
         price: purchaseItem?.price ?? 0,
         reason: '',
     });
-    search.value = '';
-    results.value = [];
 }
 
 function removeItem(index: number) {
@@ -353,41 +341,12 @@ function submit() {
                 >
             </CardHeader>
             <CardContent class="grid gap-4">
-                <div class="relative max-w-sm">
-                    <Search
-                        class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                        v-model="search"
-                        class="pl-9"
-                        placeholder="Cari judul buku / SKU..."
-                        @input="searchBooks"
-                    />
-                </div>
-
-                <div
-                    v-if="results.length"
-                    class="max-h-56 overflow-auto rounded-md border"
-                >
-                    <button
-                        v-for="book in results"
-                        :key="book.id"
-                        type="button"
-                        class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
-                        @click="addItem(book)"
-                    >
-                        <span>
-                            {{ book.judul }}
-                            <span class="text-muted-foreground">
-                                ({{ book.kode_sku ?? 'tanpa SKU' }})
-                            </span>
-                        </span>
-                        <span class="text-xs text-muted-foreground">
-                            Cacat {{ book.stock_defect }} · Normal
-                            {{ book.stock_normal }}
-                        </span>
-                    </button>
-                </div>
+                <BookPicker
+                    :base-url="bookOptions().url"
+                    class="max-w-sm"
+                    placeholder="Cari judul buku / SKU..."
+                    @select="onBookSelect"
+                />
 
                 <Table v-if="form.items.length">
                     <TableHeader>

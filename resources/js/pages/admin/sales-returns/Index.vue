@@ -163,16 +163,12 @@ function searchOrders() {
     }
 
     orderSearchTimer = setTimeout(() => {
-        orderSearchRequest.get(
-            orderOptions({
-                query: { search: orderSearch.value.trim() },
-            }).url,
-            {
-                onSuccess: (data) => {
-                    availableOrders.value = data as OrderOption[];
-                },
+        orderSearchRequest.search = orderSearch.value.trim();
+        orderSearchRequest.get(orderOptions().url, {
+            onSuccess: (data) => {
+                availableOrders.value = data as OrderOption[];
             },
-        );
+        });
     }, 250);
 }
 

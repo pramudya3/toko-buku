@@ -90,20 +90,25 @@ class OrderController extends Controller
     {
         $search = trim($request->string('search')->toString());
 
-        return response()->json(
-            Book::query()
-                ->where('aktif', true)
-                ->with('editions:id,book_id,cetakan_ke,harga_jual,is_active')
-                ->when($search !== '', function ($query) use ($search): void {
-                    $query->where(function ($query) use ($search): void {
-                        $query->whereLike('judul', "%{$search}%")
-                            ->orWhereLike('kode_sku', "%{$search}%");
-                    });
-                })
-                ->orderBy('judul')
-                ->limit(50)
-                ->get(['id', 'judul', 'kode_sku', 'harga', 'stok', 'berat_gr']),
-        );
+        $books = Book::query()
+            ->where('aktif', true)
+            ->with('editions:id,book_id,cetakan_ke,harga_jual,is_active')
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->whereLike('judul', "%{$search}%")
+                        ->orWhereLike('kode_sku', "%{$search}%");
+                });
+            })
+            ->orderBy('judul')
+            ->paginate(20)
+            ->withQueryString();
+
+        return response()->json([
+            'data' => $books->items(),
+            'current_page' => $books->currentPage(),
+            'last_page' => $books->lastPage(),
+            'total' => $books->total(),
+        ]);
     }
 
     /**

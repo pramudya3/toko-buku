@@ -20,6 +20,7 @@ import {
     LayoutGrid,
     NotebookPen,
     PackageX,
+    Scale,
     ScrollText,
     ShieldCheck,
     ShoppingCart,
@@ -49,6 +50,7 @@ import { index as customersIndex } from '@/routes/admin/customers';
 import { index as dailyRecapIndex } from '@/routes/admin/daily-recap';
 import { index as dropshipIndex } from '@/routes/admin/dropship';
 import { index as inventoryIndex } from '@/routes/admin/inventory';
+import { index as inventoryAdjustmentsIndex } from '@/routes/admin/inventory-adjustments';
 import { index as inventoryReportsIndex } from '@/routes/admin/inventory-reports';
 import { index as kasIndex } from '@/routes/admin/kas';
 import { laporan as kasLaporan } from '@/routes/admin/kas';
@@ -224,6 +226,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Laporan Mutasi',
                 href: inventoryReportsIndex(),
                 icon: History,
+            },
+            {
+                title: 'Stok Adjustment',
+                href: inventoryAdjustmentsIndex(),
+                icon: Scale,
             },
         ],
     },

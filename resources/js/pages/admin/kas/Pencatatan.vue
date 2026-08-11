@@ -1,11 +1,31 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
-import { ArrowDownCircle, ArrowUpCircle } from '@lucide/vue';
+import { Form, Head } from '@inertiajs/vue3';
+import { ArrowDownCircle, ArrowUpCircle, Plus } from '@lucide/vue';
+import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
+import CashFlowController from '@/actions/App/Http/Controllers/Admin/CashFlowController';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
 import Money from '@/components/Money.vue';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { detail as detailRoute } from '@/routes/admin/kas';
 
 type MonthRow = {
@@ -35,17 +55,64 @@ const columns: DataTableColumn[] = [
     },
     { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
 ];
+
+// --- Dialog tambah bulan ---
+const dialogOpen = ref(false);
+const monthNames = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+];
+
+const currentYear = new Date().getFullYear();
+// 7 opsi: tahun berjalan ± (terbaru dulu).
+const yearOptions = Array.from(
+    { length: 7 },
+    (_, i) => currentYear + 1 - i,
+);
+
+const bulan = ref('01');
+const tahun = ref(String(currentYear));
+
+const bulanValue = computed(() => `${tahun.value}-${bulan.value}`);
+
+function openDialog() {
+    bulan.value = '01';
+    tahun.value = String(currentYear);
+    dialogOpen.value = true;
+}
+
+function onFormError() {
+    toast.error('Gagal membuka bulan — periksa kembali isian.');
+}
 </script>
 
 <template>
     <Head title="Pencatatan Kas" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
-        <div>
-            <h1 class="text-xl font-semibold tracking-tight">Pencatatan Kas</h1>
-            <p class="text-sm text-muted-foreground">
-                Rekap uang masuk & uang keluar per bulan
-            </p>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">
+                    Pencatatan Kas
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    Rekap uang masuk & uang keluar per bulan
+                </p>
+            </div>
+            <Button @click="openDialog">
+                <Plus class="size-4" />
+                Tambah Bulan
+            </Button>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-3">
@@ -96,7 +163,7 @@ const columns: DataTableColumn[] = [
             :columns="columns"
             key-field="key"
             empty-title="Belum ada pencatatan kas"
-            empty-description="Pencatatan muncul setelah ada transaksi penjualan atau entri kas manual."
+            empty-description="Pencatatan muncul setelah ada transaksi penjualan, entri kas manual, atau bulan dibuka manual."
         >
             <template #cell-label="{ row }">
                 {{ row.label }}
@@ -126,4 +193,69 @@ const columns: DataTableColumn[] = [
             </template>
         </DataTable>
     </div>
+
+    <Dialog v-model:open="dialogOpen">
+        <DialogContent class="sm:max-w-xs">
+            <DialogHeader>
+                <DialogTitle>Tambah Bulan</DialogTitle>
+                <DialogDescription>
+                    Buka bulan baru untuk pencatatan kas — bulan yang sudah
+                    punya entri tidak bisa dibuka lagi.
+                </DialogDescription>
+            </DialogHeader>
+
+            <Form
+                v-bind="CashFlowController.storeMonth.form()"
+                class="grid gap-4"
+                v-slot="{ processing }"
+                @error="onFormError"
+                @success="dialogOpen = false"
+            >
+                <input type="hidden" name="bulan" :value="bulanValue" />
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="grid gap-2">
+                        <Label for="bulan">Bulan *</Label>
+                        <Select v-model="bulan">
+                            <SelectTrigger id="bulan">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="(name, index) in monthNames"
+                                    :key="name"
+                                    :value="String(index + 1).padStart(2, '0')"
+                                >
+                                    {{ name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="tahun">Tahun *</Label>
+                        <Select v-model="tahun">
+                            <SelectTrigger id="tahun">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="year in yearOptions"
+                                    :key="year"
+                                    :value="String(year)"
+                                >
+                                    {{ year }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button type="submit" :disabled="processing">
+                        {{ processing ? 'Menyimpan...' : 'Tambah Bulan' }}
+                    </Button>
+                </DialogFooter>
+            </Form>
+        </DialogContent>
+    </Dialog>
 </template>

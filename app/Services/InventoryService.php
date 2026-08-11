@@ -75,6 +75,54 @@ final class InventoryService
     }
 
     /**
+     * Koreksi stok hasil opname fisik — selisih stok sistem vs fisik.
+     *
+     * Qty bertanda: positif = tambah stok, negatif = kurangi stok (cek saldo).
+     * Dicatat sebagai InventoryMovement type=adjustment dengan qty tersimpan apa adanya.
+     */
+    public function adjust(
+        Book $book,
+        Warehouse $warehouse,
+        int $qty,
+        ?string $reference = null,
+        ?string $userId = null,
+        ?string $notes = null,
+        ?BookEdition $edition = null,
+    ): InventoryMovement {
+        if ($qty === 0) {
+            throw new RuntimeException('Selisih stok tidak boleh 0.');
+        }
+
+        return DB::transaction(function () use ($book, $warehouse, $qty, $reference, $userId, $notes, $edition): InventoryMovement {
+            $lockedBook = Book::query()->lockForUpdate()->findOrFail($book->getKey());
+
+            $lockedEdition = $this->resolveEdition($lockedBook, $edition);
+
+            if ($qty > 0) {
+                $this->incrementRow($lockedBook, $warehouse, $qty, $lockedEdition);
+            } else {
+                $this->decrementRow($lockedBook, $warehouse, abs($qty), $lockedEdition);
+            }
+
+            $movement = InventoryMovement::create([
+                'book_id' => $lockedBook->id,
+                'book_edition_id' => $lockedEdition?->id,
+                'from_warehouse_id' => $qty < 0 ? $warehouse->id : null,
+                'to_warehouse_id' => $qty > 0 ? $warehouse->id : null,
+                'qty' => $qty,
+                'type' => MovementType::Adjustment,
+                'reference' => $reference,
+                'user_id' => $userId,
+                'notes' => $notes,
+            ]);
+
+            $this->syncBookStock($lockedBook);
+
+            return $movement;
+        });
+    }
+
+    /**
      * Pastikan setiap buku memiliki baris stok untuk gudang tertentu.
      */
     public function ensureStock(Book $book, ?Warehouse $warehouse = null): InventoryStock

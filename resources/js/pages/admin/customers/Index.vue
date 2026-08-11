@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Search, X } from '@lucide/vue';
+import { Form, Head, Link, router } from '@inertiajs/vue3';
+import { Plus, Search, Upload, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
+import CustomerController from '@/actions/App/Http/Controllers/Admin/CustomerController';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { create, edit, index as indexRoute } from '@/routes/admin/customers';
 
 type Customer = {
@@ -89,6 +99,8 @@ const tierLabel: Record<string, string> = {
     guru: 'Guru',
     reseller: 'Reseller',
 };
+
+const importOpen = ref(false);
 </script>
 
 <template>
@@ -102,6 +114,10 @@ const tierLabel: Record<string, string> = {
                     Mengelola data dan status tier pelanggan
                 </p>
             </div>
+            <Button variant="outline" @click="importOpen = true">
+                <Upload class="size-4" />
+                Import CSV
+            </Button>
             <Button as-child>
                 <Link :href="create()">
                     <Plus class="size-4" />
@@ -172,4 +188,52 @@ const tierLabel: Record<string, string> = {
             </template>
         </DataTable>
     </div>
+
+    <Dialog v-model:open="importOpen">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Import Pelanggan dari CSV</DialogTitle>
+                <DialogDescription>
+                    Format kolom:
+                    <span class="font-mono text-xs"
+                        >PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan</span
+                    >
+                </DialogDescription>
+            </DialogHeader>
+
+            <Form
+                v-bind="CustomerController.importCsv.form()"
+                class="grid gap-4"
+                v-slot="{ processing }"
+            >
+                <div class="grid gap-2">
+                    <Label for="import-file">File CSV *</Label>
+                    <Input
+                        id="import-file"
+                        name="file"
+                        type="file"
+                        accept=".csv,.txt"
+                        required
+                    />
+                </div>
+                <p class="text-sm text-muted-foreground">
+                    Email dikosongkan (isi manual via edit bila perlu). Nama yang
+                    sudah ada diperbarui alamatnya; baris identik dilewati.
+                </p>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="importOpen = false"
+                    >
+                        Batal
+                    </Button>
+                    <Button type="submit" :disabled="processing">
+                        {{ processing ? 'Mengimpor...' : 'Import' }}
+                    </Button>
+                </DialogFooter>
+            </Form>
+        </DialogContent>
+    </Dialog>
 </template>
