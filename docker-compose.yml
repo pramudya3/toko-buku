@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    # Bind lokal saja — Nginx di host yang reverse proxy ke luar.
+    ports:
+      - '127.0.0.1:8000:8000'
+    env_file: .env
+    environment:
+      # DB & Redis di host server, bukan di dalam compose.
+      DB_HOST: host.docker.internal
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+      - ./storage:/var/www/html/storage
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8000/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

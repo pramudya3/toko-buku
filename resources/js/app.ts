@@ -2,6 +2,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import PrintLayout from '@/layouts/PrintLayout.vue';
 import AdaptiveLayout from '@/layouts/settings/AdaptiveLayout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -15,6 +16,8 @@ createInertiaApp({
                 return AuthLayout;
             case name.startsWith('settings/'):
                 return AdaptiveLayout;
+            case name.startsWith('print/'):
+                return PrintLayout;
             default:
                 return AppLayout;
         }

@@ -4,11 +4,14 @@ import {
     ArrowRight,
     Ban,
     CheckCircle2,
+    CircleCheck,
     PackageCheck,
+    Printer,
     Truck,
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import OrderController from '@/actions/App/Http/Controllers/Admin/OrderController';
+import CurrencyInput from '@/components/CurrencyInput.vue';
 import Money from '@/components/Money.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -21,7 +24,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -41,14 +43,16 @@ import {
 import { index as indexRoute } from '@/routes/admin/orders';
 
 type OrderItem = {
-    id: number;
+    id: string;
     qty: number;
     price_original: number;
     promo_discount_amount: number;
     tier_discount_amount: number;
     price_final: number;
+    edition_snapshot: string | null;
+    harga_beli_snapshot: number | null;
     book: {
-        id: number;
+        id: string;
         judul: string;
         kode_sku: string | null;
         cover_url: string | null;
@@ -56,7 +60,7 @@ type OrderItem = {
 };
 
 type Order = {
-    id: number;
+    id: string;
     no_order: string;
     nama_pembeli: string;
     alamat: string | null;
@@ -66,24 +70,25 @@ type Order = {
     is_dropship: boolean;
     warehouse_origin: string | null;
     status: string;
+    payment_status: string;
     ekspedisi: string | null;
     ongkir_estimasi: number | null;
     created_at: string;
     user: {
-        id: number;
+        id: string;
         name: string;
         whatsapp_number: string | null;
         status_pelanggan: string;
     } | null;
     items: OrderItem[];
     dropshipper: {
-        id: number;
+        id: string;
         end_customer_name: string;
         end_customer_whatsapp: string | null;
         end_customer_address: string | null;
     } | null;
     cash_flows: Array<{
-        id: number;
+        id: string;
         entry_date: string;
         flow_type: string;
         amount: number;
@@ -95,6 +100,7 @@ type Props = {
     order: Order;
     statusOptions: Record<string, string>;
     couriers: Record<string, string>;
+    paymentMethods: Record<string, string>;
     warehouseOptions: Record<string, string>;
 };
 
@@ -120,10 +126,18 @@ const subtotal = computed(() =>
     ),
 );
 
-const paymentLabel: Record<string, string> = {
-    transfer: 'Transfer',
-    cod: 'COD',
-};
+/**
+ * Laba per item = (harga final - HPP) × qty.
+ */
+function itemProfit(item: OrderItem): number {
+    return (item.price_final - (item.harga_beli_snapshot ?? 0)) * item.qty;
+}
+
+const totalProfit = computed(() =>
+    props.order.items.reduce((sum, item) => sum + itemProfit(item), 0),
+);
+
+const paymentLabel = computed(() => props.paymentMethods ?? {});
 
 const flowTypeVariant: Record<
     string,
@@ -152,12 +166,51 @@ const flowTypeVariant: Record<
                     :label="statusOptions[order.status] ?? order.status"
                 />
                 <StatusBadge
+                    :variant="
+                        order.payment_status === 'lunas' ? 'success' : 'warning'
+                    "
+                    :label="
+                        order.payment_status === 'lunas'
+                            ? 'Lunas'
+                            : 'Menunggu Pembayaran'
+                    "
+                />
+                <StatusBadge
                     v-if="order.is_dropship"
                     variant="info"
                     label="Dropship"
                 />
             </div>
+            <p class="text-sm text-muted-foreground">
+                Detail pesanan, pembayaran, dan proses pengiriman
+            </p>
             <div class="flex flex-wrap items-center gap-2">
+                <!-- Cetak nota/invoice penjualan -->
+                <Button variant="outline" size="sm" as-child>
+                    <a
+                        :href="OrderController.invoice(order.id).url"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        <Printer class="size-4" />
+                        Cetak Nota
+                    </a>
+                </Button>
+                <!-- Konfirmasi pembayaran: menunggu → lunas -->
+                <Form
+                    v-if="order.payment_status === 'menunggu'"
+                    v-bind="OrderController.confirmPayment.form(order.id)"
+                    v-slot="{ processing }"
+                >
+                    <Button
+                        type="submit"
+                        variant="outline"
+                        :disabled="processing"
+                    >
+                        <CircleCheck class="size-4" />
+                        Konfirmasi Pembayaran
+                    </Button>
+                </Form>
                 <!-- Konfirmasi: isi ongkir + ekspedisi + gudang asal -->
                 <Button
                     v-if="order.status === 'menunggu_konfirmasi'"
@@ -192,8 +245,13 @@ const flowTypeVariant: Record<
                         Tandai Selesai
                     </Button>
                 </Form>
+                <!-- Batal hanya dari menunggu_konfirmasi/diproses (barang belum dikirim) -->
                 <Form
-                    v-if="!['selesai', 'batal'].includes(order.status)"
+                    v-if="
+                        ['menunggu_konfirmasi', 'diproses'].includes(
+                            order.status,
+                        )
+                    "
                     v-bind="OrderController.updateStatus.form(order.id)"
                     v-slot="{ processing }"
                 >
@@ -230,6 +288,8 @@ const flowTypeVariant: Record<
                                 <TableHead class="text-right"
                                     >Harga Final</TableHead
                                 >
+                                <TableHead class="text-right">HPP</TableHead>
+                                <TableHead class="text-right">Laba</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -243,6 +303,12 @@ const flowTypeVariant: Record<
                                     </p>
                                     <p class="text-xs text-muted-foreground">
                                         {{ item.book.kode_sku }}
+                                    </p>
+                                    <p
+                                        v-if="item.edition_snapshot"
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        {{ item.edition_snapshot }}
                                     </p>
                                 </TableCell>
                                 <TableCell>{{ item.qty }}</TableCell>
@@ -276,6 +342,23 @@ const flowTypeVariant: Record<
                                 >
                                     <Money :value="item.price_final" />
                                 </TableCell>
+                                <TableCell
+                                    class="text-right text-muted-foreground tabular-nums"
+                                >
+                                    <Money
+                                        :value="item.harga_beli_snapshot ?? 0"
+                                    />
+                                </TableCell>
+                                <TableCell
+                                    class="text-right font-medium tabular-nums"
+                                    :class="
+                                        itemProfit(item) > 0
+                                            ? 'text-green-600'
+                                            : 'text-destructive'
+                                    "
+                                >
+                                    <Money :value="itemProfit(item)" />
+                                </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -298,6 +381,19 @@ const flowTypeVariant: Record<
                             <span>Grand Total</span>
                             <span class="tabular-nums"
                                 ><Money :value="order.total"
+                            /></span>
+                        </div>
+                        <div
+                            class="flex justify-between border-t pt-2 font-semibold"
+                            :class="
+                                totalProfit > 0
+                                    ? 'text-green-600'
+                                    : 'text-destructive'
+                            "
+                        >
+                            <span>Estimasi Laba (HPP)</span>
+                            <span class="tabular-nums"
+                                ><Money :value="totalProfit"
                             /></span>
                         </div>
                     </div>
@@ -373,6 +469,7 @@ const flowTypeVariant: Record<
                                 {{
                                     new Date(order.created_at).toLocaleString(
                                         'id-ID',
+                                        { timeZone: 'Asia/Jakarta' },
                                     )
                                 }}
                             </p>
@@ -467,11 +564,9 @@ const flowTypeVariant: Record<
                 >
                     <div class="grid gap-2">
                         <Label for="shipping_cost">Ongkir Final (Rp) *</Label>
-                        <Input
+                        <CurrencyInput
                             id="shipping_cost"
                             name="shipping_cost"
-                            type="number"
-                            min="0"
                             :default-value="order.shipping_cost || undefined"
                             required
                         />

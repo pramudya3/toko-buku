@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Plus, Trash2, X } from '@lucide/vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import BookController from '@/actions/App/Http/Controllers/Admin/BookController';
 import CurrencyInput from '@/components/CurrencyInput.vue';
-import InputError from '@/components/InputError.vue';
+import FieldHint from '@/components/FieldHint.vue';
+import FormErrorAlert from '@/components/FormErrorAlert.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,24 +22,23 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { index as indexRoute } from '@/routes/admin/books';
 
-type Category = { id: number; nama: string };
+type Category = { id: string; nama: string };
 
 type Book = {
-    id: number;
+    id: string;
     kode_sku: string | null;
     judul: string;
     penulis: string | null;
+    penterjemah: string | null;
     penerbit: string | null;
     tahun: number | null;
     isbn: string | null;
     sinopsis: string | null;
     harga: number;
     stok: number;
-    category_id: number | null;
+    category_id: string | null;
     cover_url: string | null;
     aktif: boolean;
-    is_preorder: boolean;
-    po_label: string | null;
     rating_umur: string | null;
     dimensi: string | null;
     kemasan: string | null;
@@ -45,18 +46,309 @@ type Book = {
     jumlah_halaman: number | null;
     jenis_kertas: string | null;
     cetakan: string | null;
+    bahasa: string | null;
+    jenis_cover: string | null;
+};
+
+type BookEdition = {
+    id?: string;
+    nama: string;
+    cetakan_ke: number;
+    harga_beli: number;
+    harga_jual: number;
+    is_active: boolean;
+};
+
+type BookImage = {
+    id: string;
+    image_url: string;
+    urutan: number;
 };
 
 const props = defineProps<{
     book: Book | null;
+    editions: BookEdition[];
+    images: BookImage[];
     categories: Category[];
 }>();
+
+const MAX_GALLERY_IMAGES = 5;
+const MAX_IMAGE_SIZE_MB = 2;
+const MAX_IMAGE_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_UPLOAD_RAW_SIZE = 15 * 1024 * 1024; // batas aman sebelum kompres
+const MAX_IMAGE_DIMENSION = 1600;
+const JPEG_QUALITY = 0.82;
+const existingImages = ref<BookImage[]>(props.images ?? []);
+const removedImages = ref<string[]>([]);
+const newPreviews = ref<{ url: string; file: File }[]>([]);
+const coverPreview = ref<string | null>(null);
+const removeCover = ref(false);
+const coverPreviewSrc = computed<string | undefined>(() => {
+    if (coverPreview.value) {
+        return coverPreview.value;
+    }
+
+    return removeCover.value ? undefined : (props.book?.cover_url ?? undefined);
+});
+
+function loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(img);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Gagal membaca gambar.'));
+        };
+        img.src = url;
+    });
+}
+
+/**
+ * Kompres gambar: resize maks 1600px + JPEG 82% + latar putih (PNG transparan).
+ * Mengembalikan file asli bila hasilnya tidak lebih kecil.
+ */
+async function compressImage(file: File): Promise<File> {
+    try {
+        const img = await loadImage(file);
+        const scale = Math.min(
+            1,
+            MAX_IMAGE_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight),
+        );
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+            return file;
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
+        );
+
+        if (!blob || blob.size >= file.size) {
+            return file;
+        }
+
+        return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+            type: 'image/jpeg',
+        });
+    } catch {
+        return file;
+    }
+}
+
+async function onGalleryFiles(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    const remaining =
+        MAX_GALLERY_IMAGES -
+        existingImages.value.length -
+        newPreviews.value.length;
+    const quota = Math.max(remaining, 0);
+
+    const oversized = files.filter((file) => file.size > MAX_UPLOAD_RAW_SIZE);
+
+    if (oversized.length > 0) {
+        toast.error('Ukuran gambar galeri maksimal 15 MB sebelum kompres.');
+    }
+
+    if (files.length > quota) {
+        toast.error('Maksimal 5 gambar galeri.');
+    }
+
+    const accepted = files
+        .filter((file) => file.size <= MAX_UPLOAD_RAW_SIZE)
+        .slice(0, quota);
+
+    for (const file of accepted) {
+        const compressed = await compressImage(file);
+
+        if (compressed.size > MAX_IMAGE_SIZE) {
+            toast.error('Ukuran gambar galeri maksimal 2 MB per gambar.');
+            continue;
+        }
+
+        newPreviews.value.push({
+            url: URL.createObjectURL(compressed),
+            file: compressed,
+        });
+    }
+
+    syncGalleryInput();
+}
+
+function syncCoverInput(file: File | null) {
+    const input = document.getElementById('cover') as HTMLInputElement | null;
+
+    if (!input) {
+        return;
+    }
+
+    if (file === null) {
+        input.value = '';
+
+        return;
+    }
+
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+}
+
+async function onCoverFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    if (coverPreview.value) {
+        URL.revokeObjectURL(coverPreview.value);
+    }
+
+    if (file && file.size > MAX_UPLOAD_RAW_SIZE) {
+        input.value = '';
+        toast.error('Ukuran cover maksimal 15 MB sebelum kompres.');
+        coverPreview.value = null;
+
+        return;
+    }
+
+    if (!file) {
+        coverPreview.value = null;
+
+        return;
+    }
+
+    const compressed = await compressImage(file);
+
+    if (compressed.size > MAX_IMAGE_SIZE) {
+        input.value = '';
+        toast.error('Ukuran cover maksimal 2 MB.');
+        coverPreview.value = null;
+
+        return;
+    }
+
+    syncCoverInput(compressed);
+    removeCover.value = false;
+    coverPreview.value = URL.createObjectURL(compressed);
+}
+
+function removeCoverImage() {
+    if (coverPreview.value) {
+        URL.revokeObjectURL(coverPreview.value);
+        coverPreview.value = null;
+    }
+
+    const input = document.getElementById('cover') as HTMLInputElement | null;
+
+    if (input) {
+        input.value = '';
+    }
+
+    removeCover.value = true;
+}
+
+function removeNewImage(index: number) {
+    URL.revokeObjectURL(newPreviews.value[index].url);
+    newPreviews.value.splice(index, 1);
+    syncGalleryInput();
+}
+
+function removeExistingImage(id: string) {
+    const image = existingImages.value.find((img) => img.id === id);
+
+    if (image) {
+        existingImages.value = existingImages.value.filter(
+            (img) => img.id !== id,
+        );
+        removedImages.value.push(id);
+    }
+}
+
+function syncGalleryInput() {
+    const input = document.getElementById('images') as HTMLInputElement | null;
+
+    if (!input) {
+        return;
+    }
+
+    const transfer = new DataTransfer();
+
+    for (const preview of newPreviews.value) {
+        transfer.items.add(preview.file);
+    }
+
+    input.files = transfer.files;
+}
+
+onBeforeUnmount(() => {
+    for (const preview of newPreviews.value) {
+        URL.revokeObjectURL(preview.url);
+    }
+
+    if (coverPreview.value) {
+        URL.revokeObjectURL(coverPreview.value);
+    }
+});
 
 const isEdit = Boolean(props.book);
 const action = isEdit ? BookController.update : BookController.store;
 const submitArgs = isEdit ? props.book?.id : undefined;
 
-const isPreorder = ref(props.book?.is_preorder ?? false);
+const editions = ref<BookEdition[]>(
+    (props.editions ?? []).length > 0
+        ? props.editions.map((e) => ({
+              ...e,
+              nama: e.nama ?? `Cetakan ke-${e.cetakan_ke}`,
+          }))
+        : [
+              {
+                  nama: 'Cetakan ke-1',
+                  cetakan_ke: 1,
+                  harga_beli: 0,
+                  harga_jual: 0,
+                  is_active: true,
+              },
+          ],
+);
+
+function addEdition() {
+    const maxCetakan = Math.max(...editions.value.map((e) => e.cetakan_ke), 0);
+    editions.value.push({
+        nama: `Cetakan ke-${maxCetakan + 1}`,
+        cetakan_ke: maxCetakan + 1,
+        harga_beli: 0,
+        harga_jual: 0,
+        is_active: false,
+    });
+}
+
+function removeEdition(index: number) {
+    if (editions.value.length <= 1) {
+        return;
+    }
+
+    const removed = editions.value[index];
+    editions.value.splice(index, 1);
+
+    if (removed.is_active) {
+        editions.value[0].is_active = true;
+    }
+}
+
+function setActive(index: number) {
+    editions.value.forEach((e, i) => (e.is_active = i === index));
+}
 
 function onFormError() {
     toast.error('Gagal menyimpan — periksa kembali isian yang wajib diisi.');
@@ -77,12 +369,45 @@ function onFormError() {
         </div>
 
         <Form
-            v-bind="action.form(submitArgs as number)"
+            v-bind="action.form(submitArgs as string)"
             :method="isEdit ? 'put' : 'post'"
             class="flex flex-col gap-4"
             v-slot="{ errors, processing }"
             @error="onFormError"
         >
+            <FormErrorAlert :errors="errors" />
+            <!-- Hidden inputs editions -->
+            <template
+                v-for="(edition, i) in editions"
+                :key="edition.cetakan_ke"
+            >
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][cetakan_ke]`"
+                    :value="edition.cetakan_ke"
+                />
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][nama]`"
+                    :value="edition.nama ?? ''"
+                />
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][harga_beli]`"
+                    :value="edition.harga_beli"
+                />
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][harga_jual]`"
+                    :value="edition.harga_jual"
+                />
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][is_active]`"
+                    :value="edition.is_active ? '1' : '0'"
+                />
+            </template>
+
             <Card>
                 <CardHeader>
                     <CardTitle class="text-base font-medium"
@@ -100,10 +425,9 @@ function onFormError() {
                             placeholder="Judul buku"
                             required
                         />
-                        <InputError :message="errors.judul" />
                     </div>
                     <div class="grid gap-2">
-                        <Label for="category_id">Kategori</Label>
+                        <Label for="category_id">Kategori *</Label>
                         <Select
                             name="category_id"
                             class="w-48"
@@ -113,7 +437,7 @@ function onFormError() {
                                     : undefined
                             "
                         >
-                            <SelectTrigger id="category_id">
+                            <SelectTrigger id="category_id" required>
                                 <SelectValue placeholder="Pilih kategori" />
                             </SelectTrigger>
                             <SelectContent>
@@ -137,7 +461,21 @@ function onFormError() {
                             placeholder="Nama penulis"
                             required
                         />
-                        <InputError :message="errors.penulis" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label
+                            for="penterjemah"
+                            class="inline-flex w-fit items-center gap-1"
+                        >
+                            Penterjemah
+                            <FieldHint text="Diisi jika buku terjemahan." />
+                        </Label>
+                        <Input
+                            id="penterjemah"
+                            name="penterjemah"
+                            :default-value="book?.penterjemah ?? undefined"
+                            placeholder="Nama penterjemah"
+                        />
                     </div>
                     <div class="grid gap-2">
                         <Label for="penerbit">Penerbit</Label>
@@ -167,44 +505,21 @@ function onFormError() {
                             placeholder="2024"
                         />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="harga">Harga *</Label>
-                        <CurrencyInput
-                            id="harga"
-                            name="harga"
-                            min="0"
-                            :default-value="book?.harga ?? undefined"
-                            :invalid="Boolean(errors.harga)"
-                            placeholder="85.000"
-                            required
-                        />
-                        <InputError :message="errors.harga" />
-                    </div>
-                    <div class="grid gap-2">
-                        <template v-if="!isEdit">
-                            <Label for="stok">Stok Awal (gudang Malang)</Label>
-                            <Input
-                                id="stok"
-                                name="stok"
-                                type="number"
-                                min="0"
-                                default-value="0"
-                            />
-                        </template>
-                        <template v-else>
-                            <Label>Stok Normal Saat Ini</Label>
-                            <p
-                                class="flex h-9 items-center rounded-md border bg-muted/50 px-3 text-sm tabular-nums"
-                            >
-                                {{ book?.stok ?? 0 }} unit
-                            </p>
-                        </template>
+                    <div v-if="isEdit" class="grid gap-2">
+                        <Label>Stok Normal Saat Ini</Label>
+                        <p
+                            class="flex h-9 items-center rounded-md border bg-muted/50 px-3 text-sm tabular-nums"
+                        >
+                            {{ book?.stok ?? 0 }} unit
+                        </p>
                     </div>
                     <div class="grid gap-2">
                         <Label for="aktif">Status</Label>
                         <Select
                             name="aktif"
-                            :default-value="book ? (book.aktif ? '1' : '0') : '1'"
+                            :default-value="
+                                book ? (book.aktif ? '1' : '0') : '1'
+                            "
                         >
                             <SelectTrigger id="aktif">
                                 <SelectValue placeholder="Pilih status" />
@@ -214,24 +529,6 @@ function onFormError() {
                                 <SelectItem value="0">Nonaktif</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
-                    <Label class="flex items-end gap-2 pb-2">
-                        <input
-                            type="hidden"
-                            name="is_preorder"
-                            :value="isPreorder ? '1' : '0'"
-                        />
-                        <Checkbox v-model="isPreorder" />
-                        Preorder
-                    </Label>
-                    <div v-if="isPreorder" class="grid gap-2 md:col-span-2">
-                        <Label for="po_label">Label Preorder</Label>
-                        <Input
-                            id="po_label"
-                            name="po_label"
-                            :default-value="book?.po_label ?? undefined"
-                            placeholder="PO - Okt 2026"
-                        />
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">
@@ -243,36 +540,6 @@ function onFormError() {
                             rows="4"
                             placeholder="Deskripsi buku..."
                         />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base font-medium">Cover</CardTitle>
-                </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label for="cover">Upload Gambar<p class="text-xs text-muted-foreground">
-                            Maks 2 MB
-                        </p></Label>
-                        <Input
-                            id="cover"
-                            name="cover"
-                            type="file"
-                            accept="image/*"
-                        />
-                        <InputError :message="errors.cover" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="cover_url">Atau URL Eksternal</Label>
-                        <Input
-                            id="cover_url"
-                            name="cover_url"
-                            :default-value="book?.cover_url ?? undefined"
-                            placeholder="https://..."
-                        />
-                        <InputError :message="errors.cover_url" />
                     </div>
                 </CardContent>
             </Card>
@@ -349,8 +616,268 @@ function onFormError() {
                             placeholder="Ke-1, 2024"
                         />
                     </div>
+                    <div class="grid gap-2">
+                        <Label for="bahasa">Bahasa</Label>
+                        <Input
+                            id="bahasa"
+                            name="bahasa"
+                            :default-value="book?.bahasa ?? undefined"
+                            placeholder="Indonesia"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="jenis_cover">Jenis Cover</Label>
+                        <Input
+                            id="jenis_cover"
+                            name="jenis_cover"
+                            :default-value="book?.jenis_cover ?? undefined"
+                            placeholder="Soft cover"
+                        />
+                    </div>
                 </CardContent>
             </Card>
+
+            <!-- EDITIONS CARD -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <CardTitle class="text-base font-medium"
+                        >Daftar Cetakan</CardTitle
+                    >
+                    <Button
+                        type="button"
+                        size="sm"
+                        @click="addEdition"
+                    >
+                        <Plus class="size-4" />
+                        Tambah Cetakan
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <p class="mb-3 text-xs text-muted-foreground">
+                        Atur nama, harga beli & jual tiap cetakan. Cetakan
+                        <strong class="text-foreground">aktif</strong> akan
+                        tampil sebagai harga default di katalog.
+                    </p>
+
+                    <div class="overflow-x-auto">
+                        <table
+                            class="w-full border-separate border-spacing-0 text-sm"
+                        >
+                            <thead>
+                                <tr>
+                                    <th
+                                        class="border-b px-2 pb-2 text-left font-medium whitespace-nowrap text-muted-foreground"
+                                    >
+                                        Nama Cetakan
+                                    </th>
+                                    <th
+                                        class="border-b px-2 pb-2 text-left font-medium whitespace-nowrap text-muted-foreground"
+                                    >
+                                        Harga Beli
+                                    </th>
+                                    <th
+                                        class="border-b px-2 pb-2 text-left font-medium whitespace-nowrap text-muted-foreground"
+                                    >
+                                        Harga Jual
+                                    </th>
+                                    <th
+                                        class="border-b px-2 pb-2 text-center font-medium whitespace-nowrap text-muted-foreground"
+                                    >
+                                        Aktif
+                                    </th>
+                                    <th class="w-10 border-b px-2 pb-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="(edition, i) in editions"
+                                    :key="edition.cetakan_ke"
+                                    class="border-b border-border/60 last:border-0"
+                                >
+                                    <td class="px-2 py-2">
+                                        <Input
+                                            v-model="edition.nama"
+                                            :placeholder="`Cetakan ke-${edition.cetakan_ke}`"
+                                            aria-label="Nama cetakan"
+                                            class="h-8 w-44"
+                                        />
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <CurrencyInput
+                                            v-model="edition.harga_beli"
+                                            input-class="h-8 w-28"
+                                        />
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <CurrencyInput
+                                            v-model="edition.harga_jual"
+                                            input-class="h-8 w-28"
+                                        />
+                                    </td>
+                                    <td class="px-2 py-2 text-center">
+                                        <Checkbox
+                                            :model-value="edition.is_active"
+                                            @update:model-value="
+                                                (
+                                                    val:
+                                                        | boolean
+                                                        | 'indeterminate',
+                                                ) => {
+                                                    if (val === true)
+                                                        setActive(i);
+                                                }
+                                            "
+                                        />
+                                    </td>
+                                    <td
+                                        v-if="
+                                            editions.length > 1 &&
+                                            i === editions.length - 1
+                                        "
+                                        class="px-2 py-2"
+                                    >
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            class="size-8 text-muted-foreground hover:text-destructive"
+                                            @click="removeEdition(i)"
+                                        >
+                                            <Trash2 class="size-4" />
+                                        </Button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle class="text-base font-medium">Gambar</CardTitle>
+                </CardHeader>
+                <CardContent class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-2 md:col-span-2">
+                        <Label for="cover"
+                            >Upload Gambar Utama
+                            <p class="text-xs text-muted-foreground">
+                                Otomatis dikompres, maks 2 MB
+                            </p>
+                        </Label>
+                        <Input
+                            id="cover"
+                            name="cover"
+                            type="file"
+                            accept="image/*"
+                            @change="onCoverFile"
+                        />
+                    </div>
+                    <div
+                        v-if="coverPreview || (book?.cover_url && !removeCover)"
+                        class="md:col-span-2"
+                    >
+                        <Label class="mb-2 block">Preview Cover</Label>
+                        <div class="group relative inline-block">
+                            <img
+                                :src="coverPreviewSrc"
+                                :alt="book?.judul ?? 'Cover buku'"
+                                class="h-40 w-auto rounded-md border object-cover"
+                            />
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                class="absolute top-1.5 right-1.5 size-6 opacity-100 transition-opacity group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                aria-label="Hapus cover"
+                                @click="removeCoverImage"
+                            >
+                                <X class="size-3.5" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    <input
+                        type="hidden"
+                        name="remove_cover"
+                        :value="removeCover ? '1' : '0'"
+                    />
+
+                    <div class="grid gap-2 md:col-span-2">
+                        <Label for="images"
+                            >Gambar Galeri
+                            <p class="text-xs text-muted-foreground">
+                                Maks 5 gambar, otomatis dikompres
+                            </p>
+                        </Label>
+                        <Input
+                            id="images"
+                            name="images[]"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            @change="onGalleryFiles"
+                        />
+                    </div>
+
+                    <div
+                        v-if="
+                            existingImages.length > 0 || newPreviews.length > 0
+                        "
+                        class="md:col-span-2"
+                    >
+                        <Label class="mb-2 block">Preview Galeri</Label>
+                        <div
+                            class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5"
+                        >
+                            <div
+                                v-for="image in existingImages"
+                                :key="image.id"
+                                class="group relative"
+                            >
+                                <img
+                                    :src="image.image_url"
+                                    :alt="'Gambar galeri'"
+                                    class="h-28 w-full rounded-md border object-cover"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    class="absolute top-1.5 right-1.5 size-6 opacity-100 transition-opacity group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                    @click="removeExistingImage(image.id)"
+                                >
+                                    <X class="size-3.5" />
+                                </Button>
+                            </div>
+                            <div
+                                v-for="(preview, i) in newPreviews"
+                                :key="preview.url"
+                                class="group relative"
+                            >
+                                <img
+                                    :src="preview.url"
+                                    alt="Preview gambar baru"
+                                    class="h-28 w-full rounded-md border object-cover"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    class="absolute top-1.5 right-1.5 size-6 opacity-100 transition-opacity group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                    @click="removeNewImage(i)"
+                                >
+                                    <X class="size-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <template v-for="id in removedImages" :key="id">
+                <input type="hidden" name="removed_images[]" :value="id" />
+            </template>
 
             <div class="flex items-center gap-3">
                 <Button type="submit" :disabled="processing">

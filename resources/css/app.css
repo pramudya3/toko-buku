@@ -2,6 +2,12 @@
 
 @import 'tw-animate-css';
 
+/* Nota/invoice print: ukuran kertas A4. */
+@page {
+    size: A4;
+    margin: 12mm;
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
@@ -69,6 +75,7 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
     *,
     ::after,
     ::before,
@@ -164,6 +171,7 @@
     * {
         @apply border-border outline-ring/50;
     }
+
     body {
         @apply bg-background text-foreground;
     }

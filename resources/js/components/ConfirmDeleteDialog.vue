@@ -30,13 +30,10 @@ const emit = defineEmits<{
                 <DialogDescription>{{ description }}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
-                <Button variant="ghost" @click="emit('update:open', false)">
+                <Button variant="outline" @click="emit('update:open', false)">
                     Batal
                 </Button>
-                <Button
-                    variant="destructive"
-                    @click="emit('confirm')"
-                >
+                <Button variant="destructive" @click="emit('confirm')">
                     {{ confirmLabel ?? 'Hapus' }}
                 </Button>
             </DialogFooter>

@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use App\Enums\PromotionType;
+use App\Observers\PromotionObserver;
 use Carbon\Carbon;
 use Database\Factories\PromotionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -28,11 +31,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'promo_name', 'promo_type', 'discount_percentage', 'promo_value',
     'bundle_qty', 'start_date', 'end_date', 'is_active',
 ])]
+#[ObservedBy([PromotionObserver::class])]
 class Promotion extends Model
 {
     /** @use HasFactory<PromotionFactory> */
     use HasFactory, SoftDeletes;
 
+    use HasUuids;
 
     /**
      * @return BelongsToMany<Book, $this>
@@ -49,8 +54,8 @@ class Promotion extends Model
             'discount_percentage' => 'integer',
             'promo_value' => 'integer',
             'bundle_qty' => 'integer',
-            'start_date' => 'date',
-            'end_date' => 'date',
+            'start_date' => 'date:Y-m-d',
+            'end_date' => 'date:Y-m-d',
             'is_active' => 'boolean',
         ];
     }

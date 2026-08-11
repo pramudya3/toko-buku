@@ -26,8 +26,8 @@ defineProps<{
             Menampilkan
             <span class="font-medium">{{
                 (paginator.current_page - 1) * paginator.per_page + 1
-            }}</span
-            > –
+            }}</span>
+            –
             <span class="font-medium">
                 {{
                     Math.min(

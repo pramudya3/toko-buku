@@ -18,15 +18,18 @@ final class AccountingService
 {
     /**
      * Order selesai → 1 transaksi DB atomik (BR-06):
-     * deduksi stok gudang asal + 2 entry cash flow (revenue & shipping).
+     * 2 entry cash flow (revenue & shipping).
+     *
+     * Catatan: deduksi stok sudah terjadi saat order diproses
+     * (InventoryService::deductForOrder) — bukan lagi di sini.
      */
-    public function recordOrderCompleted(Order $order, ?int $userId): void
+    public function recordOrderCompleted(Order $order, ?string $userId): void
     {
-        DB::transaction(function () use ($order, $userId): void {
+        DB::transaction(function () use ($order): void {
             $lockedOrder = Order::query()
                 ->lockForUpdate()
                 ->with('items.book')
-                ->findOrFail((int) $order->getKey());
+                ->findOrFail($order->getKey());
 
             $recordedTypes = $lockedOrder->cashFlows()
                 ->whereIn('flow_type', [FlowType::Revenue->value, FlowType::Shipping->value])
@@ -43,9 +46,6 @@ final class AccountingService
 
             $subtotal = $lockedOrder->subtotal();
             $shipping = $lockedOrder->shipping_cost;
-
-            $inventoryService = app(InventoryService::class);
-            $inventoryService->deductForOrder($lockedOrder, $userId);
 
             $this->createEntry($lockedOrder, FlowType::Revenue, $subtotal, 'Pendapatan order '.$lockedOrder->no_order);
             $this->createEntry($lockedOrder, FlowType::Shipping, $shipping, 'Ongkir order '.$lockedOrder->no_order);

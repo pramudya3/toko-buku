@@ -1,33 +1,23 @@
 <script setup lang="ts">
-import { Form, Head, Link, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Search, Trash2 } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { Plus, Search, X } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
 import PromotionController from '@/actions/App/Http/Controllers/Admin/PromotionController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
-import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { create, edit, index as indexRoute } from '@/routes/admin/promotions';
 
 type Promotion = {
-    id: number;
+    id: string;
     promo_name: string;
     promo_type: string;
     discount_percentage: number | null;
     promo_value: number | null;
-    bundle_qty: number | null;
     start_date: string;
     end_date: string;
     is_active: boolean;
@@ -49,13 +39,28 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const columns: DataTableColumn[] = [
+    { key: 'promo_name', header: 'Nama', cellClass: 'font-medium' },
+    { key: 'promo_type', header: 'Tipe' },
+    { key: 'nilai', header: 'Nilai', cellClass: 'text-right tabular-nums' },
+    { key: 'periode', header: 'Periode', cellClass: 'text-muted-foreground' },
+    { key: 'books_count', header: 'Buku' },
+    { key: 'is_active', header: 'Status' },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
+
 const search = ref(props.filters.search ?? '');
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
+// Snapshot awal (nilai server saat load) untuk tombol Reset.
+const initialSearch = props.filters.search ?? '';
 
-watch(search, () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+const hasActiveFilters = computed(() => search.value !== initialSearch);
+
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+
+function applyFilters() {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
             { search: search.value || undefined },
@@ -65,7 +70,14 @@ watch(search, () => {
             },
         );
     }, 350);
-});
+}
+
+function resetFilters() {
+    search.value = initialSearch;
+    applyFilters();
+}
+
+watch([search], applyFilters);
 
 const typeLabel = (promo: Promotion) => {
     switch (promo.promo_type) {
@@ -74,7 +86,7 @@ const typeLabel = (promo: Promotion) => {
         case 'fixed':
             return `Rp ${promo.promo_value?.toLocaleString('id-ID')}`;
         case 'bundle':
-            return `Beli ≥ ${promo.bundle_qty} → ${promo.discount_percentage}%`;
+            return `Paket ${promo.discount_percentage}%`;
         default:
             return promo.promo_type;
     }
@@ -128,124 +140,94 @@ function executeDelete() {
             </Button>
         </div>
 
-        <div class="relative max-w-sm">
-            <Search
-                class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-                v-model="search"
-                class="pl-9"
-                placeholder="Cari promo..."
-            />
+        <div
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
+        >
+            <div class="relative flex items-center">
+                <Search
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                    v-model="search"
+                    class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 md:h-9 md:w-56"
+                    placeholder="Cari promo..."
+                />
+            </div>
+            <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
+                title="Hapus filter"
+                aria-label="Hapus filter"
+                @click="resetFilters"
+            >
+                <X class="size-4" />
+                <span class="md:hidden">Hapus filter</span>
+            </button>
         </div>
 
-        <Card>
-            <CardContent class="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nama</TableHead>
-                            <TableHead>Tipe</TableHead>
-                            <TableHead>Nilai</TableHead>
-                            <TableHead>Periode</TableHead>
-                            <TableHead>Buku</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead class="text-right"><span class="sr-only">Aksi</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow
-                            v-for="promo in promotions.data"
-                            :key="promo.id"
-                        >
-                            <TableCell class="font-medium">{{
-                                promo.promo_name
-                            }}</TableCell>
-                            <TableCell>
-                                <StatusBadge
-                                    :variant="
-                                        typeVariant[promo.promo_type] ??
-                                        'neutral'
-                                    "
-                                    :label="
-                                        typeOptions[promo.promo_type] ??
-                                        promo.promo_type
-                                    "
-                                />
-                            </TableCell>
-                            <TableCell class="tabular-nums">{{
-                                typeLabel(promo)
-                            }}</TableCell>
-                            <TableCell class="text-muted-foreground">
-                                {{ promo.start_date }} → {{ promo.end_date }}
-                            </TableCell>
-                            <TableCell>{{
-                                promo.books_count === 0
-                                    ? 'Global'
-                                    : `${promo.books_count} buku`
-                            }}</TableCell>
-                            <TableCell>
-                                <Form
-                                    v-bind="
-                                        PromotionController.toggle.form(
-                                            promo.id,
-                                        )
-                                    "
-                                    v-slot="{ processing }"
-                                >
-                                    <Button
-                                        type="submit"
-                                        variant="ghost"
-                                        size="sm"
-                                        :disabled="processing"
-                                    >
-                                        <StatusBadge
-                                            :variant="
-                                                promo.is_active
-                                                    ? 'success'
-                                                    : 'danger'
-                                            "
-                                            :label="
-                                                promo.is_active
-                                                    ? 'Aktif'
-                                                    : 'Nonaktif'
-                                            "
-                                        />
-                                    </Button>
-                                </Form>
-                            </TableCell>
-                            <TableCell class="text-right">
-                                <DataTableActions
-                                    :actions="[
-                                        {
-                                            label: 'Edit',
-                                            icon: Pencil,
-                                            href: edit(promo.id),
-                                        },
-                                        {
-                                            label: 'Hapus',
-                                            icon: Trash2,
-                                            variant: 'destructive',
-                                            onClick: () => confirmDelete(promo),
-                                        },
-                                    ]"
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-                <EmptyState
-                    v-if="!promotions.data.length"
-                    title="Belum ada promo"
-                    description="Buat promosi pertama untuk menarik pembeli."
+        <DataTable
+            :data="promotions.data"
+            :columns="columns"
+            :paginator="promotions"
+            empty-title="Belum ada promo"
+            empty-description="Buat promosi pertama untuk menarik pembeli."
+        >
+            <template #cell-promo_type="{ row }">
+                <StatusBadge
+                    :variant="typeVariant[row.promo_type] ?? 'neutral'"
+                    :label="typeOptions[row.promo_type] ?? row.promo_type"
                 />
-                <Pagination v-else :paginator="promotions" />
-            </CardContent>
-        </Card>
+            </template>
+            <template #cell-nilai="{ row }">
+                {{ typeLabel(row) }}
+            </template>
+            <template #cell-periode="{ row }">
+                {{ row.start_date }} → {{ row.end_date }}
+            </template>
+            <template #cell-books_count="{ row }">
+                {{
+                    row.books_count === 0 ? 'Global' : `${row.books_count} buku`
+                }}
+            </template>
+            <template #cell-is_active="{ row }">
+                <StatusBadge
+                    :variant="row.is_active ? 'success' : 'danger'"
+                    :label="row.is_active ? 'Aktif' : 'Nonaktif'"
+                />
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            href: edit(row.id).url,
+                        },
+                        {
+                            label: row.is_active ? 'Nonaktifkan' : 'Aktifkan',
+                            onClick: () =>
+                                router.patch(
+                                    PromotionController.toggle(row.id).url,
+                                    { preserveScroll: true },
+                                ),
+                        },
+                        {
+                            label: 'Hapus',
+                            variant: 'destructive',
+                            onClick: () => confirmDelete(row),
+                        },
+                    ]"
+                />
+            </template>
+        </DataTable>
 
         <ConfirmDeleteDialog
             :open="!!deletingPromo"
-            @update:open="(open) => { if (!open) deletingPromo = null }"
+            @update:open="
+                (open) => {
+                    if (!open) deletingPromo = null;
+                }
+            "
             title="Hapus Promo?"
             :description="
                 deletingPromo

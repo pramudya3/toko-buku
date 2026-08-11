@@ -29,6 +29,12 @@ export default defineConfig({
         }),
         wayfinder({
             formVariants: true,
+            // Di build Docker tidak ada PHP → pakai file wayfinder yang sudah
+            // di-generate & di-commit (regenerate lokal: php artisan wayfinder:generate --with-form).
+            command:
+                process.env.WAYFINDER_SKIP === '1'
+                    ? 'true'
+                    : 'php artisan wayfinder:generate',
         }),
     ],
 });

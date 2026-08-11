@@ -55,7 +55,7 @@ function fillDemoCredentials() {
 </script>
 
 <template>
-    <Head title="Log in" />
+    <Head title="Masuk" />
 
     <div
         v-if="status"

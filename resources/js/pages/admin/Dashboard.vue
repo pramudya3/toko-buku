@@ -29,7 +29,6 @@ type SalesPoint = {
 };
 
 type Props = {
-    period: number;
     stats: {
         revenue: number;
         orders_count: number;
@@ -38,13 +37,14 @@ type Props = {
         total_stock: number;
     };
     lowStockBooks: Array<{
-        id: number;
+        id: string;
         judul: string;
         kode_sku: string | null;
         stok: number;
     }>;
+    lowStockThreshold: number;
     recentOrders: Array<{
-        id: number;
+        id: string;
         no_order: string;
         nama_pembeli: string;
         total: number;
@@ -67,6 +67,11 @@ const statusVariant: Record<
     selesai: 'success',
     batal: 'danger',
 };
+
+// Label tanggal di bawah chart — format dd (chart = bulan berjalan, 1 s.d. hari ini).
+function shortDate(date: string): string {
+    return date.slice(8, 10);
+}
 </script>
 
 <template>
@@ -89,7 +94,7 @@ const statusVariant: Record<
                         class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
                     >
                         <TrendingUp class="size-4" />
-                        Penjualan ({{ period }} hari)
+                        Penjualan (Bulan Ini)
                     </CardTitle>
                 </CardHeader>
                 <CardContent class="p-0 pt-3">
@@ -104,7 +109,7 @@ const statusVariant: Record<
                         class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
                     >
                         <ShoppingCart class="size-4" />
-                        Jumlah Order ({{ period }} hari)
+                        Jumlah Order (Bulan Ini)
                     </CardTitle>
                 </CardHeader>
                 <CardContent class="p-0 pt-3">
@@ -119,12 +124,15 @@ const statusVariant: Record<
                         class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
                     >
                         <Banknote class="size-4" />
-                        Kas Masuk Bulan Ini
+                        Uang Cash (Bulan Ini)
                     </CardTitle>
                 </CardHeader>
                 <CardContent class="p-0 pt-3">
                     <p class="text-2xl font-semibold tabular-nums">
                         <Money :value="stats.cash_in_month" />
+                    </p>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        Khusus transaksi tunai
                     </p>
                 </CardContent>
             </Card>
@@ -154,16 +162,26 @@ const statusVariant: Record<
 
         <div class="grid gap-4 lg:grid-cols-3">
             <!-- Grafik penjualan -->
-            <Card class="lg:col-span-2">
-                <CardHeader>
+            <Card class="flex h-72 flex-col gap-4 lg:col-span-2">
+                <CardHeader class="pb-0">
                     <CardTitle class="text-base font-medium"
-                        >Penjualan per Hari</CardTitle
+                        >Penjualan Harian</CardTitle
                     >
+                    <div data-slot="card-action">
+                        <span
+                            class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                        >
+                            <span
+                                class="size-2.5 rounded-sm border border-primary/40 bg-primary/15"
+                            />
+                            Penjualan bersih (setelah refund)
+                        </span>
+                    </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent class="flex min-h-0 flex-1 flex-col">
                     <div
                         v-if="salesChart.length"
-                        class="flex h-40 items-end gap-1"
+                        class="flex min-h-0 flex-1 items-end gap-1"
                     >
                         <div
                             v-for="point in salesChart"
@@ -176,7 +194,6 @@ const statusVariant: Record<
                             <div
                                 class="absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 rounded-md border bg-background px-2 py-1 text-xs shadow-sm group-hover:block"
                             >
-                                {{ point.date }}:
                                 <Money :value="point.total" />
                             </div>
                         </div>
@@ -185,21 +202,69 @@ const statusVariant: Record<
                         v-else
                         title="Belum ada penjualan"
                         description="Order yang selesai akan muncul di grafik ini."
+                        class="flex-1"
                     />
+
+                    <template v-if="salesChart.length">
+                        <div
+                            class="flex gap-1 pt-2 text-[10px] text-muted-foreground"
+                        >
+                            <span
+                                v-for="point in salesChart"
+                                :key="point.date"
+                                class="flex-1 truncate text-center"
+                            >
+                                {{ shortDate(point.date) }}
+                            </span>
+                        </div>
+                    </template>
                 </CardContent>
             </Card>
 
             <!-- Peringatan stok menipis -->
-            <Card>
-                <CardHeader>
+            <Card class="flex h-72 flex-col gap-4">
+                <CardHeader class="pb-0">
                     <CardTitle
                         class="flex items-center gap-2 text-base font-medium"
                     >
                         <AlertTriangle class="size-4 text-amber-500" />
                         Stok Menipis
+                        <span
+                            v-if="lowStockBooks.length"
+                            class="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                        >
+                            {{ lowStockBooks.length }}
+                        </span>
                     </CardTitle>
+                    <div data-slot="card-action">
+                        <Button variant="ghost" size="sm" as-child>
+                            <Link
+                                :href="
+                                    booksIndex({
+                                        query: { low_stock: '1' },
+                                    }).url
+                                "
+                                >Lihat semua</Link
+                            >
+                        </Button>
+                    </div>
                 </CardHeader>
-                <CardContent>
+
+                <!-- Legenda: menipis vs habis -->
+                <div
+                    class="flex items-center gap-4 px-6 text-xs text-muted-foreground"
+                >
+                    <span class="flex items-center gap-1.5">
+                        <span class="size-2 rounded-full bg-amber-500" />
+                        Menipis (≤ {{ lowStockThreshold }})
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="size-2 rounded-full bg-red-500" />
+                        Habis (0)
+                    </span>
+                </div>
+
+                <CardContent class="min-h-0 flex-1 overflow-y-auto">
                     <ul v-if="lowStockBooks.length" class="space-y-2">
                         <li
                             v-for="book in lowStockBooks"
@@ -215,8 +280,14 @@ const statusVariant: Record<
                                 </p>
                             </div>
                             <StatusBadge
-                                variant="warning"
-                                :label="`${book.stok} stok`"
+                                :variant="
+                                    book.stok === 0 ? 'danger' : 'warning'
+                                "
+                                :label="
+                                    book.stok === 0
+                                        ? 'Habis'
+                                        : `${book.stok} stok`
+                                "
                             />
                         </li>
                     </ul>
@@ -279,6 +350,7 @@ const statusVariant: Record<
                             <TableCell class="text-muted-foreground">{{
                                 new Date(order.created_at).toLocaleDateString(
                                     'id-ID',
+                                    { timeZone: 'Asia/Jakarta' },
                                 )
                             }}</TableCell>
                         </TableRow>

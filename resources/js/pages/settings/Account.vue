@@ -27,33 +27,57 @@ const user = computed(() => page.props.auth.user);
 </script>
 
 <template>
+    <Head title="Pengaturan Akun" />
 
-    <Head title="Account settings" />
-
-    <h1 class="sr-only">Account settings</h1>
+    <h1 class="sr-only">Pengaturan Akun</h1>
 
     <div class="flex flex-col space-y-6">
         <SettingsTabs />
 
-        <Heading variant="small" title="Akun" description="Update nama dan email akun Anda" />
+        <Heading
+            variant="small"
+            title="Akun"
+            description="Update nama dan email akun Anda"
+        />
 
-        <Form v-bind="ProfileController.update.form()" class="space-y-6" v-slot="{ errors, processing }">
+        <Form
+            v-bind="ProfileController.update.form()"
+            class="space-y-6"
+            v-slot="{ errors, processing }"
+        >
             <div class="grid gap-2">
                 <Label for="name">Name</Label>
-                <Input id="name" class="mt-1 block w-full" name="name" :default-value="user.name" required
-                    autocomplete="name" placeholder="Full name" />
+                <Input
+                    id="name"
+                    class="mt-1 block w-full"
+                    name="name"
+                    :default-value="user.name"
+                    required
+                    autocomplete="name"
+                    placeholder="Full name"
+                />
                 <InputError class="mt-2" :message="errors.name" />
             </div>
 
             <div class="grid gap-2">
                 <Label for="email">Email address</Label>
-                <Input id="email" type="email" class="mt-1 block w-full" name="email" :default-value="user.email"
-                    required autocomplete="username" placeholder="Email address" />
+                <Input
+                    id="email"
+                    type="email"
+                    class="mt-1 block w-full"
+                    name="email"
+                    :default-value="user.email"
+                    required
+                    autocomplete="username"
+                    placeholder="Email address"
+                />
                 <InputError class="mt-2" :message="errors.email" />
             </div>
 
-            <div class="flex items-center gap-4 mb-4">
-                <Button :disabled="processing" data-test="update-profile-button">Save</Button>
+            <div class="mb-4 flex items-center gap-4">
+                <Button :disabled="processing" data-test="update-profile-button"
+                    >Save</Button
+                >
             </div>
         </Form>
     </div>

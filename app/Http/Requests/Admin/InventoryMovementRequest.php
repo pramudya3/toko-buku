@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\MovementType;
-use App\Enums\Warehouse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,10 +25,11 @@ class InventoryMovementRequest extends FormRequest
     {
         return [
             'book_id' => ['required', 'exists:books,id'],
+            'book_edition_id' => ['nullable', 'string', 'exists:book_editions,id'],
             'type' => ['required', Rule::enum(MovementType::class)],
             'qty' => ['required', 'integer', 'min:1'],
-            'from_warehouse' => ['required_if:type,transfer', 'required_if:type,out', 'required_if:type,defect', 'nullable', Rule::enum(Warehouse::class)],
-            'to_warehouse' => ['required_if:type,transfer', 'required_if:type,in', 'required_if:type,defect', 'nullable', Rule::enum(Warehouse::class)],
+            'from_warehouse' => ['required_if:type,transfer', 'required_if:type,out', 'required_if:type,defect', 'required_if:type,return', 'nullable', 'exists:warehouses,id'],
+            'to_warehouse' => ['required_if:type,transfer', 'required_if:type,in', 'required_if:type,defect', 'nullable', 'exists:warehouses,id'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];

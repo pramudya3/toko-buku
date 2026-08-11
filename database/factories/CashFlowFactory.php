@@ -60,4 +60,26 @@ class CashFlowFactory extends Factory
             'amount' => $amount,
         ]);
     }
+
+    /**
+     * Entry uang masuk manual.
+     */
+    public function income(int $amount): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'flow_type' => FlowType::Income,
+            'amount' => $amount,
+        ]);
+    }
+
+    /**
+     * Entry uang keluar manual.
+     */
+    public function expense(int $amount): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'flow_type' => FlowType::Expense,
+            'amount' => $amount,
+        ]);
+    }
 }

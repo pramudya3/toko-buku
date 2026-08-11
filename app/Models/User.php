@@ -4,9 +4,12 @@ namespace App\Models;
 
 use App\Enums\CustomerTier;
 use App\Enums\UserRole;
+use App\Observers\UserObserver;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -35,13 +38,16 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'name', 'email', 'password', 'is_admin', 'is_active', 'whatsapp_number',
     'status_pelanggan', 'alamat', 'provinsi',
-    'kabupaten_kota', 'kecamatan', 'kode_pos',
+    'kabupaten_kota', 'kecamatan', 'kode_pos', 'email_verified_at',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+#[ObservedBy([UserObserver::class])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
+
+    use HasUuids;
 
     /**
      * Role pengguna (admin / customer) — dari kolom is_admin.
@@ -62,6 +68,14 @@ class User extends Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * @return HasMany<ActivityLog, $this>
+     */
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class);
     }
 
     /**

@@ -3,7 +3,8 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import CustomerController from '@/actions/App/Http/Controllers/Admin/CustomerController';
 import AddressFields from '@/components/AddressFields.vue';
-import InputError from '@/components/InputError.vue';
+import FieldHint from '@/components/FieldHint.vue';
+import FormErrorAlert from '@/components/FormErrorAlert.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +20,7 @@ import {
 import { index as indexRoute } from '@/routes/admin/customers';
 
 type Customer = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     whatsapp_number: string | null;
@@ -29,6 +30,8 @@ type Customer = {
     provinsi: string | null;
     kabupaten_kota: string | null;
     kecamatan: string | null;
+    kelurahan: string | null;
+    village_code: string | null;
     kode_pos: string | null;
 };
 
@@ -62,7 +65,9 @@ const tierVariant = computed(() => {
 </script>
 
 <template>
-    <Head :title="isEdit ? `Edit Pelanggan: ${customer?.name}` : 'Buat Pelanggan'" />
+    <Head
+        :title="isEdit ? `Edit Pelanggan: ${customer?.name}` : 'Buat Pelanggan'"
+    />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
@@ -93,6 +98,7 @@ const tierVariant = computed(() => {
             class="flex flex-col gap-4"
             v-slot="{ errors, processing }"
         >
+            <FormErrorAlert :errors="errors" />
             <Card>
                 <CardHeader>
                     <CardTitle class="text-base font-medium"
@@ -108,7 +114,6 @@ const tierVariant = computed(() => {
                             :default-value="customer?.name"
                             required
                         />
-                        <InputError :message="errors.name" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="email">Email *</Label>
@@ -119,10 +124,18 @@ const tierVariant = computed(() => {
                             :default-value="customer?.email"
                             required
                         />
-                        <InputError :message="errors.email" />
                     </div>
                     <div class="grid gap-2">
-                        <Label for="password">Password *</Label>
+                        <Label
+                            for="password"
+                            class="inline-flex w-fit items-center gap-1"
+                        >
+                            Password *
+                            <FieldHint
+                                v-if="isEdit"
+                                text="Kosongkan untuk tidak mengubah password."
+                            />
+                        </Label>
                         <Input
                             id="password"
                             name="password"
@@ -131,26 +144,25 @@ const tierVariant = computed(() => {
                             placeholder="Minimal 8 karakter"
                             :required="!isEdit"
                         />
-                        <p v-if="isEdit" class="text-xs text-muted-foreground">
-                            Kosongkan untuk tidak mengubah password.
-                        </p>
-                        <InputError :message="errors.password" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="whatsapp_number">WhatsApp</Label>
                         <Input
                             id="whatsapp_number"
                             name="whatsapp_number"
-                            :default-value="customer?.whatsapp_number ?? undefined"
+                            :default-value="
+                                customer?.whatsapp_number ?? undefined
+                            "
                             placeholder="08xxxxxxxxxx"
                         />
-                        <InputError :message="errors.whatsapp_number" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="status_pelanggan">Status Tier *</Label>
                         <Select
                             name="status_pelanggan"
-                            :default-value="customer?.status_pelanggan ?? 'reguler'"
+                            :default-value="
+                                customer?.status_pelanggan ?? 'reguler'
+                            "
                         >
                             <SelectTrigger id="status_pelanggan">
                                 <SelectValue placeholder="Pilih tier" />
@@ -165,7 +177,6 @@ const tierVariant = computed(() => {
                                 </SelectItem>
                             </SelectContent>
                         </Select>
-                        <InputError :message="errors.status_pelanggan" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="is_active">Status</Label>
@@ -187,7 +198,6 @@ const tierVariant = computed(() => {
                                 <SelectItem value="0">Nonaktif</SelectItem>
                             </SelectContent>
                         </Select>
-                        <InputError :message="errors.is_active" />
                     </div>
                 </CardContent>
             </Card>
@@ -202,6 +212,8 @@ const tierVariant = computed(() => {
                             provinsi: customer?.provinsi ?? '',
                             kabupaten_kota: customer?.kabupaten_kota ?? '',
                             kecamatan: customer?.kecamatan ?? '',
+                            kelurahan: customer?.kelurahan ?? '',
+                            village_code: customer?.village_code ?? '',
                             kode_pos: customer?.kode_pos ?? '',
                             alamat: customer?.alamat ?? '',
                         }"

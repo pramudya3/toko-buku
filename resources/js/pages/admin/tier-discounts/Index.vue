@@ -1,19 +1,14 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import {
-    ChevronDown,
-    ChevronRight,
-    Pencil,
-    Plus,
-    Trash2,
-} from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Plus, Search, X } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
 import TierDiscountController from '@/actions/App/Http/Controllers/Admin/TierDiscountController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -31,48 +26,107 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 
 type TierDiscount = {
-    id: number;
+    id: string;
     tier: string;
     min_qty: number;
-    max_qty: number | null;
     discount_percent: number;
 };
 
 type Props = {
-    tierDiscounts: Record<string, TierDiscount[]>;
+    tierDiscounts: {
+        data: TierDiscount[];
+        current_page: number;
+        last_page: number;
+        total: number;
+        per_page: number;
+        links: Array<{ url: string | null; label: string; active: boolean }>;
+    };
     tierOptions: Record<string, string>;
+    filters: { search?: string; tier?: string };
 };
 
 const props = defineProps<Props>();
 
+const columns: DataTableColumn[] = [
+    { key: 'tier', header: 'Tier' },
+    { key: 'min_qty', header: 'Min Qty', cellClass: 'text-right tabular-nums' },
+    {
+        key: 'discount_percent',
+        header: 'Diskon',
+        cellClass: 'text-right tabular-nums',
+    },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
+
+const allTiersFilter = '__all_tiers__';
+
+const search = ref(props.filters.search ?? '');
+const filterTier = ref(props.filters.tier ?? allTiersFilter);
+
+// Snapshot awal (nilai server saat load) untuk tombol Reset.
+const initialSearch = props.filters.search ?? '';
+const initialTier = props.filters.tier ?? allTiersFilter;
+
+const hasActiveFilters = computed(
+    () => search.value !== initialSearch || filterTier.value !== initialTier,
+);
+
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+
+function applyFilters() {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
+        router.get(
+            window.location.pathname,
+            {
+                search: search.value || undefined,
+                tier:
+                    filterTier.value === allTiersFilter
+                        ? undefined
+                        : filterTier.value,
+            },
+            {
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }, 350);
+}
+
+function resetFilters() {
+    search.value = initialSearch;
+    filterTier.value = initialTier;
+    applyFilters();
+}
+
+watch([search, filterTier], applyFilters);
+
 const formDialogOpen = ref(false);
 const deleteDialogOpen = ref(false);
-const selectedTier = ref('');
 const editingDiscount = ref<TierDiscount | null>(null);
 const deletingDiscount = ref<TierDiscount | null>(null);
-const openGroups = ref<Record<string, boolean>>({});
-const allTiersFilter = '__all_tiers__';
-const filterTier = ref(allTiersFilter);
 
-function openCreate(tier?: string) {
+function getTierLabel(tier: string): string {
+    return props.tierOptions[tier] ?? tier;
+}
+
+const tierVariant: Record<string, 'success' | 'warning' | 'info' | 'neutral'> =
+    {
+        reguler: 'neutral',
+        bazaf: 'info',
+        guru: 'success',
+        reseller: 'warning',
+    };
+
+function openCreate() {
     editingDiscount.value = null;
-    selectedTier.value = tier ?? '';
     formDialogOpen.value = true;
 }
 
 function openEdit(discount: TierDiscount) {
     editingDiscount.value = discount;
-    selectedTier.value = discount.tier;
     formDialogOpen.value = true;
 }
 
@@ -83,53 +137,11 @@ function openDelete(discount: TierDiscount) {
 
 function confirmDelete() {
     if (deletingDiscount.value) {
-        router.delete(TierDiscountController.destroy(deletingDiscount.value.id).url);
+        router.delete(
+            TierDiscountController.destroy(deletingDiscount.value.id).url,
+        );
         deleteDialogOpen.value = false;
         deletingDiscount.value = null;
-    }
-}
-
-function getTierLabel(tier: string): string {
-    return props.tierOptions[tier] ?? tier;
-}
-
-function formatQtyRange(discount: TierDiscount): string {
-    if (discount.max_qty) {
-        return `${discount.min_qty} - ${discount.max_qty}`;
-    }
-
-    return `${discount.min_qty}+`;
-}
-
-function toggleGroup(tier: string) {
-    openGroups.value[tier] = !openGroups.value[tier];
-}
-
-const groupedDiscounts = computed(() => {
-    const groups: Record<string, TierDiscount[]> = {};
-
-    for (const [tier, discounts] of Object.entries(props.tierDiscounts)) {
-        groups[tier] = [...discounts].sort((a, b) => a.min_qty - b.min_qty);
-    }
-
-    return groups;
-});
-
-const tierOrder = ['reguler', 'bazaf', 'guru', 'reseller'];
-const sortedTiers = computed(() => {
-    const tiers = tierOrder.filter((t) => groupedDiscounts.value[t]?.length);
-
-    if (filterTier.value === allTiersFilter) {
-        return tiers;
-    }
-
-    return tiers.filter((t) => t === filterTier.value);
-});
-
-// Init all groups as open
-for (const tier of Object.keys(groupedDiscounts.value)) {
-    if (!(tier in openGroups.value)) {
-        openGroups.value[tier] = true;
     }
 }
 </script>
@@ -140,120 +152,104 @@ for (const tier of Object.keys(groupedDiscounts.value)) {
     <div class="flex flex-col gap-4 p-4 md:p-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h1 class="text-xl font-semibold tracking-tight">Tier Discount</h1>
+                <h1 class="text-xl font-semibold tracking-tight">
+                    Tier Discount
+                </h1>
                 <p class="text-sm text-muted-foreground">
-                    Atur diskon berdasarkan tier pelanggan dan jumlah pembelian
+                    Atur diskon berdasarkan tier pelanggan
                 </p>
             </div>
-            <Button @click="openCreate()">
+            <Button @click="openCreate">
                 <Plus class="size-4" />
-                Tambah
+                Tambah Rule
             </Button>
         </div>
 
-        <div class="flex items-center gap-2">
-            <Select v-model="filterTier">
-                <SelectTrigger class="w-48">
-                    <SelectValue placeholder="Semua tier" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem :value="allTiersFilter">Semua tier</SelectItem>
-                    <SelectItem
-                        v-for="(label, value) in tierOptions"
-                        :key="value"
-                        :value="value"
+        <div
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
+        >
+            <div class="relative flex items-center">
+                <Search
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                    v-model="search"
+                    class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-56"
+                    placeholder="Cari tier..."
+                />
+            </div>
+
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Tier
+                </p>
+                <Select v-model="filterTier">
+                    <SelectTrigger
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
                     >
-                        {{ label }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+                        <SelectValue placeholder="Semua tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="allTiersFilter"
+                            >Semua tier</SelectItem
+                        >
+                        <SelectItem
+                            v-for="(label, value) in tierOptions"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
+                title="Hapus filter"
+                aria-label="Hapus filter"
+                @click="resetFilters"
+            >
+                <X class="size-4" />
+                <span class="md:hidden">Hapus filter</span>
+            </button>
         </div>
 
-        <Card v-if="sortedTiers.length">
-            <CardContent class="p-0">
-                <div class="divide-y">
-                    <div v-for="tier in sortedTiers" :key="tier">
-                        <div
-                            class="flex items-center justify-between px-4 py-3 hover:bg-muted/30 cursor-pointer"
-                            @click="toggleGroup(tier)"
-                        >
-                            <div class="flex items-center gap-2 text-sm font-medium">
-                                <ChevronDown
-                                    v-if="openGroups[tier]"
-                                    class="size-4 text-muted-foreground"
-                                />
-                                <ChevronRight
-                                    v-else
-                                    class="size-4 text-muted-foreground"
-                                />
-                                {{ getTierLabel(tier) }}
-                                <span class="text-xs text-muted-foreground font-normal">
-                                    ({{ groupedDiscounts[tier].length }})
-                                </span>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                @click.stop="openCreate(tier)"
-                            >
-                                <Plus class="size-3 mr-1" />
-                                tambah
-                            </Button>
-                        </div>
-
-                        <div v-if="openGroups[tier]" class="border-t">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Range Qty</TableHead>
-                                        <TableHead>Diskon</TableHead>
-                                        <TableHead class="w-12"><span class="sr-only">Aksi</span></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow
-                                        v-for="discount in groupedDiscounts[tier]"
-                                        :key="discount.id"
-                                    >
-                                        <TableCell class="font-mono text-xs">
-                                            {{ formatQtyRange(discount) }}
-                                        </TableCell>
-                                        <TableCell>
-                                            {{ discount.discount_percent }}%
-                                        </TableCell>
-                                        <TableCell>
-                                            <DataTableActions
-                                                :actions="[
-                                                    {
-                                                        label: 'Edit',
-                                                        icon: Pencil,
-                                                        onClick: () =>
-                                                            openEdit(discount),
-                                                    },
-                                                    {
-                                                        label: 'Hapus',
-                                                        icon: Trash2,
-                                                        variant: 'destructive',
-                                                        onClick: () =>
-                                                            openDelete(discount),
-                                                    },
-                                                ]"
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-
-        <EmptyState
-            v-else
-            title="Belum ada tier discount"
-            description="Klik 'Tambah' untuk menambahkan rule diskon."
-        />
+        <DataTable
+            :data="tierDiscounts.data"
+            :columns="columns"
+            :paginator="tierDiscounts"
+            empty-title="Belum ada tier discount"
+            empty-description="Klik 'Tambah Rule' untuk menambahkan diskon berdasarkan tier."
+        >
+            <template #cell-tier="{ row }">
+                <StatusBadge
+                    :variant="tierVariant[row.tier] ?? 'neutral'"
+                    :label="getTierLabel(row.tier)"
+                />
+            </template>
+            <template #cell-discount_percent="{ row }">
+                {{ row.discount_percent }}%
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            onClick: () => openEdit(row),
+                        },
+                        {
+                            label: 'Hapus',
+                            variant: 'destructive',
+                            onClick: () => openDelete(row),
+                        },
+                    ]"
+                />
+            </template>
+        </DataTable>
 
         <!-- Form Dialog -->
         <Dialog v-model:open="formDialogOpen">
@@ -269,58 +265,45 @@ for (const tier of Object.keys(groupedDiscounts.value)) {
 
                 <Form
                     v-if="editingDiscount"
-                    :action="TierDiscountController.update(editingDiscount.id).url"
+                    :action="
+                        TierDiscountController.update(editingDiscount.id).url
+                    "
                     method="post"
                     class="grid gap-4"
-                    v-slot="{ errors, processing }"
                     @success="formDialogOpen = false"
                 >
                     <input type="hidden" name="_method" value="put" />
-                    <input type="hidden" name="tier" :value="editingDiscount.tier" />
+                    <input
+                        type="hidden"
+                        name="tier"
+                        :value="editingDiscount.tier"
+                    />
 
                     <div class="grid gap-2">
                         <Label>Tier</Label>
-                        <div class="h-9 rounded-md border bg-muted px-3 text-sm flex items-center">
+                        <div
+                            class="flex h-9 items-center rounded-md border bg-muted px-3 text-sm"
+                        >
                             {{ getTierLabel(editingDiscount.tier) }}
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="grid gap-2">
-                            <Label for="min_qty">Min Qty</Label>
-                            <Input
-                                id="min_qty"
-                                name="min_qty"
-                                type="number"
-                                min="1"
-                                required
-                                :default-value="editingDiscount.min_qty"
-                            />
-                            <span v-if="errors.min_qty" class="text-sm text-destructive">
-                                {{ errors.min_qty }}
-                            </span>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="max_qty">Max Qty</Label>
-                            <Input
-                                id="max_qty"
-                                name="max_qty"
-                                type="number"
-                                min="1"
-                                placeholder="Kosong = tanpa batas"
-                                :default-value="editingDiscount.max_qty ?? ''"
-                            />
-                            <span v-if="errors.max_qty" class="text-sm text-destructive">
-                                {{ errors.max_qty }}
-                            </span>
-                        </div>
+                    <div class="grid gap-2">
+                        <Label for="edit_min_qty">Min Qty</Label>
+                        <Input
+                            id="edit_min_qty"
+                            name="min_qty"
+                            type="number"
+                            min="1"
+                            required
+                            :default-value="editingDiscount.min_qty"
+                        />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="discount_percent">Diskon (%)</Label>
+                        <Label for="edit_discount_percent"> Diskon (%) </Label>
                         <Input
-                            id="discount_percent"
+                            id="edit_discount_percent"
                             name="discount_percent"
                             type="number"
                             min="0"
@@ -328,15 +311,10 @@ for (const tier of Object.keys(groupedDiscounts.value)) {
                             required
                             :default-value="editingDiscount.discount_percent"
                         />
-                        <span v-if="errors.discount_percent" class="text-sm text-destructive">
-                            {{ errors.discount_percent }}
-                        </span>
                     </div>
 
                     <DialogFooter>
-                        <Button type="submit" :disabled="processing">
-                            Simpan
-                        </Button>
+                        <Button type="submit">Simpan</Button>
                     </DialogFooter>
                 </Form>
 
@@ -345,55 +323,38 @@ for (const tier of Object.keys(groupedDiscounts.value)) {
                     :action="TierDiscountController.store().url"
                     method="post"
                     class="grid gap-4"
-                    v-slot="{ errors, processing }"
                     @success="formDialogOpen = false"
                 >
                     <div class="grid gap-2">
                         <Label for="tier">Tier</Label>
                         <select
+                            id="tier"
                             name="tier"
-                            v-model="selectedTier"
                             required
-                            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
-                            <option value="" disabled>Pilih tier</option>
-                            <option v-for="(label, value) in tierOptions" :key="value" :value="value">
+                            <option value="" disabled selected>
+                                Pilih tier
+                            </option>
+                            <option
+                                v-for="(label, value) in tierOptions"
+                                :key="value"
+                                :value="value"
+                            >
                                 {{ label }}
                             </option>
                         </select>
-                        <span v-if="errors.tier" class="text-sm text-destructive">
-                            {{ errors.tier }}
-                        </span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="grid gap-2">
-                            <Label for="min_qty">Min Qty</Label>
-                            <Input
-                                id="min_qty"
-                                name="min_qty"
-                                type="number"
-                                min="1"
-                                required
-                            />
-                            <span v-if="errors.min_qty" class="text-sm text-destructive">
-                                {{ errors.min_qty }}
-                            </span>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label for="max_qty">Max Qty</Label>
-                            <Input
-                                id="max_qty"
-                                name="max_qty"
-                                type="number"
-                                min="1"
-                                placeholder="Kosong = tanpa batas"
-                            />
-                            <span v-if="errors.max_qty" class="text-sm text-destructive">
-                                {{ errors.max_qty }}
-                            </span>
-                        </div>
+                    <div class="grid gap-2">
+                        <Label for="min_qty">Min Qty</Label>
+                        <Input
+                            id="min_qty"
+                            name="min_qty"
+                            type="number"
+                            min="1"
+                            required
+                        />
                     </div>
 
                     <div class="grid gap-2">
@@ -406,15 +367,10 @@ for (const tier of Object.keys(groupedDiscounts.value)) {
                             max="100"
                             required
                         />
-                        <span v-if="errors.discount_percent" class="text-sm text-destructive">
-                            {{ errors.discount_percent }}
-                        </span>
                     </div>
 
                     <DialogFooter>
-                        <Button type="submit" :disabled="processing">
-                            Simpan
-                        </Button>
+                        <Button type="submit">Simpan</Button>
                     </DialogFooter>
                 </Form>
             </DialogContent>
@@ -426,7 +382,7 @@ for (const tier of Object.keys(groupedDiscounts.value)) {
             title="Hapus Rule?"
             :description="
                 deletingDiscount
-                    ? `${getTierLabel(deletingDiscount.tier)} — ${formatQtyRange(deletingDiscount)} → ${deletingDiscount.discount_percent}%`
+                    ? `${getTierLabel(deletingDiscount.tier)} — Min ${deletingDiscount.min_qty} → ${deletingDiscount.discount_percent}%`
                     : ''
             "
             @confirm="confirmDelete"

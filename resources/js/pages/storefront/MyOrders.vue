@@ -9,10 +9,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
 
 type Order = {
-    id: number;
+    id: string;
     no_order: string;
     total: number;
     status: string;
+    payment_status: string;
     created_at: string;
     items_count: number;
 };
@@ -60,14 +61,14 @@ defineOptions({
                             <p class="text-xs text-muted-foreground">
                                 {{ order.items_count }} item ·
                                 {{
-                                    new Date(order.created_at).toLocaleDateString(
-                                        'id-ID',
-                                        {
-                                            day: '2-digit',
-                                            month: 'long',
-                                            year: 'numeric',
-                                        },
-                                    )
+                                    new Date(
+                                        order.created_at,
+                                    ).toLocaleDateString('id-ID', {
+                                        day: '2-digit',
+                                        month: 'long',
+                                        year: 'numeric',
+                                        timeZone: 'Asia/Jakarta',
+                                    })
                                 }}
                             </p>
                         </div>
@@ -76,21 +77,33 @@ defineOptions({
                                 :value="order.total"
                                 class="text-sm font-semibold"
                             />
-                            <StatusBadge
-                                :variant="
-                                    order.status === 'menunggu_konfirmasi'
-                                        ? 'warning'
-                                        : order.status === 'selesai'
-                                          ? 'success'
-                                          : order.status === 'batal'
-                                            ? 'danger'
-                                            : 'info'
-                                "
-                                :label="
-                                    statusOptions[order.status] ??
-                                    order.status
-                                "
-                            />
+                            <div class="flex flex-col items-end gap-1">
+                                <StatusBadge
+                                    :variant="
+                                        order.status === 'menunggu_konfirmasi'
+                                            ? 'warning'
+                                            : order.status === 'selesai'
+                                              ? 'success'
+                                              : order.status === 'batal'
+                                                ? 'danger'
+                                                : 'info'
+                                    "
+                                    :label="
+                                        statusOptions[order.status] ??
+                                        order.status
+                                    "
+                                />
+                                <StatusBadge
+                                    v-if="order.payment_status === 'menunggu'"
+                                    variant="warning"
+                                    label="Menunggu Pembayaran"
+                                />
+                                <StatusBadge
+                                    v-else-if="order.payment_status === 'lunas'"
+                                    variant="success"
+                                    label="Lunas"
+                                />
+                            </div>
                         </div>
                     </li>
                 </ul>

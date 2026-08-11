@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Form, Head, Link, useHttp } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Form, Head, Link } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import PromotionController from '@/actions/App/Http/Controllers/Admin/PromotionController';
+import BookCombobox from '@/components/BookCombobox.vue';
 import CurrencyInput from '@/components/CurrencyInput.vue';
-import InputError from '@/components/InputError.vue';
+import FormErrorAlert from '@/components/FormErrorAlert.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -16,28 +16,28 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { index as indexRoute } from '@/routes/admin/promotions';
-import { books as bookOptions } from '@/routes/admin/promotions/options';
 
 type Book = {
-    id: number;
+    id: string;
     judul: string;
     kode_sku: string | null;
     harga: number;
+    cover_url?: string | null;
 };
 
 type Promotion = {
-    id: number;
+    id: string;
     promo_name: string;
     promo_type: string;
     discount_percentage: number | null;
     promo_value: number | null;
-    bundle_qty: number | null;
     start_date: string;
     end_date: string;
     is_active: boolean;
     is_global: boolean;
-    books: Array<{ id: number }>;
+    books: Book[];
 };
 
 const props = defineProps<{
@@ -46,70 +46,72 @@ const props = defineProps<{
     books: Book[];
 }>();
 
-const isActive = ref(props.promotion ? props.promotion.is_active : true);
-
 const isEdit = Boolean(props.promotion);
 const action = isEdit ? PromotionController.update : PromotionController.store;
 const submitArgs = isEdit ? props.promotion?.id : undefined;
 
-const isGlobal = ref(
-    props.promotion?.is_global ?? props.promotion?.books.length === 0,
+const isActive = ref(props.promotion ? props.promotion.is_active : true);
+
+// ── Mode: satuan / bundle ──
+const promoMode = ref<'satuan' | 'bundle'>(
+    props.promotion?.promo_type === 'bundle' ? 'bundle' : 'satuan',
 );
-const selectedBooks = ref<Set<number>>(
-    new Set((props.promotion?.books ?? []).map((book) => book.id)),
+
+// ── Satuan: jenis diskon ──
+const satuanType = ref<'percentage' | 'fixed'>(
+    props.promotion?.promo_type === 'fixed' ? 'fixed' : 'percentage',
 );
-const availableBooks = ref<Book[]>(props.books);
-const bookSearch = ref('');
-const bookSearchRequest = useHttp({ search: '' });
-let bookSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
-function toggleGlobal(value: boolean) {
-    isGlobal.value = value;
+// ── Bundle: buku dalam paket ──
+const bundleBooks = ref<Book[]>(
+    isEdit && props.promotion?.promo_type === 'bundle'
+        ? (props.promotion.books as unknown as Book[])
+        : [],
+);
 
-    if (value) {
-        selectedBooks.value = new Set();
-    }
-}
+// ── Satuan: buku terpilih ──
+const selectedBooks = ref<Book[]>(
+    isEdit && props.promotion?.promo_type !== 'bundle'
+        ? ((props.promotion?.books as unknown as Book[]) ?? [])
+        : [],
+);
 
-function searchBooks() {
-    clearTimeout(bookSearchTimer);
+// ── Buku terpilih (satuan & bundle) ──
+const targetBooks = computed(() =>
+    promoMode.value === 'bundle' ? bundleBooks.value : selectedBooks.value,
+);
 
-    if (!bookSearch.value.trim()) {
-        availableBooks.value = props.books;
-
-        return;
-    }
-
-    bookSearchTimer = setTimeout(() => {
-        bookSearchRequest.get(
-            bookOptions({ query: { search: bookSearch.value.trim() } }).url,
-            {
-                onSuccess: (data) => {
-                    availableBooks.value = data as Book[];
-                },
-            },
-        );
-    }, 250);
-}
-
-function toggleBook(bookId: number) {
-    isGlobal.value = false;
-    const next = new Set(selectedBooks.value);
-
-    if (next.has(bookId)) {
-        next.delete(bookId);
+function onTargetBooksChange(books: Book[]) {
+    if (promoMode.value === 'bundle') {
+        bundleBooks.value = books;
     } else {
-        next.add(bookId);
+        selectedBooks.value = books;
     }
-
-    selectedBooks.value = next;
 }
+
+// ── Computed hidden fields ──
+const promoTypeValue = computed(() =>
+    promoMode.value === 'bundle' ? 'bundle' : satuanType.value,
+);
+const isGlobalValue = computed(() =>
+    promoMode.value === 'bundle'
+        ? '0'
+        : selectedBooks.value.length === 0
+          ? '1'
+          : '0',
+);
+const bookIdsValue = computed(() =>
+    promoMode.value === 'bundle'
+        ? bundleBooks.value.map((b) => b.id)
+        : selectedBooks.value.map((b) => b.id),
+);
 </script>
 
 <template>
     <Head :title="isEdit ? 'Edit Promo' : 'Buat Promo'" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
+        <!-- ── Header ── -->
         <div>
             <h1 class="text-xl font-semibold tracking-tight">
                 {{
@@ -119,213 +121,241 @@ function toggleBook(bookId: number) {
                 }}
             </h1>
             <p class="text-sm text-muted-foreground">
-                Harga promo diterapkan otomatis selama periode aktif
+                Atur diskon satuan buku atau paket bundle
             </p>
         </div>
 
         <Form
-            v-bind="action.form(submitArgs as number)"
+            v-bind="action.form(submitArgs as string)"
             class="flex flex-col gap-4"
             v-slot="{ errors, processing }"
         >
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base font-medium"
-                        >Aturan Promo</CardTitle
-                    >
-                </CardHeader>
-                <CardContent class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2 md:col-span-2">
-                        <Label for="promo_name">Nama Promo *</Label>
-                        <Input
-                            id="promo_name"
-                            name="promo_name"
-                            :default-value="promotion?.promo_name ?? undefined"
-                            placeholder="Contoh: Diskon Akhir Pekan"
-                            required
-                        />
-                        <InputError :message="errors.promo_name" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="promo_type">Tipe Promo *</Label>
-                        <Select
-                            name="promo_type"
-                            :default-value="
-                                promotion?.promo_type ?? 'percentage'
-                            "
-                        >
-                            <SelectTrigger id="promo_type">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="(label, value) in typeOptions"
-                                    :key="value"
-                                    :value="value"
-                                >
-                                    {{ label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <InputError :message="errors.promo_type" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="is_active">Status</Label>
-                        <Label class="flex h-9 items-center gap-2">
-                            <input
-                                type="hidden"
-                                name="is_active"
-                                :value="isActive ? '1' : '0'"
-                            />
-                            <Checkbox v-model="isActive" />
-                            Aktif
-                        </Label>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="discount_percentage"
-                            >Diskon Persentase (%) — utk tipe percentage &
-                            bundle</Label
-                        >
-                        <Input
-                            id="discount_percentage"
-                            name="discount_percentage"
-                            type="number"
-                            min="1"
-                            max="100"
-                            :default-value="
-                                promotion?.discount_percentage ?? undefined
-                            "
-                        />
-                        <InputError :message="errors.discount_percentage" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="promo_value"
-                            >Harga Tetap — utk tipe fixed</Label
-                        >
-                        <CurrencyInput
-                            id="promo_value"
-                            name="promo_value"
-                            :default-value="promotion?.promo_value ?? undefined"
-                            placeholder="50.000"
-                        />
-                        <InputError :message="errors.promo_value" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="bundle_qty"
-                            >Qty Minimal Bundle — utk tipe bundle</Label
-                        >
-                        <Input
-                            id="bundle_qty"
-                            name="bundle_qty"
-                            type="number"
-                            min="2"
-                            :default-value="promotion?.bundle_qty ?? undefined"
-                        />
-                        <InputError :message="errors.bundle_qty" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="start_date">Tanggal Mulai *</Label>
-                        <Input
-                            id="start_date"
-                            name="start_date"
-                            type="date"
-                            :default-value="promotion?.start_date ?? undefined"
-                            required
-                        />
-                        <InputError :message="errors.start_date" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="end_date">Tanggal Selesai *</Label>
-                        <Input
-                            id="end_date"
-                            name="end_date"
-                            type="date"
-                            :default-value="promotion?.end_date ?? undefined"
-                            required
-                        />
-                        <InputError :message="errors.end_date" />
-                    </div>
-                </CardContent>
-            </Card>
+            <FormErrorAlert :errors="errors" />
+            <!-- ── Hidden fields ── -->
+            <input type="hidden" name="promo_type" :value="promoTypeValue" />
+            <input type="hidden" name="is_global" :value="isGlobalValue" />
+            <input
+                v-for="id in bookIdsValue"
+                :key="id"
+                type="hidden"
+                name="book_ids[]"
+                :value="String(id)"
+            />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base font-medium"
-                        >Buku yang Terkena Promo</CardTitle
-                    >
-                </CardHeader>
-                <CardContent class="flex flex-col gap-4">
-                    <input
-                        type="hidden"
-                        name="is_global"
-                        :value="isGlobal ? '1' : '0'"
-                    />
-                    <Label class="flex items-center gap-2">
-                        <Checkbox
-                            :checked="isGlobal"
-                            @update:checked="toggleGlobal"
-                        />
-                        Global — berlaku untuk semua buku
-                    </Label>
-
-                    <div v-if="!isGlobal" class="flex flex-col gap-3">
-                        <Input
-                            v-model="bookSearch"
-                            placeholder="Cari judul atau SKU buku..."
-                            @input="searchBooks"
-                        />
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <button
-                                v-for="book in availableBooks"
-                                :key="book.id"
-                                type="button"
-                                class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors"
-                                :class="
-                                    selectedBooks.has(book.id)
-                                        ? 'border-primary bg-primary/5'
-                                        : 'hover:bg-muted/50'
-                                "
-                                @click="toggleBook(book.id)"
+            <div class="grid items-start gap-4 lg:grid-cols-3">
+                <!-- ═══════════════════════════════════════════
+                     KIRI (2/3) — Target Buku
+                ════════════════════════════════════════════ -->
+                <Card class="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle class="text-base font-medium">
+                            Target Buku
+                            <span
+                                v-if="targetBooks.length"
+                                class="ml-1 text-xs font-normal text-muted-foreground"
                             >
-                                <span class="truncate">{{ book.judul }}</span>
-                                <span
-                                    class="shrink-0 text-xs text-muted-foreground"
-                                    >{{ book.kode_sku }}</span
-                                >
-                            </button>
+                                ({{ targetBooks.length }} dipilih)
+                            </span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-4">
+                        <!-- Pilih buku (combobox + filter teks) -->
+                        <BookCombobox
+                            :model-value="targetBooks"
+                            :initial-books="books"
+                            :empty-hint="
+                                promoMode === 'bundle'
+                                    ? 'Pilih minimal 2 judul buku untuk membentuk paket.'
+                                    : 'Pilih buku untuk diberikan diskon — kosongkan untuk promo global.'
+                            "
+                            @update:model-value="onTargetBooksChange"
+                        />
+                    </CardContent>
+                </Card>
+
+                <!-- ═══════════════════════════════════════════
+                     KANAN (1/3) — Aturan Promo (sticky)
+                ════════════════════════════════════════════ -->
+                <Card class="lg:sticky lg:top-20">
+                    <CardHeader>
+                        <CardTitle class="text-base font-medium"
+                            >Aturan Promo</CardTitle
+                        >
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-4">
+                        <!-- Tipe Promo -->
+                        <div class="grid gap-2">
+                            <Label for="promo_mode">Tipe Promo</Label>
+                            <Select v-model="promoMode">
+                                <SelectTrigger id="promo_mode">
+                                    <SelectValue placeholder="Pilih mode" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="satuan"
+                                        >Satuan — diskon per judul
+                                        buku</SelectItem
+                                    >
+                                    <SelectItem value="bundle"
+                                        >Bundle — paket gabungan
+                                        buku</SelectItem
+                                    >
+                                </SelectContent>
+                            </Select>
                         </div>
-                    </div>
 
-                    <input
-                        v-for="bookId in Array.from(selectedBooks)"
-                        :key="bookId"
-                        type="hidden"
-                        name="book_ids[]"
-                        :value="String(bookId)"
-                    />
-                    <p v-if="isGlobal" class="text-sm text-muted-foreground">
-                        Semua buku aktif akan terkena promo ini.
-                    </p>
-                    <p v-else class="text-sm text-muted-foreground">
-                        {{ selectedBooks.size }} buku dipilih.
-                    </p>
-                    <InputError :message="errors.book_ids" />
-                </CardContent>
-            </Card>
+                        <!-- Satuan: jenis diskon + nilai -->
+                        <template v-if="promoMode === 'satuan'">
+                            <div class="grid gap-2">
+                                <Label for="satuan_type">Jenis Diskon</Label>
+                                <Select v-model="satuanType">
+                                    <SelectTrigger id="satuan_type">
+                                        <SelectValue
+                                            placeholder="Pilih jenis"
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="percentage"
+                                            >Persentase (%)</SelectItem
+                                        >
+                                        <SelectItem value="fixed"
+                                            >Harga Tetap (Rp)</SelectItem
+                                        >
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div
+                                v-if="satuanType === 'percentage'"
+                                class="grid gap-2"
+                            >
+                                <Label for="discount_percentage"
+                                    >Diskon (%)</Label
+                                >
+                                <Input
+                                    id="discount_percentage"
+                                    name="discount_percentage"
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    :default-value="
+                                        promotion?.discount_percentage ??
+                                        undefined
+                                    "
+                                />
+                            </div>
+                            <div v-else class="grid gap-2">
+                                <Label for="promo_value">Harga Tetap</Label>
+                                <CurrencyInput
+                                    id="promo_value"
+                                    name="promo_value"
+                                    :default-value="
+                                        promotion?.promo_value ?? undefined
+                                    "
+                                    placeholder="50.000"
+                                />
+                            </div>
+                        </template>
 
-            <div class="flex items-center gap-3">
-                <Button type="submit" :disabled="processing">
-                    {{
-                        processing
-                            ? 'Menyimpan...'
-                            : isEdit
-                              ? 'Simpan Perubahan'
-                              : 'Buat Promo'
-                    }}
-                </Button>
-                <Button variant="outline" type="button" as-child>
-                    <Link :href="indexRoute().url">Batal</Link>
-                </Button>
+                        <!-- Bundle: diskon paket -->
+                        <template v-else>
+                            <div class="grid gap-2">
+                                <Label for="discount_percentage"
+                                    >Diskon (%)</Label
+                                >
+                                <Input
+                                    id="discount_percentage"
+                                    name="discount_percentage"
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    :default-value="
+                                        promotion?.discount_percentage ??
+                                        undefined
+                                    "
+                                />
+                            </div>
+                        </template>
+
+                        <!-- Nama + periode + status -->
+                        <div class="grid gap-4 border-t pt-4">
+                            <div class="grid gap-2">
+                                <Label for="promo_name">Nama Promo *</Label>
+                                <Input
+                                    id="promo_name"
+                                    name="promo_name"
+                                    :default-value="
+                                        promotion?.promo_name ?? undefined
+                                    "
+                                    placeholder="Contoh: Diskon Akhir Pekan"
+                                    required
+                                />
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="grid gap-2">
+                                    <Label for="start_date"
+                                        >Tanggal Mulai *</Label
+                                    >
+                                    <Input
+                                        id="start_date"
+                                        name="start_date"
+                                        type="date"
+                                        :default-value="
+                                            promotion?.start_date ?? undefined
+                                        "
+                                        required
+                                    />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="end_date"
+                                        >Tanggal Selesai *</Label
+                                    >
+                                    <Input
+                                        id="end_date"
+                                        name="end_date"
+                                        type="date"
+                                        :default-value="
+                                            promotion?.end_date ?? undefined
+                                        "
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <Label class="flex h-9 items-center gap-2 text-sm">
+                                <input
+                                    type="hidden"
+                                    name="is_active"
+                                    :value="isActive ? '1' : '0'"
+                                />
+                                <Switch v-model="isActive" />
+                                Aktif
+                            </Label>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex flex-col gap-2 border-t pt-4">
+                            <Button
+                                type="submit"
+                                class="w-full"
+                                :disabled="processing"
+                            >
+                                {{
+                                    processing
+                                        ? 'Menyimpan...'
+                                        : isEdit
+                                          ? 'Simpan Perubahan'
+                                          : 'Buat Promo'
+                                }}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                type="button"
+                                class="w-full"
+                                as-child
+                            >
+                                <Link :href="indexRoute().url">Batal</Link>
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </Form>
     </div>

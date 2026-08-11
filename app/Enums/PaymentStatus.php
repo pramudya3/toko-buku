@@ -2,11 +2,10 @@
 
 namespace App\Enums;
 
-enum Warehouse: string
+enum PaymentStatus: string
 {
-    case Malang = 'malang';
-    case Sidoarjo = 'sidoarjo';
-    case Defect = 'defect';
+    case Menunggu = 'menunggu';
+    case Lunas = 'lunas';
 
     /**
      * @return array<string, string>
@@ -25,14 +24,16 @@ enum Warehouse: string
     public function label(): string
     {
         return match ($this) {
-            self::Malang => 'Malang',
-            self::Sidoarjo => 'Sidoarjo',
-            self::Defect => 'Defect',
+            self::Menunggu => 'Menunggu Pembayaran',
+            self::Lunas => 'Lunas',
         };
     }
 
-    public function isSellable(): bool
+    public function badgeVariant(): string
     {
-        return $this !== self::Defect;
+        return match ($this) {
+            self::Menunggu => 'warning',
+            self::Lunas => 'success',
+        };
     }
 }

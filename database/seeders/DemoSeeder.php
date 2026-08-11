@@ -8,17 +8,17 @@ use App\Enums\MovementType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PromotionType;
-use App\Enums\Warehouse;
 use App\Models\Book;
+use App\Models\BookEdition;
 use App\Models\CashFlow;
 use App\Models\Category;
 use App\Models\Dropshipper;
-use App\Models\InventoryStock;
-use App\Services\InventoryService;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Promotion;
 use App\Models\User;
+use App\Models\Warehouse;
+use App\Services\InventoryService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -52,7 +52,7 @@ class DemoSeeder extends Seeder
             'status_pelanggan' => $data['tier'],
             'whatsapp_number' => fake()->numerify('08##########'),
             'provinsi' => 'Jawa Timur',
-            'kabupaten' => 'Malang',
+            'kabupaten_kota' => 'Malang',
             'kecamatan' => 'Lowokwaru',
             'kode_pos' => '65141',
             'alamat' => fake()->streetAddress(),
@@ -91,19 +91,45 @@ class DemoSeeder extends Seeder
                 'stok' => $data['stok'][0] + $data['stok'][1],
                 'category_id' => $categories[$data['kategori']]->id,
                 'aktif' => true,
-                'is_preorder' => str_starts_with($data['judul'], 'Preorder'),
-                'po_label' => str_starts_with($data['judul'], 'Preorder') ? 'PO - '.now()->addMonths(2)->format('M Y') : null,
                 'kode_sku' => 'SKU-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
                 'berat_gr' => fake()->numberBetween(150, 900),
                 'jumlah_halaman' => fake()->numberBetween(96, 640),
             ]);
 
-            InventoryStock::create([
+            // Cetakan ke-1 (harga beli ≈ 65% dari harga jual).
+            $edition1 = BookEdition::create([
                 'book_id' => $book->id,
-                'stock_malang' => $data['stok'][0],
-                'stock_sidoarjo' => $data['stok'][1],
-                'stock_defect' => $data['stok'][2],
+                'cetakan_ke' => 1,
+                'harga_beli' => (int) round($data['harga'] * 0.65),
+                'harga_jual' => $data['harga'],
+                'is_active' => true,
             ]);
+
+            // Stok demo di level cetakan ke-1.
+            $warehouses = [['kode' => 'malang', 'qty' => $data['stok'][0]], ['kode' => 'sidoarjo', 'qty' => $data['stok'][1]], ['kode' => 'defect', 'qty' => $data['stok'][2]]];
+
+            foreach ($warehouses as $spec) {
+                $warehouse = Warehouse::query()->where('kode', $spec['kode'])->first();
+
+                if ($warehouse !== null && $spec['qty'] > 0) {
+                    $edition1->stocks()->create(['warehouse_id' => $warehouse->id, 'qty' => $spec['qty']]);
+                }
+            }
+
+            // Sebagian buku punya cetakan ke-2 dengan harga berbeda
+            // (contoh: kenaikan harga bahan baku).
+            if ($index % 3 === 0) {
+                BookEdition::create([
+                    'book_id' => $book->id,
+                    'cetakan_ke' => 2,
+                    'harga_beli' => (int) round($data['harga'] * 0.72),
+                    'harga_jual' => (int) round($data['harga'] * 1.08),
+                    'is_active' => false,
+                ]);
+            }
+
+            // Sinkron agregat buku (inventory_stocks per buku + books.stok).
+            app(InventoryService::class)->syncBookStock($book);
 
             return $book;
         });
@@ -126,9 +152,8 @@ class DemoSeeder extends Seeder
                 'is_active' => true,
             ]),
             Promotion::create([
-                'promo_name' => 'Beli 3 Hemat 15%',
+                'promo_name' => 'Paket Hemat 15%',
                 'promo_type' => PromotionType::Bundle,
-                'bundle_qty' => 3,
                 'discount_percentage' => 15,
                 'start_date' => now()->subDay()->toDateString(),
                 'end_date' => now()->addDays(30)->toDateString(),
@@ -145,10 +170,10 @@ class DemoSeeder extends Seeder
         // Order sample: 1 menunggu konfirmasi, 1 diproses, 1 dikirim, 2 selesai, 1 batal.
         $orderSpecs = [
             ['customer' => 0, 'status' => OrderStatus::MenungguKonfirmasi, 'shipping' => 0, 'warehouse' => null, 'items' => [[0, 2], [1, 1]]],
-            ['customer' => 1, 'status' => OrderStatus::Diproses, 'shipping' => 15000, 'warehouse' => Warehouse::Malang, 'items' => [[3, 2]]],
-            ['customer' => 2, 'status' => OrderStatus::Dikirim, 'shipping' => 12000, 'warehouse' => Warehouse::Malang, 'items' => [[4, 1], [5, 1]]],
-            ['customer' => 3, 'status' => OrderStatus::Selesai, 'shipping' => 20000, 'warehouse' => Warehouse::Malang, 'items' => [[2, 12]]],
-            ['customer' => 0, 'status' => OrderStatus::Selesai, 'shipping' => 15000, 'warehouse' => Warehouse::Malang, 'items' => [[3, 1], [6, 1]]],
+            ['customer' => 1, 'status' => OrderStatus::Diproses, 'shipping' => 15000, 'warehouse' => 'malang', 'items' => [[3, 2]]],
+            ['customer' => 2, 'status' => OrderStatus::Dikirim, 'shipping' => 12000, 'warehouse' => 'malang', 'items' => [[4, 1], [5, 1]]],
+            ['customer' => 3, 'status' => OrderStatus::Selesai, 'shipping' => 20000, 'warehouse' => 'malang', 'items' => [[2, 12]]],
+            ['customer' => 0, 'status' => OrderStatus::Selesai, 'shipping' => 15000, 'warehouse' => 'malang', 'items' => [[3, 1], [6, 1]]],
             ['customer' => 1, 'status' => OrderStatus::Batal, 'shipping' => 0, 'warehouse' => null, 'items' => [[7, 5]]],
         ];
 
@@ -181,6 +206,8 @@ class DemoSeeder extends Seeder
                 OrderItem::create([
                     'order_id' => $order->id,
                     'book_id' => $book->id,
+                    'judul_snapshot' => $book->judul,
+                    'harga_snapshot' => $book->harga,
                     'qty' => $qty,
                     'price_original' => $book->harga,
                     'promo_discount_amount' => $book->harga - $final,
@@ -194,15 +221,17 @@ class DemoSeeder extends Seeder
             $order->update(['total' => $total + $spec['shipping']]);
 
             if ($spec['status'] === OrderStatus::Selesai) {
+                $warehouse = $spec['warehouse'] !== null ? Warehouse::query()->where('kode', $spec['warehouse'])->first() : null;
+
                 foreach ($spec['items'] as [$bookIndex, $qty]) {
                     $inventory->move(
                         book: $books[$bookIndex],
                         type: MovementType::Out,
                         qty: $qty,
-                        from: $spec['warehouse'],
-                        orderId: $order->id,
+                        from: $warehouse,
+                        reference: "Deduksi stok order {$order->no_order}",
                         userId: $admin->id,
-                        description: "Deduksi stok order {$order->no_order}",
+                        notes: "Deduksi stok order {$order->no_order}",
                     );
                 }
 
@@ -223,9 +252,13 @@ class DemoSeeder extends Seeder
         ]);
 
         // Mutasi sample — lewat InventoryService agar stok & audit trail konsisten.
-        $inventory->move($books[1], MovementType::In, 5, to: Warehouse::Malang, userId: $admin->id, description: 'Stok masuk demo');
-        $inventory->move($books[1], MovementType::Transfer, 3, Warehouse::Malang, Warehouse::Sidoarjo, userId: $admin->id, description: 'Transfer demo');
-        $inventory->move($books[2], MovementType::Defect, 1, Warehouse::Malang, Warehouse::Defect, userId: $admin->id, description: 'Barang cacat demo');
+        $malangWarehouse = Warehouse::query()->where('kode', 'malang')->firstOrFail();
+        $sidoarjoWarehouse = Warehouse::query()->where('kode', 'sidoarjo')->firstOrFail();
+        $defectWarehouse = Warehouse::defect();
+
+        $inventory->move($books[1], MovementType::In, 5, to: $malangWarehouse, userId: $admin->id, notes: 'Stok masuk demo');
+        $inventory->move($books[1], MovementType::Transfer, 3, $malangWarehouse, $sidoarjoWarehouse, userId: $admin->id, notes: 'Transfer demo');
+        $inventory->move($books[2], MovementType::Defect, 1, $malangWarehouse, $defectWarehouse, userId: $admin->id, notes: 'Barang cacat demo');
 
         $this->command->info('Demo data selesai: admin@tokobuku.test / password');
     }

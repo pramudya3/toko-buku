@@ -8,6 +8,7 @@ enum MovementType: string
     case In = 'in';
     case Out = 'out';
     case Defect = 'defect';
+    case Return = 'return';
 
     /**
      * @return array<string, string>
@@ -30,6 +31,7 @@ enum MovementType: string
             self::In => 'Stok Masuk',
             self::Out => 'Stok Keluar',
             self::Defect => 'Defect',
+            self::Return => 'Retur Supplier',
         };
     }
 }

@@ -3,15 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
-use App\Enums\PaymentMethod;
+use App\Enums\PromotionType;
 use App\Http\Requests\Storefront\CheckoutRequest;
+use App\Models\BankAccount;
 use App\Models\Book;
+use App\Models\BookEdition;
 use App\Models\Order;
+use App\Models\Promotion;
 use App\Services\PricingService;
+use App\Services\ShippingCostService;
+use App\Support\StoreSettings;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -21,20 +28,40 @@ use RuntimeException;
  */
 class CheckoutController extends Controller
 {
-    public function __construct(private readonly PricingService $pricing) {}
+    public function __construct(
+        private readonly PricingService $pricing,
+        private readonly ShippingCostService $shippingCost,
+    ) {}
 
     /**
-     * Halaman checkout: item keranjang + form data diri.
+     * Halaman checkout: item keranjang dikelompokkan per paket bundle,
+     * item di luar bundle masuk grup terpisah "Item Lainnya".
      */
     public function index(): Response
     {
-        $items = $this->cartItems();
+        $groups = $this->cartGroups();
         $user = auth()->user();
 
+        // Pilihan grup dicentang — dikelola di session (default semua dicentang).
+        $availableKeys = array_column($groups, 'key');
+        $saved = session('checkout_selected_groups');
+
+        if ($saved === null) {
+            $selectedGroups = $availableKeys;
+        } else {
+            $selectedGroups = array_values(array_intersect((array) $saved, $availableKeys));
+        }
+
+        session(['checkout_selected_groups' => $selectedGroups]);
+
         return Inertia::render('storefront/Checkout', [
-            'items' => $items,
-            'paymentOptions' => PaymentMethod::options(),
-            'couriers' => config('shipping.couriers'),
+            'groups' => $groups,
+            'selectedGroups' => $selectedGroups,
+            'paymentOptions' => StoreSettings::enabledPaymentMethods(),
+            'bankAccounts' => BankAccount::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'bank_name', 'account_number', 'account_holder']),
             'user' => $user ? [
                 'name' => $user->name,
                 'whatsapp_number' => $user->whatsapp_number,
@@ -49,22 +76,58 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Tambah buku ke keranjang (session).
+     * Tambah buku ke keranjang (session). Cetakan bisa dipilih dari detail buku.
      */
     public function add(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'book_id' => ['required', 'exists:books,id'],
+            'book_edition_id' => ['nullable', 'string', 'exists:book_editions,id'],
             'qty' => ['required', 'integer', 'min:1'],
         ]);
 
         $cart = $this->cart();
-        $bookId = (int) $validated['book_id'];
-        $cart[$bookId] = ($cart[$bookId] ?? 0) + (int) $validated['qty'];
-        session(['cart' => $cart]);
+        $bookId = (string) $validated['book_id'];
+        $book = Book::findOrFail($bookId);
+        $editionId = ! empty($validated['book_edition_id']) ? (string) $validated['book_edition_id'] : null;
 
-        $book = Book::find($bookId);
+        if ($editionId !== null) {
+            $edition = BookEdition::query()->findOrFail($editionId);
+
+            if ($edition->book_id !== $book->id) {
+                return back()->withErrors(['book_edition_id' => 'Cetakan tidak sesuai dengan buku.']);
+            }
+        }
+
+        if ($book->stok <= 0) {
+            return back()->withErrors(['qty' => "{$book->judul} sedang stok habis."]);
+        }
+
+        // Qty cap mengikuti stok cetakan terpilih (bukan stok seluruh buku).
+        $edition = null;
+
+        if ($editionId !== null) {
+            $edition = BookEdition::query()->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')->find($editionId);
+        }
+
+        $capStock = $edition?->sellable_total ?? $book->stok;
+
+        if ($capStock <= 0) {
+            return back()->withErrors(['qty' => "{$book->judul} (cetakan terpilih) sedang stok habis."]);
+        }
+
+        // Satu buku boleh punya beberapa cetakan di keranjang: kunci = bookId:editionId.
+        $key = $editionId !== null ? $bookId.':'.$editionId : (string) $bookId;
+        $current = $this->cartEntry($cart, $bookId, $editionId);
+        $current['qty'] = min($current['qty'] + (int) $validated['qty'], (int) $capStock);
+        $current['edition_id'] = $editionId;
+        $cart[$key] = $current;
+        session(['cart' => $cart]);
+        // Keranjang berubah — reset pilihan grup ke default.
+        session()->forget('checkout_selected_groups');
+
         $label = $book?->judul ?? 'Buku';
+        $label .= $editionId !== null ? " (Cetakan ke-{$edition->cetakan_ke})" : '';
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -75,16 +138,52 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Hapus item dari keranjang.
+     * Tambah beberapa buku sekaligus ke keranjang (qty 1 masing-masing).
      */
-    public function remove(int $bookId): RedirectResponse
+    public function addBulk(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'book_ids' => ['required', 'array', 'min:1'],
+            'book_ids.*' => ['required', 'string', 'exists:books,id'],
+        ]);
+
+        $books = Book::whereKey($validated['book_ids'])->get()->keyBy('id');
+        $cart = $this->cart();
+        $added = 0;
+
+        foreach ($validated['book_ids'] as $bookId) {
+            $book = $books->get((string) $bookId);
+            if ($book === null || $book->stok <= 0) {
+                continue;
+            }
+            $key = (string) $bookId;
+            $cart[$key] = $this->cartEntry($cart, (string) $bookId, null);
+            $cart[$key]['qty'] = min(($cart[$key]['qty'] ?? 0) + 1, $book->stok);
+            $added++;
+        }
+
+        session(['cart' => $cart]);
+        // Keranjang berubah — reset pilihan grup ke default.
+        session()->forget('checkout_selected_groups');
+
+        return redirect()->route('checkout.index');
+    }
+
+    /**
+     * Hapus item dari keranjang (semua cetakan untuk buku tsb).
+     */
+    public function remove(string $bookId): RedirectResponse
     {
         $cart = $this->cart();
         $book = Book::find($bookId);
         $label = $book?->judul ?? 'Item';
 
-        unset($cart[$bookId]);
+        // Hapus semua entri buku ini (bisa ada beberapa cetakan).
+        $this->removeBookFromCart($cart, $bookId);
+
         session(['cart' => $cart]);
+        // Keranjang berubah — reset pilihan grup ke default.
+        session()->forget('checkout_selected_groups');
 
         Inertia::flash('toast', [
             'type' => 'info',
@@ -95,9 +194,71 @@ class CheckoutController extends Controller
     }
 
     /**
+     * Toggle centang satu grup — dipanggil lewat AJAX dari halaman checkout.
+     */
+    public function toggleGroup(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'group_key' => ['required', 'string'],
+            'checked' => ['required', 'boolean'],
+        ]);
+
+        $availableKeys = array_column($this->cartGroups(), 'key');
+
+        if (! in_array($validated['group_key'], $availableKeys, true)) {
+            return back()->withErrors(['group_key' => 'Grup tidak ditemukan di keranjang.']);
+        }
+
+        $selected = (array) session('checkout_selected_groups', $availableKeys);
+
+        if ($validated['checked']) {
+            $selected = array_values(array_unique(array_merge($selected, [$validated['group_key']])));
+        } else {
+            $selected = array_values(array_diff($selected, [$validated['group_key']]));
+        }
+
+        session(['checkout_selected_groups' => $selected]);
+
+        return back();
+    }
+
+    /**
+     * Hapus satu grup utuh dari keranjang (semua item paket bundle / item lainnya).
+     */
+    public function removeGroup(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'group_key' => ['required', 'string'],
+        ]);
+
+        $group = collect($this->cartGroups())->firstWhere('key', $validated['group_key']);
+
+        if ($group === null) {
+            return back()->withErrors(['group_key' => 'Grup tidak ditemukan di keranjang.']);
+        }
+
+        $cart = $this->cart();
+
+        foreach ($group['items'] as $item) {
+            $this->removeBookFromCart($cart, $item['book']->id);
+        }
+
+        session(['cart' => $cart]);
+        // Keranjang berubah — reset pilihan grup ke default.
+        session()->forget('checkout_selected_groups');
+
+        Inertia::flash('toast', [
+            'type' => 'info',
+            'message' => "{$group['name']} dihapus dari keranjang.",
+        ]);
+
+        return back();
+    }
+
+    /**
      * Ubah qty item di keranjang.
      */
-    public function updateQty(Request $request, int $bookId): RedirectResponse
+    public function updateQty(Request $request, string $bookId): RedirectResponse
     {
         $qty = (int) $request->input('qty');
 
@@ -106,7 +267,15 @@ class CheckoutController extends Controller
         }
 
         $cart = $this->cart();
-        $cart[$bookId] = $qty;
+        $book = Book::find($bookId);
+
+        // Update semua entri buku ini (bisa beberapa cetakan) dengan qty sama.
+        foreach (array_keys($cart) as $key) {
+            if ($this->keyBookId($key) === $bookId) {
+                $cart[$key]['qty'] = min($qty, $book?->stok ?? $qty);
+            }
+        }
+
         session(['cart' => $cart]);
 
         return back();
@@ -124,6 +293,53 @@ class CheckoutController extends Controller
             return back()->withErrors(['items' => 'Keranjang belanja kosong.']);
         }
 
+        // Hanya proses grup yang dipilih.
+        // Browser: pilihan dari session (dikelola toggleGroup/index).
+        // Tes lama: field form selected_groups[] → tetap dihormati.
+        $selectedGroups = $request->has('selected_groups')
+            ? array_values(array_filter((array) $request->input('selected_groups', [])))
+            : session('checkout_selected_groups');
+
+        if ($selectedGroups !== null) {
+            if ($selectedGroups === []) {
+                return back()->withErrors(['items' => 'Pilih minimal satu kelompok item untuk diproses.']);
+            }
+
+            $cart = $this->filterCartBySelectedGroups($cart, $selectedGroups);
+
+            if ($cart === []) {
+                return back()->withErrors(['items' => 'Pilih minimal satu kelompok item untuk diproses.']);
+            }
+        }
+
+        // Ongkir dihitung ulang di server via Biteship (jangan percaya nilai dari client).
+        $shippingCost = 0;
+        $shippingEstimation = null;
+        $courierCode = $data['ekspedisi'] ?? null;
+
+        if ($courierCode !== null && $courierCode !== '') {
+            $kodePos = $data['kode_pos'] ?? null;
+
+            if (empty($kodePos)) {
+                return back()->withErrors(['ekspedisi' => 'Pilih alamat lengkap (kode pos) untuk menghitung ongkir.']);
+            }
+
+            try {
+                $items = $this->cartToBiteshipItems($cart);
+                $matched = collect($this->shippingCost->costs($kodePos, $items))
+                    ->firstWhere('courier_code', $courierCode);
+
+                if ($matched === null) {
+                    return back()->withErrors(['ekspedisi' => 'Ekspedisi tidak valid — pilih ulang dari daftar ongkir.']);
+                }
+
+                $shippingCost = (int) $matched['price'];
+                $shippingEstimation = $matched['estimation'] ?? null;
+            } catch (RuntimeException $e) {
+                return back()->withErrors(['ekspedisi' => $e->getMessage()]);
+            }
+        }
+
         // Fast-fail check (tanpa lock) untuk error yang ramah.
         $stockError = $this->validateCartStock($cart);
 
@@ -135,23 +351,41 @@ class CheckoutController extends Controller
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
-                $order = DB::transaction(function () use ($data, $cart): Order {
-                    // Lock baris buku agar tidak oversell saat 2 checkout bersamaan.
+                $order = DB::transaction(function () use ($data, $cart, $courierCode, $shippingCost, $shippingEstimation): Order {
+                    // Lock baris buku + cetakan agar tidak oversell saat 2 checkout bersamaan.
+                    $bookIds = $this->cartBookIds($cart);
                     $lockedBooks = Book::query()
-                        ->whereKey(array_keys($cart))
+                        ->whereKey($bookIds)
                         ->lockForUpdate()
                         ->get()
                         ->keyBy('id');
 
-                    foreach ($cart as $bookId => $qty) {
+                    $editionIds = collect($cart)->pluck('edition_id')->filter()->unique()->values()->all();
+                    $lockedEditions = BookEdition::query()
+                        ->whereKey($editionIds)
+                        ->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')
+                        ->lockForUpdate()
+                        ->get()
+                        ->keyBy('id');
+
+                    foreach ($cart as $key => $entry) {
+                        $bookId = $this->keyBookId($key);
+                        $qty = (int) $entry['qty'];
                         $book = $lockedBooks->get($bookId);
 
                         if ($book === null || ! $book->aktif) {
                             throw new RuntimeException('Buku di keranjang sudah tidak tersedia.');
                         }
 
-                        if ($book->stok < $qty) {
-                            throw new RuntimeException("Stok {$book->judul} tidak mencukupi (tersisa {$book->stok}).");
+                        $editionId = $entry['edition_id'] ?? null;
+                        $available = $editionId !== null
+                            ? (int) ($lockedEditions->get($editionId)?->sellable_total ?? 0)
+                            : (int) $book->stok;
+
+                        if ($available < $qty) {
+                            $label = $editionId !== null ? "{$book->judul} (cetakan terpilih)" : $book->judul;
+
+                            throw new RuntimeException("Stok {$label} tidak mencukupi (tersisa {$available}).");
                         }
                     }
 
@@ -165,11 +399,13 @@ class CheckoutController extends Controller
                         'provinsi' => $data['provinsi'] ?? null,
                         'kabupaten_kota' => $data['kabupaten_kota'] ?? null,
                         'kecamatan' => $data['kecamatan'] ?? null,
+                        'kelurahan' => $data['kelurahan'] ?? null,
                         'kode_pos' => $data['kode_pos'] ?? null,
                         'metode_bayar' => $data['metode_bayar'],
                         'total' => 0,
-                        'ekspedisi' => $data['ekspedisi'] ?? null,
-                        'ongkir_estimasi' => null,
+                        'ekspedisi' => $courierCode,
+                        'shipping_cost' => $shippingCost,
+                        'ongkir_estimasi' => $shippingEstimation,
                         'is_dropship' => false,
                         'status' => OrderStatus::MenungguKonfirmasi,
                     ]);
@@ -195,6 +431,7 @@ class CheckoutController extends Controller
         }
 
         session()->forget('cart');
+        session()->forget('checkout_selected_groups');
 
         // Simpan no_order ke session agar halaman sukses hanya bisa diakses pembuatnya.
         session()->push('checkout_orders', $order->no_order);
@@ -224,28 +461,124 @@ class CheckoutController extends Controller
 
         return Inertia::render('storefront/CheckoutSuccess', [
             'order' => $order,
+            'bankAccounts' => BankAccount::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'bank_name', 'account_number', 'account_holder']),
         ]);
     }
 
     /**
+     * Hitung opsi ongkir utk keranjang saat ini (AJAX). Client mengirim
+     * kode pos tujuan — server bangun daftar item dari keranjang.
+     */
+    public function shippingCosts(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'postal_code' => ['required', 'string', 'max:10'],
+            'selected_groups' => ['sometimes', 'array'],
+            'selected_groups.*' => ['string', 'max:100'],
+        ]);
+
+        $cart = $this->cart();
+
+        if ($cart === []) {
+            return response()->json(['weight_kg' => null, 'costs' => []]);
+        }
+
+        // Ongkir hanya dihitung untuk grup yang dipilih proses.
+        $selectedGroups = $request->input('selected_groups');
+
+        if ($selectedGroups !== null) {
+            $cart = $this->filterCartBySelectedGroups($cart, (array) $selectedGroups);
+
+            if ($cart === []) {
+                return response()->json(['weight_kg' => null, 'costs' => []]);
+            }
+        }
+
+        $items = $this->cartToBiteshipItems($cart);
+        $weightGrams = (int) collect($items)->sum(fn (array $item): int => $item['weight_grams'] * $item['quantity']);
+
+        try {
+            $costs = $this->shippingCost->costs($validated['postal_code'], $items);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'weight_kg' => round($weightGrams / 1000, 2),
+            'costs' => $costs,
+        ]);
+    }
+
+    /**
+     * Bangun items[] untuk payload Biteship dari keranjang session.
+     *
+     * @param  array<string, array{qty: int, edition_id: int|null}>  $cart
+     * @return array<int, array{name: string, value: int, quantity: int, weight_grams: int}>
+     */
+    private function cartToBiteshipItems(array $cart): array
+    {
+        $books = Book::query()
+            ->whereKey($this->cartBookIds($cart))
+            ->get(['id', 'judul', 'harga', 'berat_gr'])
+            ->keyBy('id');
+
+        $items = [];
+
+        foreach ($cart as $key => $entry) {
+            $book = $books->get($this->keyBookId($key));
+
+            if ($book === null) {
+                continue;
+            }
+
+            $items[] = [
+                'name' => $book->judul,
+                'value' => $book->harga,
+                'quantity' => (int) $entry['qty'],
+                'weight_grams' => max(100, (int) ($book->berat_gr ?? 100)),
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
      * Fast-fail validasi stok (tanpa lock) — error ramah sebelum transaksi.
+     * Bila item memilih cetakan, stok dicek per cetakan.
      */
     private function validateCartStock(array $cart): ?string
     {
         $books = Book::query()
-            ->whereKey(array_keys($cart))
+            ->whereKey($this->cartBookIds($cart))
             ->get(['id', 'judul', 'stok', 'aktif'])
             ->keyBy('id');
 
-        foreach ($cart as $bookId => $qty) {
-            $book = $books->get($bookId);
+        $editionIds = collect($cart)->pluck('edition_id')->filter()->unique()->values()->all();
+        $editions = BookEdition::query()
+            ->whereKey($editionIds)
+            ->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')
+            ->get()
+            ->keyBy('id');
+
+        foreach ($cart as $key => $entry) {
+            $book = $books->get($this->keyBookId($key));
 
             if ($book === null || ! $book->aktif) {
                 return 'Buku di keranjang sudah tidak tersedia.';
             }
 
-            if ($book->stok < $qty) {
-                return "Stok {$book->judul} tidak mencukupi (tersisa {$book->stok}).";
+            $editionId = $entry['edition_id'] ?? null;
+            $available = $editionId !== null
+                ? (int) ($editions->get($editionId)?->sellable_total ?? 0)
+                : (int) $book->stok;
+
+            if ($available < (int) $entry['qty']) {
+                $label = $editionId !== null ? "{$book->judul} (cetakan terpilih)" : $book->judul;
+
+                return "Stok {$label} tidak mencukupi (tersisa {$available}).";
             }
         }
 
@@ -253,33 +586,293 @@ class CheckoutController extends Controller
     }
 
     /**
-     * @return array<int, array{book_id: int, qty: int}>
+     * @param  array<string, array{qty: int, edition_id: int|null}>  $cart
+     * @return array<int, array{book_id: int, qty: int, book_edition_id: int|null, edition_snapshot: string|null}>
      */
     private function cartToItems(array $cart): array
     {
         $items = [];
 
-        foreach ($cart as $bookId => $qty) {
-            $items[] = ['book_id' => (int) $bookId, 'qty' => $qty];
+        foreach ($cart as $key => $entry) {
+            $editionId = $entry['edition_id'] ?? null;
+
+            $items[] = [
+                'book_id' => $this->keyBookId($key),
+                'qty' => (int) $entry['qty'],
+                'book_edition_id' => $editionId,
+                'edition_snapshot' => $editionId !== null
+                    ? 'Cetakan ke-'.(BookEdition::query()->whereKey($editionId)->value('cetakan_ke') ?? '?')
+                    : null,
+            ];
         }
 
         return $items;
     }
 
     /**
-     * @return array<int, int>
+     * Ambil book_id dari kunci keranjang ('123' atau '123:45').
+     */
+    private function keyBookId(string $key): string
+    {
+        return explode(':', $key)[0];
+    }
+
+    /**
+     * Kunci keranjang utk buku + cetakan.
+     */
+    private function cartKey(string $bookId, ?string $editionId): string
+    {
+        return $editionId !== null ? $bookId.':'.$editionId : (string) $bookId;
+    }
+
+    /**
+     * Entri keranjang default (atau yang sudah ada) utk buku + cetakan.
+     *
+     * @param  array<string, array{qty: int, edition_id: int|null}>  $cart
+     * @return array{qty: int, edition_id: int|null}
+     */
+    private function cartEntry(array $cart, string $bookId, ?string $editionId): array
+    {
+        $key = $this->cartKey($bookId, $editionId);
+        $existing = $cart[$key] ?? null;
+
+        return [
+            'qty' => (int) ($existing['qty'] ?? 0),
+            'edition_id' => $editionId,
+        ];
+    }
+
+    /**
+     * Semua book_id unik dari keranjang.
+     *
+     * @param  array<string, array{qty: int, edition_id: string|null}>  $cart
+     * @return list<string>
+     */
+    private function cartBookIds(array $cart): array
+    {
+        return array_values(array_unique(array_map(
+            fn (string $key): string => $this->keyBookId($key),
+            array_keys($cart),
+        )));
+    }
+
+    /**
+     * Hapus semua entri (semua cetakan) sebuah buku dari keranjang.
+     *
+     * @param  array<string, array{qty: int, edition_id: int|null}>  $cart
+     */
+    private function removeBookFromCart(array &$cart, string $bookId): void
+    {
+        foreach (array_keys($cart) as $key) {
+            if ($this->keyBookId($key) === $bookId) {
+                unset($cart[$key]);
+            }
+        }
+    }
+
+    /**
+     * @return array<string, array{qty: int, edition_id: string|null}>
      */
     private function cart(): array
     {
         $cart = session('cart', []);
 
-        return is_array($cart) ? $cart : [];
+        if (! is_array($cart)) {
+            return [];
+        }
+
+        // Normalisasi legacy: [bookId => qty] → [key => entry], plus buang
+        // entri ber-id integer (sisa sebelum konversi UUID) yang sudah tidak
+        // valid — query ke kolom uuid akan error bila id lama dibiarkan.
+        $changed = false;
+        $dropped = 0;
+
+        foreach ($cart as $key => $value) {
+            if (! Str::isUuid($this->keyBookId($key))) {
+                unset($cart[$key]);
+                $changed = true;
+                $dropped++;
+
+                continue;
+            }
+
+            if (! is_array($value)) {
+                $cart[$key] = ['qty' => (int) $value, 'edition_id' => null];
+                $changed = true;
+            } elseif (! isset($value['qty'])) {
+                $cart[$key] = ['qty' => (int) ($value['qty'] ?? 0), 'edition_id' => $value['edition_id'] ?? null];
+                $changed = true;
+            }
+
+            // Cetakan lama (id integer) → fallback ke cetakan default.
+            if (($cart[$key]['edition_id'] ?? null) !== null && ! Str::isUuid((string) $cart[$key]['edition_id'])) {
+                $cart[$key]['edition_id'] = null;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            session(['cart' => $cart]);
+
+            if ($dropped > 0) {
+                Inertia::flash('toast', [
+                    'type' => 'info',
+                    'message' => $dropped === 1
+                        ? '1 item lama di keranjang dihapus karena tidak tersedia lagi.'
+                        : "{$dropped} item lama di keranjang dihapus karena tidak tersedia lagi.",
+                ]);
+            }
+        }
+
+        return $cart;
     }
 
     /**
-     * Item keranjang dengan data buku lengkap.
+     * Kelompokkan item keranjang per paket bundle; item di luar bundle masuk
+     * grup "Item Lainnya" (harga normal + promo satuan). Buku bundle yang
+     * paketnya TIDAK lengkap ikut grup regular.
      *
-     * @return array<int, array{book: Book, qty: int}>
+     * @return array<int, array<string, mixed>>
+     */
+    private function cartGroups(): array
+    {
+        $items = $this->cartItems();
+        $tier = auth()->user()?->status_pelanggan;
+        $bundleDiscounts = $this->pricing->cartBundleDiscounts($items);
+        // Hanya bundle yang LENGKAP di keranjang yang membentuk grup promo.
+        $bookToPromo = $this->completedBundlePromoMap($items);
+
+        $groups = [];
+
+        foreach ($items as $item) {
+            $book = $item['book'];
+            $promo = $bookToPromo[$book->id] ?? null;
+            $key = $promo !== null ? 'bundle-'.$promo->id : 'regular';
+
+            $breakdown = $this->pricing->priceBreakdown($book, $item['qty'], $tier);
+            $bundleDiscount = $bundleDiscounts[$book->id] ?? 0;
+
+            // Buku dalam bundle LENGKAP: HANYA diskon bundle — promo satuan
+            // & tier tidak bertumpuk. Diskon berlaku utk 1 SET pertama saja.
+            $inBundle = $promo !== null;
+            $bundleQty = $inBundle ? min($item['qty'], 1) : 0;
+            $regularFinal = max(0, $breakdown->finalPrice - $bundleDiscount);
+            $bundleUnitFinal = max(0, $breakdown->originalPrice - $bundleDiscount);
+
+            $enriched = [
+                'book' => $book,
+                'qty' => $item['qty'],
+                'edition_label' => $item['edition_label'] ?? null,
+                'price_original' => $breakdown->originalPrice,
+                'promo_discount' => $inBundle ? 0 : $breakdown->promoDiscount,
+                'promo_name' => $inBundle ? null : $breakdown->promoName,
+                'bundle_discount' => $bundleDiscount,
+                'bundle_qty' => $bundleQty,
+                'tier_discount' => $inBundle ? 0 : $breakdown->tierDiscount,
+                'unit_final' => $inBundle ? $bundleUnitFinal : $regularFinal,
+                'item_total' => $inBundle
+                    ? $bundleQty * $bundleUnitFinal + ($item['qty'] - $bundleQty) * $breakdown->originalPrice
+                    : $regularFinal * $item['qty'],
+            ];
+
+            $group = $groups[$key] ?? [
+                'key' => $key,
+                'name' => $promo?->promo_name ?? 'Item Lainnya',
+                'discount_percent' => $promo?->discount_percentage ?? null,
+                'items' => [],
+                'subtotal' => 0,
+                'discount_total' => 0,
+                'total' => 0,
+            ];
+
+            $group['items'][] = $enriched;
+            $group['subtotal'] += $enriched['price_original'] * $enriched['qty'];
+            $group['discount_total'] += ($enriched['price_original'] * $enriched['qty']) - $enriched['item_total'];
+            $group['total'] += $enriched['item_total'];
+            $groups[$key] = $group;
+        }
+
+        // Grup bundle tampil lebih dulu, "Item Lainnya" di akhir.
+        uksort($groups, fn ($a, $b): int => $a === 'regular'
+            ? 1
+            : ($b === 'regular' ? -1 : strcmp($a, $b)));
+
+        return array_values($groups);
+    }
+
+    /**
+     * Map book_id => promo bundle aktif yang LENGKAP ada di keranjang
+     * (semua buku bundle ada), promo dengan diskon terbesar yang menang.
+     *
+     * @param  array<int, array{book: Book, qty: int}>  $items
+     * @return array<int, Promotion|null>
+     */
+    private function completedBundlePromoMap(array $items): array
+    {
+        $cartBookIds = collect($items)->pluck('book.id')->all();
+
+        $promos = Promotion::query()
+            ->where('promo_type', PromotionType::Bundle->value)
+            ->where('is_active', true)
+            ->whereDate('start_date', '<=', now()->toDateString())
+            ->whereDate('end_date', '>=', now()->toDateString())
+            ->with('books:id')
+            ->get();
+
+        $map = [];
+
+        foreach ($promos as $promo) {
+            $bundleBookIds = $promo->books->pluck('id')->all();
+
+            // Bundle harus punya buku spesifik & LENGKAP di keranjang.
+            if (count($bundleBookIds) === 0 || count(array_diff($bundleBookIds, $cartBookIds)) > 0) {
+                continue;
+            }
+
+            foreach ($bundleBookIds as $bookId) {
+                $current = $map[$bookId] ?? null;
+
+                if ($current === null || ($promo->discount_percentage ?? 0) > ($current->discount_percentage ?? 0)) {
+                    $map[$bookId] = $promo;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Sisakan hanya item keranjang yang grupnya dipilih.
+     *
+     * @param  array<string, array{qty: int, edition_id: int|null}>  $cart
+     * @param  array<int, string>  $selectedGroups
+     * @return array<string, array{qty: int, edition_id: int|null}>
+     */
+    private function filterCartBySelectedGroups(array $cart, array $selectedGroups): array
+    {
+        $items = $this->cartItems();
+        $bookToPromo = $this->completedBundlePromoMap($items);
+        $filtered = [];
+
+        foreach ($cart as $key => $entry) {
+            $bookId = $this->keyBookId($key);
+            $promo = $bookToPromo[$bookId] ?? null;
+            $groupKey = $promo !== null ? 'bundle-'.$promo->id : 'regular';
+
+            if (in_array($groupKey, $selectedGroups, true)) {
+                $filtered[$key] = $entry;
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * Item keranjang dengan data buku lengkap. Bila cetakan dipilih, harga
+     * buku di-mutasi in-memory ke harga jual cetakan tsb sehingga seluruh
+     * logika harga (promo, tier, bundle) memakai harga yang benar.
+     *
+     * @return array<int, array{book: Book, qty: int, edition: BookEdition|null, edition_label: string|null}>
      */
     private function cartItems(): array
     {
@@ -290,19 +883,55 @@ class CheckoutController extends Controller
         }
 
         $books = Book::query()
-            ->whereKey(array_keys($cart))
+            ->whereKey($this->cartBookIds($cart))
             ->where('aktif', true)
+            ->whereNotNull('harga')
+            ->get()
+            ->keyBy('id');
+
+        $editionIds = collect($cart)->pluck('edition_id')->filter()->unique()->values()->all();
+        $editions = BookEdition::query()
+            ->whereKey($editionIds)
+            ->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')
             ->get()
             ->keyBy('id');
 
         $items = [];
 
-        foreach ($cart as $bookId => $qty) {
+        foreach ($cart as $key => $entry) {
+            $bookId = $this->keyBookId($key);
             $book = $books->get($bookId);
 
-            if ($book !== null) {
-                $items[] = ['book' => $book, 'qty' => $qty];
+            if ($book === null) {
+                continue;
             }
+
+            $edition = null;
+            $editionId = $entry['edition_id'] ?? null;
+
+            if ($editionId !== null) {
+                $edition = $editions->get($editionId);
+
+                // Cetakan valid & milik buku ini — harga & stok dasar ikut edisi.
+                // Klon Book agar dua cetakan dari buku yang sama tidak saling timpa.
+                if ($edition !== null && $edition->book_id === $book->id) {
+                    $clone = $book->replicate();
+                    $clone->exists = true;
+                    $clone->id = $book->id;
+                    $clone->harga = $edition->harga_jual;
+                    $clone->stok = (int) ($edition->sellable_total ?? $edition->stockTotal());
+                    $book = $clone;
+                } else {
+                    $edition = null;
+                }
+            }
+
+            $items[] = [
+                'book' => $book,
+                'qty' => (int) $entry['qty'],
+                'edition' => $edition,
+                'edition_label' => $edition !== null ? "Cetakan ke-{$edition->cetakan_ke}" : null,
+            ];
         }
 
         return $items;

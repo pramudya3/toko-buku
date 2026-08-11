@@ -1,26 +1,17 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Search } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { Plus, Search, X } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
-import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { create, edit, index as indexRoute } from '@/routes/admin/customers';
 
 type Customer = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     whatsapp_number: string | null;
@@ -43,13 +34,27 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const columns: DataTableColumn[] = [
+    { key: 'name', header: 'Nama', cellClass: 'font-medium' },
+    { key: 'email', header: 'Email' },
+    { key: 'whatsapp_number', header: 'WhatsApp', cellClass: 'tabular-nums' },
+    { key: 'status_pelanggan', header: 'Tier' },
+    { key: 'is_active', header: 'Status' },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
+
 const search = ref(props.filters.search ?? '');
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
+// Snapshot awal (nilai server saat load) untuk tombol Reset.
+const initialSearch = props.filters.search ?? '';
 
-watch(search, () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+const hasActiveFilters = computed(() => search.value !== initialSearch);
+
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+
+function applyFilters() {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
             { search: search.value || undefined },
@@ -59,7 +64,14 @@ watch(search, () => {
             },
         );
     }, 350);
-});
+}
+
+function resetFilters() {
+    search.value = initialSearch;
+    applyFilters();
+}
+
+watch([search], applyFilters);
 
 const tierVariant: Record<
     string,
@@ -98,90 +110,66 @@ const tierLabel: Record<string, string> = {
             </Button>
         </div>
 
-        <div class="relative max-w-sm">
-            <Search
-                class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-                v-model="search"
-                class="pl-9"
-                placeholder="Cari nama, email, WhatsApp..."
-            />
+        <div
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
+        >
+            <div class="relative flex items-center">
+                <Search
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                    v-model="search"
+                    class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 md:h-9 md:w-56"
+                    placeholder="Cari nama, email, WhatsApp..."
+                />
+            </div>
+            <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
+                title="Hapus filter"
+                aria-label="Hapus filter"
+                @click="resetFilters"
+            >
+                <X class="size-4" />
+                <span class="md:hidden">Hapus filter</span>
+            </button>
         </div>
 
-        <Card>
-            <CardContent class="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nama</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>WhatsApp</TableHead>
-                            <TableHead>Tier</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead class="text-right"><span class="sr-only">Aksi</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow
-                            v-for="customer in customers.data"
-                            :key="customer.id"
-                        >
-                            <TableCell class="font-medium">{{
-                                customer.name
-                            }}</TableCell>
-                            <TableCell>{{ customer.email }}</TableCell>
-                            <TableCell class="tabular-nums">{{
-                                customer.whatsapp_number ?? '—'
-                            }}</TableCell>
-                            <TableCell>
-                                <StatusBadge
-                                    :variant="
-                                        tierVariant[
-                                            customer.status_pelanggan
-                                        ] ?? 'neutral'
-                                    "
-                                    :label="
-                                        tierLabel[customer.status_pelanggan] ??
-                                        customer.status_pelanggan
-                                    "
-                                />
-                            </TableCell>
-                            <TableCell>
-                                <StatusBadge
-                                    :variant="
-                                        customer.is_active
-                                            ? 'success'
-                                            : 'danger'
-                                    "
-                                    :label="
-                                        customer.is_active
-                                            ? 'Aktif'
-                                            : 'Nonaktif'
-                                    "
-                                />
-                            </TableCell>
-                            <TableCell class="text-right">
-                                <DataTableActions
-                                    :actions="[
-                                        {
-                                            label: 'Edit',
-                                            icon: Pencil,
-                                            href: edit(customer.id),
-                                        },
-                                    ]"
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-                <EmptyState
-                    v-if="!customers.data.length"
-                    title="Tidak ada pelanggan"
-                    description="Pelanggan storefront akan muncul di sini."
+        <DataTable
+            :data="customers.data"
+            :columns="columns"
+            :paginator="customers"
+            empty-title="Tidak ada pelanggan"
+            empty-description="Pelanggan storefront akan muncul di sini."
+        >
+            <template #cell-whatsapp_number="{ row }">
+                {{ row.whatsapp_number ?? '—' }}
+            </template>
+            <template #cell-status_pelanggan="{ row }">
+                <StatusBadge
+                    :variant="tierVariant[row.status_pelanggan] ?? 'neutral'"
+                    :label="
+                        tierLabel[row.status_pelanggan] ?? row.status_pelanggan
+                    "
                 />
-                <Pagination v-else :paginator="customers" />
-            </CardContent>
-        </Card>
+            </template>
+            <template #cell-is_active="{ row }">
+                <StatusBadge
+                    :variant="row.is_active ? 'success' : 'danger'"
+                    :label="row.is_active ? 'Aktif' : 'Nonaktif'"
+                />
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            href: edit(row.id).url,
+                        },
+                    ]"
+                />
+            </template>
+        </DataTable>
     </div>
 </template>

@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Storefront;
 
-use App\Enums\PaymentMethod;
+use App\Support\StoreSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,9 +31,12 @@ class CheckoutRequest extends FormRequest
             'provinsi' => ['nullable', 'string', 'max:100'],
             'kabupaten_kota' => ['nullable', 'string', 'max:100'],
             'kecamatan' => ['nullable', 'string', 'max:100'],
+            'kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
-            'metode_bayar' => ['required', Rule::enum(PaymentMethod::class)],
+            'metode_bayar' => ['required', Rule::in(StoreSettings::enabledPaymentMethodValues() ?: ['__tidak_ada__'])],
             'ekspedisi' => ['nullable', 'string', 'max:50'],
+            'selected_groups' => ['nullable', 'array'],
+            'selected_groups.*' => ['string', 'max:50'],
         ];
     }
 

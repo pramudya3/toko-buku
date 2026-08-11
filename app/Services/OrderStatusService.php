@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\User;
+use App\Support\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -21,7 +24,7 @@ final class OrderStatusService
     public const TRANSITIONS = [
         OrderStatus::MenungguKonfirmasi->value => [OrderStatus::Diproses, OrderStatus::Batal],
         OrderStatus::Diproses->value => [OrderStatus::Dikirim, OrderStatus::Batal],
-        OrderStatus::Dikirim->value => [OrderStatus::Selesai, OrderStatus::Batal],
+        OrderStatus::Dikirim->value => [OrderStatus::Selesai],
         OrderStatus::Selesai->value => [],
         OrderStatus::Batal->value => [],
     ];
@@ -34,10 +37,10 @@ final class OrderStatusService
     /**
      * Lakukan transisi status + side-effect sistemik (bila valid).
      */
-    public function transition(Order $order, OrderStatus $to, ?int $userId = null): Order
+    public function transition(Order $order, OrderStatus $to, ?string $userId = null): Order
     {
         return DB::transaction(function () use ($order, $to, $userId): Order {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail((int) $order->getKey());
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->getKey());
 
             if (! $this->canTransition($lockedOrder, $to)) {
                 throw new RuntimeException(
@@ -45,11 +48,26 @@ final class OrderStatusService
                 );
             }
 
+            $oldStatus = $lockedOrder->status;
+
             if ($to === OrderStatus::Selesai) {
                 app(AccountingService::class)->recordOrderCompleted($lockedOrder, $userId);
             }
 
+            // Stok sudah di-reserve saat diproses — batal dari diproses mengembalikannya.
+            if ($to === OrderStatus::Batal && $lockedOrder->status === OrderStatus::Diproses) {
+                app(InventoryService::class)->restoreForOrder($lockedOrder, $userId);
+            }
+
             $lockedOrder->update(['status' => $to]);
+
+            ActivityLogger::log(
+                ActivityAction::OrderStatus,
+                "Pesanan {$lockedOrder->no_order}: {$oldStatus->label()} → {$to->label()}",
+                $lockedOrder,
+                ['from' => $oldStatus->value, 'to' => $to->value],
+                user: $userId !== null ? User::find($userId) : null,
+            );
 
             return $lockedOrder->fresh();
         });

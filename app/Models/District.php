@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 /**
  * @property string $code
@@ -12,6 +13,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class District extends Model
 {
+    /**
+     * Kolom `id` uuid diisi otomatis (model ini memakai `code` sebagai PK).
+     */
+    protected static function booted(): void
+    {
+        static::creating(fn (self $model) => $model->id = (string) Str::uuid7());
+    }
+
     public $incrementing = false;
 
     protected $keyType = 'string';

@@ -65,7 +65,18 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Schedule Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Here you may specify the timezone for scheduled tasks.
+    |
+    */
+
+    'schedule_timezone' => 'Asia/Jakarta',
 
     /*
     |--------------------------------------------------------------------------

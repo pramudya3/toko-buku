@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { HTMLAttributes, Ref } from "vue"
-import { defaultDocument, useEventListener, useMediaQuery, useVModel } from "@vueuse/core"
+import { defaultDocument, useEventListener, useVModel } from "@vueuse/core"
 import { TooltipProvider } from "reka-ui"
-import { computed, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { cn } from "@/lib/utils"
 import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from "./utils"
 
@@ -19,7 +19,25 @@ const emits = defineEmits<{
   "update:open": [open: boolean]
 }>()
 
-const isMobile = useMediaQuery("(max-width: 768px)")
+// isMobile dibaca setelah hydration (onMounted) agar SSR & client awal
+// sama-sama false → menghindari hydration mismatch pada Sheet mobile.
+const isMobile = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+function onMediaChange(event: MediaQueryListEvent) {
+  isMobile.value = event.matches
+}
+
+onMounted(() => {
+  mediaQuery = window.matchMedia("(max-width: 768px)")
+  isMobile.value = mediaQuery.matches
+  mediaQuery.addEventListener("change", onMediaChange)
+})
+
+onBeforeUnmount(() => {
+  mediaQuery?.removeEventListener("change", onMediaChange)
+})
+
 const openMobile = ref(false)
 
 const open = useVModel(props, "open", emits, {

@@ -1,11 +1,9 @@
 <?php
 
-use App\Enums\CustomerTier;
 use App\Enums\OrderStatus;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Order;
-use App\Models\Promotion;
 use App\Models\User;
 
 beforeEach(function (): void {
@@ -54,6 +52,9 @@ it('allows admin to manage books', function (): void {
             'penulis' => 'Penulis Test',
             'harga' => 50000,
             'category_id' => Category::factory()->create()->id,
+            'editions' => [
+                ['cetakan_ke' => 1, 'harga_beli' => 30000, 'harga_jual' => 50000, 'is_active' => true],
+            ],
         ])
         ->assertRedirect(route('admin.books.index'));
 

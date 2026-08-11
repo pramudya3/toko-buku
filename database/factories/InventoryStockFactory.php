@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Book;
 use App\Models\InventoryStock;
+use App\Models\Warehouse;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,23 +19,22 @@ class InventoryStockFactory extends Factory
      */
     public function definition(): array
     {
+        $warehouse = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang']);
+
         return [
             'book_id' => Book::factory(),
-            'stock_malang' => fake()->numberBetween(0, 50),
-            'stock_sidoarjo' => fake()->numberBetween(0, 30),
-            'stock_defect' => fake()->numberBetween(0, 5),
+            'warehouse_id' => $warehouse->id,
+            'qty' => fake()->numberBetween(0, 50),
         ];
     }
 
     /**
      * Stok menipis (≤ ambang batas).
      */
-    public function lowStock(int $total = 2): static
+    public function lowStock(): static
     {
         return $this->state(fn (array $attributes) => [
-            'stock_malang' => $total,
-            'stock_sidoarjo' => 0,
-            'stock_defect' => 0,
+            'qty' => fake()->numberBetween(0, config('pricing.low_stock_threshold', 5)),
         ]);
     }
 }

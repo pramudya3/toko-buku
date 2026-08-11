@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
-use App\Enums\Warehouse;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -61,7 +60,7 @@ class OrderFactory extends Factory
     /**
      * Order yang sudah diproses (ongkir + gudang asal terisi).
      */
-    public function processed(string $shippingCost = '15000', Warehouse $warehouse = Warehouse::Malang): static
+    public function processed(string $shippingCost = '15000', string $warehouse = 'malang'): static
     {
         return $this->state(fn (array $attributes) => [
             'status' => OrderStatus::Diproses,

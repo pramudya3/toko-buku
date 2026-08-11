@@ -1,25 +1,22 @@
 <script setup lang="ts">
 import { useHttp } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
+import type { SelectOption } from '@/components/SearchableSelect.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
     cities as adminCities,
     districts as adminDistricts,
     provinces as adminProvinces,
+    villages as adminVillages,
 } from '@/routes/admin/address';
 import {
     cities as publicCities,
     districts as publicDistricts,
     provinces as publicProvinces,
+    villages as publicVillages,
 } from '@/routes/wilayah';
 
 type Option = {
@@ -32,6 +29,8 @@ export type AddressValue = {
     provinsi: string;
     kabupaten_kota: string;
     kecamatan: string;
+    kelurahan: string;
+    village_code: string;
     kode_pos: string;
     alamat: string;
 };
@@ -55,18 +54,22 @@ const emit = defineEmits<{
 const provinces = ref<Option[]>([]);
 const cities = ref<Option[]>([]);
 const districts = ref<Option[]>([]);
+const villages = ref<Option[]>([]);
 const loadingCities = ref(false);
 const loadingDistricts = ref(false);
+const loadingVillages = ref(false);
 
 const provinceName = ref(props.modelValue.provinsi ?? '');
 const cityName = ref(props.modelValue.kabupaten_kota ?? '');
 const districtName = ref(props.modelValue.kecamatan ?? '');
+const villageName = ref(props.modelValue.kelurahan ?? '');
 const kodePos = ref(props.modelValue.kode_pos ?? '');
 const alamat = ref(props.modelValue.alamat ?? '');
 
 const provincesRequest = useHttp();
 const citiesRequest = useHttp();
 const districtsRequest = useHttp();
+const villagesRequest = useHttp();
 
 const hydrating = ref(false);
 
@@ -74,9 +77,34 @@ const currentValue = computed<AddressValue>(() => ({
     provinsi: provinceName.value,
     kabupaten_kota: cityName.value,
     kecamatan: districtName.value,
+    kelurahan: villageName.value,
+    village_code: villageCode.value,
     kode_pos: kodePos.value,
     alamat: alamat.value,
 }));
+
+const villageCode = ref(props.modelValue.village_code ?? '');
+
+// Opsi untuk SearchableSelect (value = nama, dipakai juga sebagai nilai form).
+const provinceOptions = computed<SelectOption[]>(() =>
+    provinces.value.map((p) => ({ value: p.name, label: p.name })),
+);
+
+const cityOptions = computed<SelectOption[]>(() =>
+    cities.value.map((c) => ({ value: c.name, label: c.name })),
+);
+
+const districtOptions = computed<SelectOption[]>(() =>
+    districts.value.map((d) => ({ value: d.name, label: d.name })),
+);
+
+const villageOptions = computed<SelectOption[]>(() =>
+    villages.value.map((v) => ({
+        value: v.name,
+        label: v.name,
+        hint: v.kode_pos ? `POS ${v.kode_pos}` : null,
+    })),
+);
 
 function syncToParent() {
     emit('update:modelValue', currentValue.value);
@@ -84,8 +112,18 @@ function syncToParent() {
 
 const routes = computed(() =>
     props.endpoint === 'public'
-        ? { provinces: publicProvinces, cities: publicCities, districts: publicDistricts }
-        : { provinces: adminProvinces, cities: adminCities, districts: adminDistricts },
+        ? {
+              provinces: publicProvinces,
+              cities: publicCities,
+              districts: publicDistricts,
+              villages: publicVillages,
+          }
+        : {
+              provinces: adminProvinces,
+              cities: adminCities,
+              districts: adminDistricts,
+              villages: adminVillages,
+          },
 );
 
 async function loadProvinces() {
@@ -95,6 +133,7 @@ async function loadProvinces() {
                 provinces.value = data as Option[];
                 resolve();
             },
+            onError: () => resolve(),
         });
     });
 }
@@ -123,6 +162,7 @@ async function loadCities(province: string) {
                     cities.value = data as Option[];
                     resolve();
                 },
+                onError: () => resolve(),
             },
         );
     });
@@ -151,6 +191,7 @@ async function loadDistricts(city: string) {
                     districts.value = data as Option[];
                     resolve();
                 },
+                onError: () => resolve(),
             },
         );
     });
@@ -158,36 +199,96 @@ async function loadDistricts(city: string) {
     loadingDistricts.value = false;
 }
 
-async function onProvinceChange(value: string) {
+async function loadVillages(district: string) {
+    const option = districts.value.find((d) => d.name === district);
+
+    if (!option) {
+        villages.value = [];
+
+        return;
+    }
+
+    loadingVillages.value = true;
+    villages.value = [];
+    villageName.value = '';
+    villageCode.value = '';
+
+    await new Promise<void>((resolve) => {
+        villagesRequest.get(
+            routes.value.villages({ query: { district_code: option.code } })
+                .url,
+            {
+                onSuccess: (data) => {
+                    villages.value = data as Option[];
+                    resolve();
+                },
+                onError: () => resolve(),
+            },
+        );
+    });
+
+    loadingVillages.value = false;
+}
+
+function onProvinceChange(value: string) {
     provinceName.value = value;
     cityName.value = '';
     districtName.value = '';
+    villageName.value = '';
+    villageCode.value = '';
     kodePos.value = '';
     syncToParent();
 
     if (value) {
-        await loadCities(value);
+        void loadCities(value);
     }
 }
 
-async function onCityChange(value: string) {
+function onCityChange(value: string) {
     cityName.value = value;
     districtName.value = '';
+    villageName.value = '';
+    villageCode.value = '';
     kodePos.value = '';
     syncToParent();
 
     if (value) {
-        await loadDistricts(value);
+        void loadDistricts(value);
     }
 }
 
 function onDistrictChange(value: string) {
     districtName.value = value;
+    villageName.value = '';
+    villageCode.value = '';
 
     const district = districts.value.find((d) => d.name === value);
 
     if (district?.kode_pos) {
         kodePos.value = district.kode_pos;
+    }
+
+    syncToParent();
+
+    if (value) {
+        void loadVillages(value);
+    }
+}
+
+function onVillageChange(value: string) {
+    villageName.value = value;
+
+    const village = villages.value.find((v) => v.name === value);
+
+    if (village) {
+        villageCode.value = village.code;
+
+        // Kode pos resmi per kelurahan/desa — override nilai sementara dari
+        // kecamatan. Kalau kelurahan tidak punya data, kode pos kecamatan
+        // tetap dipakai sebagai fallback.
+        if (village.kode_pos) {
+            kodePos.value = village.kode_pos;
+        }
     }
 
     syncToParent();
@@ -216,6 +317,22 @@ async function hydrateFromPreset() {
     kodePos.value = preset.kode_pos ?? '';
     alamat.value = preset.alamat ?? '';
 
+    if (preset.kecamatan) {
+        await loadVillages(preset.kecamatan);
+    }
+
+    villageName.value = preset.kelurahan ?? '';
+    villageCode.value = preset.village_code ?? '';
+
+    // Kode pos kosong di preset → coba ambil dari data kelurahan yang dimuat.
+    if (!kodePos.value && preset.kelurahan) {
+        const village = villages.value.find((v) => v.name === preset.kelurahan);
+
+        if (village?.kode_pos) {
+            kodePos.value = village.kode_pos;
+        }
+    }
+
     hydrating.value = false;
 }
 
@@ -232,83 +349,47 @@ onMounted(async () => {
     <div class="grid gap-4 md:grid-cols-3">
         <div class="grid gap-2">
             <Label for="provinsi">Provinsi</Label>
-            <Select
-                :model-value="provinceName"
-                :disabled="!provinces.length || hydrating"
+            <SearchableSelect
+                v-model="provinceName"
+                :options="provinceOptions"
                 name="provinsi"
+                placeholder="Pilih provinsi"
+                search-placeholder="Cari provinsi..."
+                :disabled="!provinces.length || hydrating"
                 @update:model-value="onProvinceChange"
-            >
-                <SelectTrigger id="provinsi">
-                    <SelectValue placeholder="Pilih provinsi" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="province in provinces"
-                        :key="province.code"
-                        :value="province.name"
-                    >
-                        {{ province.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            />
         </div>
 
         <div class="grid gap-2">
             <Label for="kabupaten_kota">Kota/Kabupaten</Label>
-            <Select
-                :model-value="cityName"
-                :disabled="!cities.length || loadingCities || hydrating"
+            <SearchableSelect
+                v-model="cityName"
+                :options="cityOptions"
                 name="kabupaten_kota"
+                :placeholder="
+                    provinceName
+                        ? 'Pilih kota/kabupaten'
+                        : 'Pilih provinsi dulu'
+                "
+                search-placeholder="Cari kota/kabupaten..."
+                :disabled="!cities.length || loadingCities || hydrating"
                 @update:model-value="onCityChange"
-            >
-                <SelectTrigger id="kabupaten_kota">
-                    <SelectValue
-                        :placeholder="
-                            provinceName
-                                ? 'Pilih kota/kabupaten'
-                                : 'Pilih provinsi dulu'
-                        "
-                    />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="city in cities"
-                        :key="city.code"
-                        :value="city.name"
-                    >
-                        {{ city.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            />
         </div>
 
         <div class="grid gap-2">
             <Label for="kecamatan">Kecamatan</Label>
-            <Select
-                :model-value="districtName"
-                :disabled="!districts.length || loadingDistricts || hydrating"
+            <SearchableSelect
+                v-model="districtName"
+                :options="districtOptions"
                 name="kecamatan"
+                :placeholder="
+                    cityName ? 'Pilih kecamatan' : 'Pilih kota/kabupaten dulu'
+                "
+                search-placeholder="Cari kecamatan..."
+                :disabled="!districts.length || loadingDistricts || hydrating"
                 @update:model-value="onDistrictChange"
-            >
-                <SelectTrigger id="kecamatan">
-                    <SelectValue
-                        :placeholder="
-                            cityName
-                                ? 'Pilih kecamatan'
-                                : 'Pilih kota/kabupaten dulu'
-                        "
-                    />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="district in districts"
-                        :key="district.code"
-                        :value="district.name"
-                    >
-                        {{ district.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            />
         </div>
 
         <div class="grid gap-2">
@@ -318,8 +399,27 @@ onMounted(async () => {
                 name="kode_pos"
                 v-model="kodePos"
                 :disabled="hydrating || !districtName"
-                :placeholder="districtName ? '65144' : 'Pilih kecamatan dulu'"
+                :placeholder="
+                    districtName
+                        ? 'Otomatis dari kelurahan'
+                        : 'Pilih kecamatan dulu'
+                "
                 maxlength="10"
+            />
+        </div>
+
+        <div class="grid gap-2">
+            <Label for="kelurahan">Kelurahan/Desa</Label>
+            <SearchableSelect
+                v-model="villageName"
+                :options="villageOptions"
+                name="kelurahan"
+                :placeholder="
+                    districtName ? 'Pilih kelurahan' : 'Pilih kecamatan dulu'
+                "
+                search-placeholder="Cari kelurahan/desa..."
+                :disabled="!villages.length || loadingVillages || hydrating"
+                @update:model-value="onVillageChange"
             />
         </div>
 

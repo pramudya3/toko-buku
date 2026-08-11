@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { X } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
 import Money from '@/components/Money.vue';
-import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -16,28 +15,20 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { index as indexRoute } from '@/routes/admin/dropship';
 import { show } from '@/routes/admin/orders';
 
 type Order = {
-    id: number;
+    id: string;
     no_order: string;
     nama_pembeli: string;
     total: number;
     status: string;
     created_at: string;
     items_count: number;
-    user: { id: number; name: string } | null;
+    user: { id: string; name: string } | null;
     dropshipper: {
-        id: number;
+        id: string;
         end_customer_name: string;
         end_customer_whatsapp: string | null;
         end_customer_address: string | null;
@@ -59,16 +50,42 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const columns: DataTableColumn[] = [
+    { key: 'no_order', header: 'No. Order', cellClass: 'font-medium' },
+    { key: 'dropshipper', header: 'Dropshipper' },
+    { key: 'end_customer', header: 'End-Customer' },
+    {
+        key: 'items_count',
+        header: 'Item',
+        cellClass: 'text-right tabular-nums',
+    },
+    { key: 'total', header: 'Total', cellClass: 'text-right tabular-nums' },
+    { key: 'status', header: 'Status' },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
+
 const allStatuses = '__all_statuses__';
 const from = ref(props.filters.from ?? '');
 const to = ref(props.filters.to ?? '');
 const status = ref(props.filters.status ?? allStatuses);
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
+// Snapshot awal (nilai server saat load) untuk tombol Reset.
+const initialFrom = props.filters.from ?? '';
+const initialTo = props.filters.to ?? '';
+const initialStatus = props.filters.status ?? allStatuses;
 
-watch([from, to, status], () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+const hasActiveFilters = computed(
+    () =>
+        from.value !== initialFrom ||
+        to.value !== initialTo ||
+        status.value !== initialStatus,
+);
+
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+
+function applyFilters() {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
             {
@@ -82,7 +99,16 @@ watch([from, to, status], () => {
             },
         );
     }, 350);
-});
+}
+
+function resetFilters() {
+    from.value = initialFrom;
+    to.value = initialTo;
+    status.value = initialStatus;
+    applyFilters();
+}
+
+watch([from, to, status], applyFilters);
 
 const statusVariant: Record<
     string,
@@ -107,24 +133,47 @@ const statusVariant: Record<
             </p>
         </div>
 
-        <div class="flex flex-wrap items-end gap-4">
-            <div class="grid gap-2">
-                <Label for="from">Dari tanggal</Label>
+        <div
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
+        >
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Dari
+                </p>
                 <Input
-                    id="from"
                     v-model="from"
                     type="date"
-                    class="w-44"
+                    class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-36"
+                    aria-label="Dari tanggal"
                 />
             </div>
-            <div class="grid gap-2">
-                <Label for="to">Sampai tanggal</Label>
-                <Input id="to" v-model="to" type="date" class="w-44" />
+
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Sampai
+                </p>
+                <Input
+                    v-model="to"
+                    type="date"
+                    class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-36"
+                    aria-label="Sampai tanggal"
+                />
             </div>
-            <div class="grid gap-2">
-                <Label for="status">Status</Label>
+
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Status
+                </p>
                 <Select v-model="status">
-                    <SelectTrigger id="status" class="w-48">
+                    <SelectTrigger
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
+                    >
                         <SelectValue placeholder="Semua status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -141,85 +190,59 @@ const statusVariant: Record<
                     </SelectContent>
                 </Select>
             </div>
+            <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
+                title="Hapus filter"
+                aria-label="Hapus filter"
+                @click="resetFilters"
+            >
+                <X class="size-4" />
+                <span class="md:hidden">Hapus filter</span>
+            </button>
         </div>
 
-        <Card>
-            <CardContent class="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>No. Order</TableHead>
-                            <TableHead>Dropshipper</TableHead>
-                            <TableHead>End-Customer</TableHead>
-                            <TableHead>Item</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead class="text-right"><span class="sr-only">Aksi</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-for="order in orders.data" :key="order.id">
-                            <TableCell class="font-medium">{{
-                                order.no_order
-                            }}</TableCell>
-                            <TableCell>{{
-                                order.user?.name ?? order.nama_pembeli
-                            }}</TableCell>
-                            <TableCell>
-                                <template v-if="order.dropshipper">
-                                    <p>
-                                        {{
-                                            order.dropshipper.end_customer_name
-                                        }}
-                                    </p>
-                                    <p
-                                        class="text-xs text-muted-foreground tabular-nums"
-                                    >
-                                        {{
-                                            order.dropshipper
-                                                .end_customer_whatsapp
-                                        }}
-                                    </p>
-                                </template>
-                                <span v-else class="text-muted-foreground"
-                                    >Data belum diisi</span
-                                >
-                            </TableCell>
-                            <TableCell>{{ order.items_count }}</TableCell>
-                            <TableCell
-                                ><Money :value="order.total"
-                            /></TableCell>
-                            <TableCell>
-                                <StatusBadge
-                                    :variant="
-                                        statusVariant[order.status] ?? 'neutral'
-                                    "
-                                    :label="
-                                        statusOptions[order.status] ??
-                                        order.status
-                                    "
-                                />
-                            </TableCell>
-                            <TableCell class="text-right">
-                                <DataTableActions
-                                    :actions="[
-                                        {
-                                            label: 'Detail',
-                                            href: show(order.id),
-                                        },
-                                    ]"
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-                <EmptyState
-                    v-if="!orders.data.length"
-                    title="Tidak ada order dropship"
-                    description="Order dengan is_dropship akan tampil di sini."
+        <DataTable
+            :data="orders.data"
+            :columns="columns"
+            :paginator="orders"
+            empty-title="Tidak ada order dropship"
+            empty-description="Order dengan is_dropship akan tampil di sini."
+        >
+            <template #cell-dropshipper="{ row }">
+                {{ row.user?.name ?? row.nama_pembeli }}
+            </template>
+            <template #cell-end_customer="{ row }">
+                <template v-if="row.dropshipper">
+                    <p>{{ row.dropshipper.end_customer_name }}</p>
+                    <p class="text-xs text-muted-foreground tabular-nums">
+                        {{ row.dropshipper.end_customer_whatsapp }}
+                    </p>
+                </template>
+                <span v-else class="text-muted-foreground"
+                    >Data belum diisi</span
+                >
+            </template>
+            <template #cell-total="{ row }">
+                <Money :value="row.total" />
+            </template>
+            <template #cell-status="{ row }">
+                <StatusBadge
+                    :variant="statusVariant[row.status] ?? 'neutral'"
+                    :label="statusOptions[row.status] ?? row.status"
                 />
-                <Pagination v-else :paginator="orders" />
-            </CardContent>
-        </Card>
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Detail',
+                            href: show(row.id).url,
+                        },
+                    ]"
+                />
+            </template>
+        </DataTable>
     </div>
 </template>

@@ -64,6 +64,31 @@ test('users can not authenticate with invalid password', function () {
     $this->assertGuest();
 });
 
+test('inactive users cannot log in', function () {
+    $user = User::factory()->create(['is_active' => false]);
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors('email');
+    $this->assertGuest();
+});
+
+test('inactive admins cannot log in', function () {
+    $admin = User::factory()->admin()->create(['is_active' => false]);
+
+    $response = $this->post(route('login.store'), [
+        'email' => $admin->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors('email')
+        ->assertSessionHasErrors(['email' => 'Akun Anda dinonaktifkan. Hubungi administrator.']);
+    $this->assertGuest();
+});
+
 test('users can logout', function () {
     $user = User::factory()->create();
 

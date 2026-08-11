@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Models\Book;
 use App\Models\CashFlow;
 use App\Models\Order;
@@ -34,13 +35,32 @@ it('renders dashboard stats for the current period (DASH-01, DASH-02, DASH-03)',
         ->get(route('admin.dashboard'))
         ->assertSuccessful());
 
+    // Order default (transfer) TIDAK dihitung sebagai uang cash.
     expect($props['stats']['revenue'])->toBe(50000)
-        ->and($props['stats']['cash_in_month'])->toBe(65000)
+        ->and($props['stats']['cash_in_month'])->toBe(0)
         ->and($props['stats']['orders_count'])->toBe(1)
         ->and($props['stats']['book_count'])->toBe(2)
+        ->and($props['lowStockThreshold'])->toBe(config('pricing.low_stock_threshold'))
+        ->and(count($props['salesChart']))->toBe(now()->day)
         ->and(collect($props['lowStockBooks'])->pluck('judul'))->toContain('Buku Menipis')
         ->and(collect($props['recentOrders'])->pluck('no_order'))->toContain($order->no_order)
         ->and(count($props['salesChart']))->toBeGreaterThan(0);
+});
+
+it('counts only cash-paid orders in the dashboard cash stat', function (): void {
+    // Order transfer — tidak masuk uang cash.
+    $transferOrder = Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Transfer]);
+    CashFlow::factory()->revenue(100000)->create(['order_id' => $transferOrder->id]);
+
+    // Order cash — masuk uang cash (revenue + ongkir).
+    $cashOrder = Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Cash]);
+    CashFlow::factory()->revenue(75000)->create(['order_id' => $cashOrder->id]);
+    CashFlow::factory()->shipping(15000)->create(['order_id' => $cashOrder->id]);
+
+    $props = inertiaProps($this->actingAs($this->admin)
+        ->get(route('admin.dashboard')));
+
+    expect($props['stats']['cash_in_month'])->toBe(90000);
 });
 
 it('includes completed orders in the sales chart (DASH-04)', function (): void {
@@ -53,4 +73,30 @@ it('includes completed orders in the sales chart (DASH-04)', function (): void {
     $todayPoint = collect($props['salesChart'])->last();
 
     expect($todayPoint['total'])->toBe(100000);
+});
+
+it('reduces revenue and sales chart by refunds', function (): void {
+    $order = Order::factory()->status(OrderStatus::Selesai)->create();
+    CashFlow::factory()->revenue(100000)->create(['order_id' => $order->id]);
+    CashFlow::factory()->refund(30000)->create(['order_id' => $order->id]);
+
+    $props = inertiaProps($this->actingAs($this->admin)
+        ->get(route('admin.dashboard')));
+
+    expect($props['stats']['revenue'])->toBe(70000);
+
+    $todayPoint = collect($props['salesChart'])->last();
+
+    expect($todayPoint['total'])->toBe(70000);
+});
+
+it('reduces cash stat by refunds for cash orders', function (): void {
+    $order = Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Cash]);
+    CashFlow::factory()->revenue(75000)->create(['order_id' => $order->id]);
+    CashFlow::factory()->refund(25000)->create(['order_id' => $order->id]);
+
+    $props = inertiaProps($this->actingAs($this->admin)
+        ->get(route('admin.dashboard')));
+
+    expect($props['stats']['cash_in_month'])->toBe(50000);
 });

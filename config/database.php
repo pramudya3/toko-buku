@@ -97,6 +97,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Session timezone — harus sama dengan APP_TIMEZONE agar literal datetime
+            // naif (Y-m-d H:i:s WIB) dari binding Eloquent diinterpretasi benar terhadap
+            // kolom timestamptz. Penyimpanan timestamptz tetap UTC secara internal.
+            'timezone' => env('DB_TIMEZONE', 'Asia/Jakarta'),
         ],
 
         'sqlsrv' => [

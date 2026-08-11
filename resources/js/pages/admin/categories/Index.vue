@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Search, Trash2 } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { Plus, Search, X } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
 import CategoryController from '@/actions/App/Http/Controllers/Admin/CategoryController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
-import Pagination from '@/components/Pagination.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -19,20 +18,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { index as indexRoute } from '@/routes/admin/categories';
 
 type Category = {
-    id: number;
+    id: string;
     nama: string;
-    slug: string;
     books_count: number;
 };
 
@@ -50,15 +40,24 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const columns: DataTableColumn[] = [
+    { key: 'nama', header: 'Nama', cellClass: 'font-medium' },
+    { key: 'books_count', header: 'Jumlah Buku' },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
+
 const search = ref(props.filters.search ?? '');
-const editing = ref<Category | null>(null);
-const dialogOpen = ref(false);
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
+// Snapshot awal (nilai server saat load) untuk tombol Reset.
+const initialSearch = props.filters.search ?? '';
 
-watch(search, () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+const hasActiveFilters = computed(() => search.value !== initialSearch);
+
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+
+function applyFilters() {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
             { search: search.value || undefined },
@@ -68,12 +67,18 @@ watch(search, () => {
             },
         );
     }, 350);
-});
-
-function openCreate() {
-    editing.value = null;
-    dialogOpen.value = true;
 }
+
+function resetFilters() {
+    search.value = initialSearch;
+    applyFilters();
+}
+
+watch([search], applyFilters);
+
+const editing = ref<Category | null>(null);
+const dialogOpen = ref(false);
+const deletingCategory = ref<Category | null>(null);
 
 function openEdit(category: Category) {
     editing.value = category;
@@ -84,7 +89,10 @@ function confirmDelete(category: Category) {
     deletingCategory.value = category;
 }
 
-const deletingCategory = ref<Category | null>(null);
+function openCreate() {
+    editing.value = null;
+    dialogOpen.value = true;
+}
 
 function executeDelete() {
     if (!deletingCategory.value) {
@@ -117,72 +125,58 @@ function executeDelete() {
             </Button>
         </div>
 
-        <div class="relative max-w-sm">
-            <Search
-                class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-                v-model="search"
-                class="pl-9"
-                placeholder="Cari kategori..."
-            />
+        <div
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
+        >
+            <div class="relative flex items-center">
+                <Search
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                    v-model="search"
+                    class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 md:h-9 md:w-56"
+                    placeholder="Cari kategori..."
+                />
+            </div>
+            <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
+                title="Hapus filter"
+                aria-label="Hapus filter"
+                @click="resetFilters"
+            >
+                <X class="size-4" />
+                <span class="md:hidden">Hapus filter</span>
+            </button>
         </div>
 
-        <Card>
-            <CardContent class="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nama</TableHead>
-                            <TableHead>Slug</TableHead>
-                            <TableHead>Jumlah Buku</TableHead>
-                            <TableHead class="text-right"><span class="sr-only">Aksi</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow
-                            v-for="category in categories.data"
-                            :key="category.id"
-                        >
-                            <TableCell class="font-medium">{{
-                                category.nama
-                            }}</TableCell>
-                            <TableCell
-                                class="font-mono text-xs text-muted-foreground"
-                                >{{ category.slug }}</TableCell
-                            >
-                            <TableCell
-                                >{{ category.books_count }} buku</TableCell
-                            >
-                            <TableCell class="text-right">
-                                <DataTableActions
-                                    :actions="[
-                                        {
-                                            label: 'Edit',
-                                            icon: Pencil,
-                                            onClick: () => openEdit(category),
-                                        },
-                                        {
-                                            label: 'Hapus',
-                                            icon: Trash2,
-                                            variant: 'destructive',
-                                            onClick: () =>
-                                                confirmDelete(category),
-                                        },
-                                    ]"
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-                <EmptyState
-                    v-if="!categories.data.length"
-                    title="Tidak ada kategori"
-                    description="Buat kategori pertama untuk mengelompokkan buku."
+        <DataTable
+            :data="categories.data"
+            :columns="columns"
+            :paginator="categories"
+            empty-title="Tidak ada kategori"
+            empty-description="Buat kategori pertama untuk mengelompokkan buku."
+        >
+            <template #cell-books_count="{ row }">
+                {{ row.books_count }} buku
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            onClick: () => openEdit(row),
+                        },
+                        {
+                            label: 'Hapus',
+                            variant: 'destructive',
+                            onClick: () => confirmDelete(row),
+                        },
+                    ]"
                 />
-                <Pagination v-else :paginator="categories" />
-            </CardContent>
-        </Card>
+            </template>
+        </DataTable>
 
         <Dialog v-model:open="dialogOpen">
             <DialogContent class="sm:max-w-md">
@@ -215,20 +209,6 @@ function executeDelete() {
                             >{{ errors.nama }}</span
                         >
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="slug">Slug</Label>
-                        <Input
-                            id="slug"
-                            name="slug"
-                            :default-value="editing.slug"
-                            required
-                        />
-                        <span
-                            v-if="errors.slug"
-                            class="text-sm text-destructive"
-                            >{{ errors.slug }}</span
-                        >
-                    </div>
                     <DialogFooter>
                         <Button type="submit" :disabled="processing"
                             >Simpan</Button
@@ -256,20 +236,6 @@ function executeDelete() {
                             >{{ errors.nama }}</span
                         >
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="slug">Slug</Label>
-                        <Input
-                            id="slug"
-                            name="slug"
-                            required
-                            placeholder="fiksi"
-                        />
-                        <span
-                            v-if="errors.slug"
-                            class="text-sm text-destructive"
-                            >{{ errors.slug }}</span
-                        >
-                    </div>
                     <DialogFooter>
                         <Button type="submit" :disabled="processing"
                             >Buat</Button
@@ -281,7 +247,11 @@ function executeDelete() {
 
         <ConfirmDeleteDialog
             :open="!!deletingCategory"
-            @update:open="(open) => { if (!open) deletingCategory = null }"
+            @update:open="
+                (open) => {
+                    if (!open) deletingCategory = null;
+                }
+            "
             title="Hapus Kategori?"
             :description="
                 deletingCategory

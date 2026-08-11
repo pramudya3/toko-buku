@@ -23,7 +23,6 @@ class PromotionFactory extends Factory
             'promo_type' => PromotionType::Percentage,
             'discount_percentage' => fake()->numberBetween(5, 50),
             'promo_value' => null,
-            'bundle_qty' => null,
             'start_date' => now()->subDay()->toDateString(),
             'end_date' => now()->addDays(7)->toDateString(),
             'is_active' => true,
@@ -39,7 +38,6 @@ class PromotionFactory extends Factory
             'promo_type' => PromotionType::Percentage,
             'discount_percentage' => $percent,
             'promo_value' => null,
-            'bundle_qty' => null,
         ]);
     }
 
@@ -52,18 +50,16 @@ class PromotionFactory extends Factory
             'promo_type' => PromotionType::Fixed,
             'promo_value' => $value,
             'discount_percentage' => null,
-            'bundle_qty' => null,
         ]);
     }
 
     /**
-     * Promo bundle (diskon % saat qty ≥ bundle_qty).
+     * Promo bundle (diskon % saat semua buku paket dibeli).
      */
-    public function bundle(int $qty = 3, int $percent = 15): static
+    public function bundle(int $percent = 15): static
     {
         return $this->state(fn (array $attributes) => [
             'promo_type' => PromotionType::Bundle,
-            'bundle_qty' => $qty,
             'discount_percentage' => $percent,
             'promo_value' => null,
         ]);

@@ -15,17 +15,22 @@ class TierDiscountController extends Controller
     /**
      * List semua tier discount rules.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $tierDiscounts = TierDiscount::query()
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $query->where('tier', 'like', '%'.$request->string('search')->toString().'%');
+            })
+            ->when($request->filled('tier'), fn ($query) => $query->where('tier', $request->string('tier')->toString()))
             ->orderBy('tier')
             ->orderBy('min_qty')
-            ->get()
-            ->groupBy('tier');
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('admin/tier-discounts/Index', [
             'tierDiscounts' => $tierDiscounts,
             'tierOptions' => CustomerTier::options(),
+            'filters' => $request->only(['search', 'tier']),
         ]);
     }
 
@@ -37,14 +42,12 @@ class TierDiscountController extends Controller
         $validated = $request->validate([
             'tier' => ['required', 'string', 'in:reguler,bazaf,guru,reseller'],
             'min_qty' => ['required', 'integer', 'min:1'],
-            'max_qty' => ['nullable', 'integer', 'gte:min_qty'],
             'discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
         ]);
 
         TierDiscount::updateOrCreate(
             ['tier' => $validated['tier'], 'min_qty' => $validated['min_qty']],
             [
-                'max_qty' => $validated['max_qty'] ?? null,
                 'discount_percent' => $validated['discount_percent'],
             ],
         );
@@ -61,13 +64,11 @@ class TierDiscountController extends Controller
     {
         $validated = $request->validate([
             'min_qty' => ['required', 'integer', 'min:1'],
-            'max_qty' => ['nullable', 'integer', 'gte:min_qty'],
             'discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
         ]);
 
         $tierDiscount->update([
             'min_qty' => $validated['min_qty'],
-            'max_qty' => $validated['max_qty'] ?? null,
             'discount_percent' => $validated['discount_percent'],
         ]);
 

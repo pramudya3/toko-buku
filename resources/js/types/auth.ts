@@ -1,5 +1,5 @@
 export type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     avatar?: string;
@@ -13,6 +13,8 @@ export type User = {
     provinsi?: string | null;
     kabupaten_kota?: string | null;
     kecamatan?: string | null;
+    kelurahan?: string | null;
+    village_code?: string | null;
     kode_pos?: string | null;
     [key: string]: unknown;
 };

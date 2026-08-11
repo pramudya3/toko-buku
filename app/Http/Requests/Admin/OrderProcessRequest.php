@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Enums\Warehouse;
+use App\Support\StoreSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,13 +25,11 @@ class OrderProcessRequest extends FormRequest
     {
         return [
             'shipping_cost' => ['required', 'integer', 'min:0'],
-            'ekspedisi' => ['required', Rule::in(array_keys(config('shipping.couriers', [])))],
+            'ekspedisi' => ['required', Rule::in(StoreSettings::enabledCourierCodes() ?: ['__tidak_ada__'])],
             'warehouse_origin' => [
                 'required',
-                Rule::in([
-                    Warehouse::Malang->value,
-                    Warehouse::Sidoarjo->value,
-                ]),
+                // Hindari bind `false` (di SQLite jadi '') — pakai 0.
+                Rule::exists('warehouses', 'kode')->where('is_defect', 0),
             ],
         ];
     }

@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\MovementType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BookRequest;
 use App\Models\Book;
+use App\Models\BookEdition;
 use App\Models\Category;
 use App\Services\BookService;
+use App\Services\ImageService;
 use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -21,9 +24,9 @@ class BookController extends Controller
 {
     public function __construct(
         private readonly BookService $bookService,
+        private readonly ImageService $imageService,
         private readonly InventoryService $inventoryService,
-    ) {
-    }
+    ) {}
 
     /**
      * List buku dengan pencarian & filter (BOOK-05, BOOK-07).
@@ -43,9 +46,12 @@ class BookController extends Controller
                         ->orWhereLike('kode_sku', "%{$search}%");
                 });
             })
-            ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
+            ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->string('category_id')->toString()))
             ->when($request->filled('status'), function ($query) use ($request): void {
                 $query->where('aktif', $request->string('status')->toString() === 'aktif');
+            })
+            ->when($request->boolean('low_stock'), function ($query): void {
+                $query->where('stok', '<=', config('pricing.low_stock_threshold'));
             })
             ->orderByDesc('created_at')
             ->paginate(10)
@@ -54,7 +60,8 @@ class BookController extends Controller
         return Inertia::render('admin/books/Index', [
             'books' => $books,
             'categories' => Category::orderBy('nama')->get(['id', 'nama']),
-            'filters' => $request->only(['search', 'category_id', 'status']),
+            'lowStockThreshold' => config('pricing.low_stock_threshold'),
+            'filters' => $request->only(['search', 'category_id', 'status', 'low_stock']),
         ]);
     }
 
@@ -65,37 +72,41 @@ class BookController extends Controller
     {
         return Inertia::render('admin/books/Form', [
             'book' => null,
+            'editions' => [],
+            'images' => [],
             'categories' => Category::orderBy('nama')->get(['id', 'nama']),
         ]);
     }
 
     /**
-     * Simpan buku baru (BOOK-01, BOOK-03, BOOK-08).
+     * Simpan buku baru (BOOK-01, BOOK-03, BOOK-08). Stok awal diisi kemudian
+     * lewat menu Barang Masuk (pembelian) — bukan di form buku.
      */
     public function store(BookRequest $request): RedirectResponse
     {
         $data = $this->payload($request);
-        $initialStock = (int) ($data['stok'] ?? 0);
-        $data['stok'] = 0;
+        $editions = $data['editions'] ?? [];
+        unset($data['editions']);
         $adminId = $request->user()->id;
 
-        $book = DB::transaction(function () use ($data, $initialStock, $adminId): Book {
+        $book = DB::transaction(function () use ($data, $editions, $request): Book {
             $book = Book::create($data);
             $this->bookService->ensureSku($book);
             $this->inventoryService->ensureStock($book);
 
-            if ($initialStock > 0) {
-                $this->inventoryService->move(
-                    book: $book,
-                    type: MovementType::In,
-                    qty: $initialStock,
-                    to: \App\Enums\Warehouse::Malang,
-                    userId: $adminId,
-                    notes: 'Stok awal buku',
-                );
+            // Simpan cetakan-cetakan (stok diatur lewat menu Barang Masuk).
+            $this->syncEditions($book, $editions);
+
+            // Galeri gambar
+            if ($request->hasFile('images')) {
+                $this->saveGalleryImages($book, $request->file('images'));
             }
 
-            return $book->fresh();
+            // Sinkron books.harga dari cetakan aktif
+            $book->refresh();
+            $this->syncBookPrice($book);
+
+            return $book;
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Buku {$book->judul} berhasil dibuat."]);
@@ -110,6 +121,8 @@ class BookController extends Controller
     {
         return Inertia::render('admin/books/Form', [
             'book' => $book->load('category:id,nama'),
+            'editions' => $book->editions()->orderBy('cetakan_ke')->get()->toArray(),
+            'images' => $book->images()->orderBy('urutan')->get(['id', 'image_url', 'urutan'])->toArray(),
             'categories' => Category::orderBy('nama')->get(['id', 'nama']),
         ]);
     }
@@ -119,7 +132,29 @@ class BookController extends Controller
      */
     public function update(BookRequest $request, Book $book): RedirectResponse
     {
-        $book->update($this->payload($request));
+        $data = $this->payload($request, $book);
+        $editions = $data['editions'] ?? [];
+        unset($data['editions']);
+
+        DB::transaction(function () use ($book, $data, $editions, $request): void {
+            $book->update($data);
+
+            // Sinkron cetakan
+            $this->syncEditions($book, $editions);
+
+            // Galeri gambar: hapus yang ditandai, simpan yang baru
+            if ($request->filled('removed_images')) {
+                $this->deleteGalleryImages($book, $request->input('removed_images'));
+            }
+
+            if ($request->hasFile('images')) {
+                $this->saveGalleryImages($book, $request->file('images'));
+            }
+
+            // Sinkron books.harga dari cetakan aktif
+            $book->refresh();
+            $this->syncBookPrice($book);
+        });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Buku {$book->judul} berhasil diperbarui."]);
 
@@ -142,7 +177,13 @@ class BookController extends Controller
 
         $book->delete();
 
-        $this->deleteCoverFile($book);
+        $this->deleteStoredFile((string) $book->cover_url);
+
+        // Hapus file galeri dari storage (baris DB dibiarkan — soft delete,
+        // restore tetap menampilkan gambar yang tersisa).
+        foreach ($book->images()->get() as $image) {
+            $this->deleteStoredFile($image->image_url);
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -169,47 +210,177 @@ class BookController extends Controller
     }
 
     /**
-     * Hapus file cover dari storage publik (hanya file lokal, bukan URL eksternal).
+     * Nonaktifkan/aktifkan buku — buku nonaktif tidak tampil di katalog
+     * storefront.
      */
-    private function deleteCoverFile(Book $book): void
+    public function toggleActive(Book $book): RedirectResponse
     {
-        $cover = $book->cover_url;
+        $book->update(['aktif' => ! $book->aktif]);
 
-        if ($cover === null || ! str_starts_with($cover, '/storage/')) {
-            return;
-        }
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $book->aktif
+                ? "Buku {$book->judul} berhasil diaktifkan."
+                : "Buku {$book->judul} berhasil dinonaktifkan.",
+        ]);
 
-        $path = str_replace('/storage/', '', $cover);
-        Storage::disk('public')->delete($path);
+        return back();
     }
 
     /**
-     * Payload dari request: cover file disimpan, cover_url dipakai bila tanpa file.
+     * Hapus file dari storage (R2 atau lokal).
+     */
+    private function deleteStoredFile(string $url): void
+    {
+        $r2Url = rtrim((string) config('filesystems.disks.r2.url'), '/');
+
+        if ($r2Url !== '' && str_starts_with($url, $r2Url)) {
+            $path = ltrim(str_replace($r2Url, '', $url), '/');
+            Storage::disk('r2')->delete($path);
+
+            return;
+        }
+
+        if (str_starts_with($url, '/storage/')) {
+            $path = str_replace('/storage/', '', $url);
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+    /**
+     * Payload dari request.
      *
      * @return array<string, mixed>
      */
-    private function payload(BookRequest $request): array
+    private function payload(BookRequest $request, ?Book $book = null): array
     {
         $data = $request->validated();
 
-        unset($data['cover']);
+        unset($data['cover'], $data['images'], $data['removed_images'], $data['remove_cover']);
 
         if ($request->hasFile('cover')) {
-            $path = $request->file('cover')->store('covers', 'public');
+            if ($book !== null) {
+                $this->deleteStoredFile((string) $book->cover_url);
+            }
+
+            $path = $this->imageService
+                ->normalize($request->file('cover'))
+                ->store('covers', 'r2');
 
             if ($path === false) {
                 throw new RuntimeException('Cover buku gagal disimpan.');
             }
 
-            $data['cover_url'] = Storage::url($path);
+            $data['cover_url'] = Storage::disk('r2')->url($path);
+        }
+
+        // Hapus cover tersimpan (tanpa upload file baru).
+        if ($request->boolean('remove_cover') && ! $request->hasFile('cover')) {
+            if ($book !== null) {
+                $this->deleteStoredFile((string) $book->cover_url);
+            }
+
+            $data['cover_url'] = null;
         }
 
         if ($request->has('aktif')) {
             $data['aktif'] = $request->boolean('aktif');
         }
 
-        $data['is_preorder'] = $request->boolean('is_preorder');
-
         return $data;
+    }
+
+    /**
+     * Simpan gambar galeri baru.
+     *
+     * @param  array<int, UploadedFile>  $files
+     */
+    private function saveGalleryImages(Book $book, array $files): void
+    {
+        $urutan = (int) $book->images()->max('urutan');
+
+        foreach ($files as $file) {
+            $path = $this->imageService->normalize($file)->store('covers', 'r2');
+
+            if ($path === false) {
+                throw new RuntimeException('Gambar galeri gagal disimpan.');
+            }
+
+            $book->images()->create([
+                'image_url' => Storage::disk('r2')->url($path),
+                'urutan' => ++$urutan,
+            ]);
+        }
+    }
+
+    /**
+     * Hapus gambar galeri yang ditandai (row + file di storage).
+     *
+     * @param  array<int, string>  $ids
+     */
+    private function deleteGalleryImages(Book $book, array $ids): void
+    {
+        $images = $book->images()->whereIn('id', $ids)->get();
+
+        foreach ($images as $image) {
+            $this->deleteStoredFile($image->image_url);
+            $image->delete();
+        }
+    }
+
+    /**
+     * Sinkron daftar cetakan: hapus yang hilang, update yang ada, buat yang baru.
+     *
+     * @param  array<int, array{cetakan_ke: int, nama?: string|null, harga_beli: int, harga_jual: int, is_active?: bool}>  $editions
+     * @return Collection<int, BookEdition>
+     */
+    private function syncEditions(Book $book, array $editions): Collection
+    {
+        // Hapus cetakan yang tidak ada di input
+        $keptCetakanKe = array_column($editions, 'cetakan_ke');
+        $book->editions()->whereNotIn('cetakan_ke', $keptCetakanKe)->delete();
+
+        // Hanya satu yang bisa aktif
+        $activeIndex = collect($editions)->search(fn ($e) => (bool) ($e['is_active'] ?? false));
+
+        $created = collect();
+
+        foreach ($editions as $index => $edition) {
+            $model = BookEdition::updateOrCreate(
+                [
+                    'book_id' => $book->id,
+                    'cetakan_ke' => $edition['cetakan_ke'],
+                ],
+                [
+                    'nama' => $edition['nama'] ?? null,
+                    'harga_beli' => $edition['harga_beli'],
+                    'harga_jual' => $edition['harga_jual'],
+                    'is_active' => $index === $activeIndex || count($editions) === 1 || ($activeIndex === false && $index === 0),
+                ],
+            );
+
+            // Cetakan baru (bukan update) — dipakai untuk stok awal.
+            if ($model->wasRecentlyCreated) {
+                $created->push($model);
+            }
+        }
+
+        return $created;
+    }
+
+    /**
+     * Sinkron books.harga dari harga_jual cetakan aktif.
+     *
+     * Bandingkan nilai mentah (bukan int cast) — null !== 0, jadi buku
+     * dengan harga null tetap tersinkron walau harga_jual-nya 0.
+     */
+    private function syncBookPrice(Book $book): void
+    {
+        $active = $book->editions()->where('is_active', true)->first()
+            ?? $book->editions()->orderBy('cetakan_ke')->first();
+
+        if ($active !== null && $book->getRawOriginal('harga') !== $active->harga_jual) {
+            $book->updateQuietly(['harga' => $active->harga_jual]);
+        }
     }
 }

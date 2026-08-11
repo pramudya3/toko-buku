@@ -14,6 +14,13 @@ export type NavItem = {
     badge?: number;
 };
 
+/** Item menu yang membuka sub menu (collapsible parent) — tanpa href sendiri. */
+export type NavSection = {
+    title: string;
+    icon?: LucideIcon;
+    items: NavItem[];
+};
+
 export type NavGroup = {
     label: string;
     items: NavItem[];

@@ -44,7 +44,7 @@ class PromotionController extends Controller
         return Inertia::render('admin/promotions/Form', [
             'promotion' => null,
             'typeOptions' => PromotionType::options(),
-            'books' => Book::where('aktif', true)->orderBy('judul')->limit(50)->get(['id', 'judul', 'kode_sku', 'harga']),
+            'books' => Book::where('aktif', true)->orderBy('judul')->limit(50)->get(['id', 'judul', 'kode_sku', 'harga', 'cover_url']),
         ]);
     }
 
@@ -66,7 +66,7 @@ class PromotionController extends Controller
                 })
                 ->orderBy('judul')
                 ->limit(50)
-                ->get(['id', 'judul', 'kode_sku', 'harga']),
+                ->get(['id', 'judul', 'kode_sku', 'harga', 'cover_url']),
         );
     }
 
@@ -90,9 +90,10 @@ class PromotionController extends Controller
     public function edit(Promotion $promotion): Response
     {
         return Inertia::render('admin/promotions/Form', [
-            'promotion' => $promotion->load('books:id'),
+            // Muat kolom lengkap agar chip buku terpilih bisa menampilkan judul.
+            'promotion' => $promotion->load('books:id,judul,kode_sku,harga'),
             'typeOptions' => PromotionType::options(),
-            'books' => Book::where('aktif', true)->orderBy('judul')->limit(50)->get(['id', 'judul', 'kode_sku', 'harga']),
+            'books' => Book::where('aktif', true)->orderBy('judul')->limit(50)->get(['id', 'judul', 'kode_sku', 'harga', 'cover_url']),
         ]);
     }
 

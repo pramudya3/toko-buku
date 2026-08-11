@@ -33,6 +33,13 @@ it('lists districts filtered by city code', function (): void {
         ->assertJsonFragment(['code' => '3573010', 'name' => 'KLOJEN']);
 });
 
+it('lists villages filtered by district code', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson(route('admin.address.villages', ['district_code' => '3573010']))
+        ->assertOk()
+        ->assertJsonFragment(['code' => '3573010001']);
+});
+
 it('guards address endpoints for admins only', function (): void {
     $this->getJson(route('admin.address.provinces'))->assertUnauthorized();
 });

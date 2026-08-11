@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\City;
 use App\Models\District;
 use App\Models\Province;
+use App\Models\Village;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -42,6 +43,16 @@ class AddressController extends Controller
                 ->where('city_code', $cityCode)
                 ->orderBy('name')
                 ->get(['code', 'city_code', 'name', 'kode_pos']),
+        );
+    }
+
+    public function villages(Request $request): JsonResponse
+    {
+        return response()->json(
+            Village::query()
+                ->where('district_code', $request->string('district_code')->toString())
+                ->orderBy('name')
+                ->get(['code', 'district_code', 'name', 'kode_pos']),
         );
     }
 }

@@ -7,12 +7,13 @@ const props = withDefaults(
         prefix?: string;
     }>(),
     {
+        value: 0,
         prefix: 'Rp',
     },
 );
 
 const formatted = computed(() =>
-    props.value.toLocaleString('id-ID', {
+    (props.value ?? 0).toLocaleString('id-ID', {
         maximumFractionDigits: 0,
     }),
 );

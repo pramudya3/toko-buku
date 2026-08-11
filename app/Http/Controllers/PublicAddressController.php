@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\City;
 use App\Models\District;
 use App\Models\Province;
+use App\Models\Village;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -37,6 +38,16 @@ class PublicAddressController extends Controller
                 ->where('city_code', $request->string('city_code')->toString())
                 ->orderBy('name')
                 ->get(['code', 'city_code', 'name', 'kode_pos']),
+        );
+    }
+
+    public function villages(Request $request): JsonResponse
+    {
+        return response()->json(
+            Village::query()
+                ->where('district_code', $request->string('district_code')->toString())
+                ->orderBy('name')
+                ->get(['code', 'district_code', 'name', 'kode_pos']),
         );
     }
 }

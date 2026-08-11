@@ -25,9 +25,9 @@ const user = computed(() => page.props.auth.user);
 </script>
 
 <template>
-    <Head title="Address settings" />
+    <Head title="Pengaturan Alamat" />
 
-    <h1 class="sr-only">Address settings</h1>
+    <h1 class="sr-only">Pengaturan Alamat</h1>
 
     <div class="flex flex-col space-y-6">
         <SettingsTabs />
@@ -49,6 +49,8 @@ const user = computed(() => page.props.auth.user);
                     provinsi: user.provinsi ?? '',
                     kabupaten_kota: user.kabupaten_kota ?? '',
                     kecamatan: user.kecamatan ?? '',
+                    kelurahan: user.kelurahan ?? '',
+                    village_code: user.village_code ?? '',
                     kode_pos: user.kode_pos ?? '',
                     alamat: user.alamat ?? '',
                 }"

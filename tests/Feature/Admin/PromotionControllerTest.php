@@ -73,15 +73,17 @@ it('validates required fields per promo type', function (): void {
         ])
         ->assertSessionHasErrors('promo_value');
 
-    // Bundle tanpa bundle_qty.
+    // Bundle tanpa buku — wajib minimal 2 judul.
     $this->actingAs($this->admin)
         ->post(route('admin.promotions.store'), [
-            'promo_name' => 'Bundle Tanpa Qty',
+            'promo_name' => 'Bundle Tanpa Buku',
             'promo_type' => PromotionType::Bundle->value,
+            'discount_percentage' => 15,
             'start_date' => now()->toDateString(),
             'end_date' => now()->addDays(1)->toDateString(),
+            'book_ids' => [],
         ])
-        ->assertSessionHasErrors('bundle_qty');
+        ->assertSessionHasErrors('book_ids');
 });
 
 it('toggles promotion active state (PROM-05)', function (): void {
@@ -98,6 +100,18 @@ it('toggles promotion active state (PROM-05)', function (): void {
         ->assertRedirect();
 
     expect($promo->fresh()->is_active)->toBeTrue();
+});
+
+it('shows selected books with titles on the edit page', function (): void {
+    $book = Book::factory()->create(['judul' => 'Buku Terpilih', 'kode_sku' => 'SKU-TEST']);
+    $promo = Promotion::factory()->percentage(10)->create();
+    $promo->books()->attach($book);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.promotions.edit', $promo))
+        ->assertOk()
+        ->assertSee('Buku Terpilih')
+        ->assertSee('SKU-TEST');
 });
 
 it('updates a promotion and syncs its books', function (): void {
@@ -130,4 +144,101 @@ it('deletes a promotion', function (): void {
         ->assertRedirect(route('admin.promotions.index'));
 
     expect(Promotion::find($promo->id))->toBeNull();
+});
+
+it('blocks a book already used in another single promotion (overlap)', function (): void {
+    $book = Book::factory()->create();
+    Promotion::factory()->percentage(10)->create()
+        ->books()
+        ->attach($book);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.promotions.store'), [
+            'promo_name' => 'Promo Kedua',
+            'promo_type' => PromotionType::Fixed->value,
+            'promo_value' => 50000,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(7)->toDateString(),
+            'is_active' => true,
+            'book_ids' => [$book->id],
+        ])
+        ->assertSessionHasErrors('book_ids');
+
+    expect(Promotion::where('promo_name', 'Promo Kedua')->doesntExist())->toBeTrue();
+});
+
+it('allows a book from a single promotion to be used in a bundle', function (): void {
+    $bookA = Book::factory()->create();
+    $bookB = Book::factory()->create();
+    Promotion::factory()->percentage(10)->create()
+        ->books()
+        ->attach($bookA);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.promotions.store'), [
+            'promo_name' => 'Bundle Campur',
+            'promo_type' => PromotionType::Bundle->value,
+            'discount_percentage' => 15,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(7)->toDateString(),
+            'is_active' => true,
+            'book_ids' => [$bookA->id, $bookB->id],
+        ])
+        ->assertRedirect(route('admin.promotions.index'));
+
+    expect(Promotion::where('promo_name', 'Bundle Campur')->exists())->toBeTrue();
+});
+
+it('does not block a book when editing the same promotion', function (): void {
+    $book = Book::factory()->create();
+    $promo = Promotion::factory()->percentage(10)->create();
+    $promo->books()->attach($book);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.promotions.update', $promo), [
+            'promo_name' => 'Promo Sama',
+            'promo_type' => PromotionType::Percentage->value,
+            'discount_percentage' => 20,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(7)->toDateString(),
+            'is_active' => true,
+            'book_ids' => [$book->id],
+        ])
+        ->assertRedirect(route('admin.promotions.index'));
+});
+
+it('allows a book in a non-overlapping single promotion period', function (): void {
+    $book = Book::factory()->create();
+    Promotion::factory()->percentage(10)->create([
+        'start_date' => now()->subDays(30)->toDateString(),
+        'end_date' => now()->subDays(10)->toDateString(),
+    ])->books()->attach($book);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.promotions.store'), [
+            'promo_name' => 'Promo Baru Periode',
+            'promo_type' => PromotionType::Percentage->value,
+            'discount_percentage' => 20,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(7)->toDateString(),
+            'is_active' => true,
+            'book_ids' => [$book->id],
+        ])
+        ->assertRedirect(route('admin.promotions.index'));
+});
+
+it('restores a soft-deleted promotion', function (): void {
+    $promotion = Promotion::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.promotions.destroy', $promotion))
+        ->assertRedirect();
+
+    expect(Promotion::find($promotion->id))->toBeNull();
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.promotions.restore', $promotion))
+        ->assertRedirect(route('admin.promotions.index'));
+
+    expect(Promotion::find($promotion->id))->not->toBeNull();
 });

@@ -67,6 +67,17 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user is a regular customer (bukan admin).
+     */
+    public function customer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_admin' => false,
+            'status_pelanggan' => CustomerTier::Reguler,
+        ]);
+    }
+
+    /**
      * Set tier pelanggan.
      */
     public function tier(CustomerTier $tier): static

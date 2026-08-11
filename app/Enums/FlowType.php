@@ -7,6 +7,8 @@ enum FlowType: string
     case Revenue = 'revenue';
     case Shipping = 'shipping';
     case Refund = 'refund';
+    case Income = 'income';
+    case Expense = 'expense';
 
     /**
      * @return array<string, string>
@@ -28,11 +30,13 @@ enum FlowType: string
             self::Revenue => 'Revenue',
             self::Shipping => 'Ongkir',
             self::Refund => 'Refund',
+            self::Income => 'Uang Masuk',
+            self::Expense => 'Uang Keluar',
         };
     }
 
     public function isInflow(): bool
     {
-        return $this === self::Revenue || $this === self::Shipping;
+        return $this === self::Revenue || $this === self::Shipping || $this === self::Income;
     }
 }

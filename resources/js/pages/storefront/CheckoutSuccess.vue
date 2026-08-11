@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
 
 type OrderItem = {
-    id: number;
+    id: string;
     judul_snapshot: string;
+    edition_snapshot: string | null;
     qty: number;
     price_final: number;
 };
@@ -17,11 +18,20 @@ type Order = {
     nama_pembeli: string;
     total: number;
     metode_bayar: string;
+    payment_status: string;
     items: OrderItem[];
+};
+
+type BankAccount = {
+    id: string;
+    bank_name: string;
+    account_number: string;
+    account_holder: string;
 };
 
 defineProps<{
     order: Order;
+    bankAccounts: BankAccount[];
 }>();
 
 defineOptions({
@@ -47,7 +57,9 @@ defineOptions({
         <div class="w-full rounded-xl border p-6 text-left">
             <div class="flex justify-between text-sm">
                 <span class="text-muted-foreground">No. Order</span>
-                <span class="font-mono font-semibold">{{ order.no_order }}</span>
+                <span class="font-mono font-semibold">{{
+                    order.no_order
+                }}</span>
             </div>
             <div class="mt-2 flex justify-between text-sm">
                 <span class="text-muted-foreground">Metode Bayar</span>
@@ -68,6 +80,12 @@ defineOptions({
                     >
                         <span class="text-muted-foreground">
                             {{ item.judul_snapshot }} × {{ item.qty }}
+                            <span
+                                v-if="item.edition_snapshot"
+                                class="text-xs text-muted-foreground"
+                            >
+                                ({{ item.edition_snapshot }})
+                            </span>
                         </span>
                         <Money :value="item.price_final * item.qty" />
                     </li>
@@ -76,10 +94,31 @@ defineOptions({
 
             <div class="mt-4 rounded-lg bg-muted p-4 text-sm">
                 <p class="font-medium">Instruksi Pembayaran</p>
-                <p class="mt-1 text-muted-foreground">
-                    Transfer ke rekening toko, lalu kirim bukti transfer via
-                    WhatsApp ke nomor kami. Pesanan diproses setelah pembayaran
-                    dikonfirmasi.
+                <template v-if="bankAccounts.length > 0">
+                    <p class="mt-1 text-muted-foreground">
+                        Transfer ke salah satu rekening berikut:
+                    </p>
+                    <ul class="mt-2 grid gap-2">
+                        <li
+                            v-for="account in bankAccounts"
+                            :key="account.id"
+                            class="rounded-md border bg-background px-3 py-2 text-left"
+                        >
+                            <p class="font-medium">
+                                {{ account.bank_name }}
+                            </p>
+                            <p class="tabular-nums">
+                                {{ account.account_number }}
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                a.n. {{ account.account_holder }}
+                            </p>
+                        </li>
+                    </ul>
+                </template>
+                <p class="mt-2 text-muted-foreground">
+                    Lalu kirim bukti transfer via WhatsApp ke nomor kami.
+                    Pesanan diproses setelah pembayaran dikonfirmasi.
                 </p>
             </div>
         </div>

@@ -18,7 +18,7 @@ final class BookService
             return $book;
         }
 
-        $next = (int) $book->getKey();
+        $next = 1;
 
         for ($attempt = 0; $attempt < 10; $attempt++) {
             $sku = 'SKU-'.str_pad((string) ($next + $attempt), 4, '0', STR_PAD_LEFT);
