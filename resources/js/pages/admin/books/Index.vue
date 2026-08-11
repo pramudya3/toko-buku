@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Search, X } from '@lucide/vue';
+import { Plus, Search, Upload, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import BookController from '@/actions/App/Http/Controllers/Admin/BookController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
+import ImportCsvDialog from '@/components/ImportCsvDialog.vue';
 import Money from '@/components/Money.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,7 @@ const allCategories = '__all_categories__';
 const allStatuses = '__all_statuses__';
 const allStocks = '__all_stocks__';
 const search = ref(props.filters.search ?? '');
+const importOpen = ref(false);
 const categoryId = ref(props.filters.category_id ?? allCategories);
 const status = ref(props.filters.status ?? allStatuses);
 const lowStock = ref(props.filters.low_stock === '1' ? '1' : allStocks);
@@ -155,12 +157,18 @@ function executeDelete() {
                     Mengelola katalog buku toko
                 </p>
             </div>
-            <Button as-child>
-                <Link :href="create()">
-                    <Plus class="size-4" />
-                    Buat Buku
-                </Link>
-            </Button>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" @click="importOpen = true">
+                    <Upload class="size-4" />
+                    Import CSV
+                </Button>
+                <Button as-child>
+                    <Link :href="create()">
+                        <Plus class="size-4" />
+                        Buat Buku
+                    </Link>
+                </Button>
+            </div>
         </div>
 
         <div
@@ -356,4 +364,13 @@ function executeDelete() {
             @confirm="executeDelete"
         />
     </div>
+
+    <ImportCsvDialog
+        v-model:open="importOpen"
+        :action="BookController.importCsv.form()"
+        template-type="books"
+        title="Import Buku dari CSV"
+        description="Format kolom: Kategori, Kode Brg, Nama Barang, Penulis, Hrg Jual"
+        hint="Harga format Indonesia (30.000). Kode SKU otomatis dibuat dari abreviasi kategori bila kosong/tidak valid."
+    />
 </template>

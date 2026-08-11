@@ -452,14 +452,13 @@ function onFormError() {
                         </Select>
                     </div>
                     <div class="grid gap-2">
-                        <Label for="penulis">Penulis *</Label>
+                        <Label for="penulis">Penulis</Label>
                         <Input
                             id="penulis"
                             name="penulis"
                             :default-value="book?.penulis ?? undefined"
                             :aria-invalid="errors.penulis ? true : undefined"
-                            placeholder="Nama penulis"
-                            required
+                            placeholder="Nama penulis (opsional)"
                         />
                     </div>
                     <div class="grid gap-2">

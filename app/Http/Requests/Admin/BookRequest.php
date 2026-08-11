@@ -28,7 +28,7 @@ class BookRequest extends FormRequest
                     ->whereNull('deleted_at')
                     ->ignore($this->route('book')),
             ],
-            'penulis' => ['required', 'string', 'max:255'],
+            'penulis' => ['nullable', 'string', 'max:255'],
             'penterjemah' => ['nullable', 'string', 'max:255'],
             'penerbit' => ['nullable', 'string', 'max:255'],
             'tahun' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],

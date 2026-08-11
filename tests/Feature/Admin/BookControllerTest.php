@@ -122,7 +122,7 @@ it('generates sequential SKUs', function (): void {
 it('validates required fields', function (): void {
     $this->actingAs($this->admin)
         ->post(route('admin.books.store'), [])
-        ->assertSessionHasErrors(['judul', 'penulis', 'editions']);
+        ->assertSessionHasErrors(['judul', 'editions']);
 
     $this->actingAs($this->admin)
         ->post(route('admin.books.store'), array_merge([

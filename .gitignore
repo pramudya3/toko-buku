@@ -33,3 +33,4 @@ yarn-error.log
 /.pi
 /storage/logs/*.log
 PELANGGAN.csv
+"INVOICE - PRICELIST.csv"

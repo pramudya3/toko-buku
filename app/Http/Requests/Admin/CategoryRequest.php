@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CategoryRequest extends FormRequest
 {
@@ -18,6 +19,15 @@ class CategoryRequest extends FormRequest
     {
         return [
             'nama' => ['required', 'string', 'max:100'],
+            'kode' => [
+                'nullable',
+                'string',
+                'max:10',
+                'regex:/^[A-Za-z0-9-]+$/',
+                Rule::unique('categories', 'kode')
+                    ->whereNull('deleted_at')
+                    ->ignore($this->route('category')),
+            ],
         ];
     }
 }

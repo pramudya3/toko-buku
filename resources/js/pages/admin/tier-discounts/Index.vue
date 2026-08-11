@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Plus, Search, X } from '@lucide/vue';
+import { Plus, Search, Upload, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import TierDiscountController from '@/actions/App/Http/Controllers/Admin/TierDiscountController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
+import ImportCsvDialog from '@/components/ImportCsvDialog.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -105,6 +106,7 @@ watch([search, filterTier], applyFilters);
 
 const formDialogOpen = ref(false);
 const deleteDialogOpen = ref(false);
+const importOpen = ref(false);
 const editingDiscount = ref<TierDiscount | null>(null);
 const deletingDiscount = ref<TierDiscount | null>(null);
 
@@ -159,10 +161,16 @@ function confirmDelete() {
                     Atur diskon berdasarkan tier pelanggan
                 </p>
             </div>
-            <Button @click="openCreate">
-                <Plus class="size-4" />
-                Tambah Rule
-            </Button>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" @click="importOpen = true">
+                    <Upload class="size-4" />
+                    Import CSV
+                </Button>
+                <Button @click="openCreate">
+                    <Plus class="size-4" />
+                    Tambah Rule
+                </Button>
+            </div>
         </div>
 
         <div
@@ -388,4 +396,13 @@ function confirmDelete() {
             @confirm="confirmDelete"
         />
     </div>
+
+    <ImportCsvDialog
+        v-model:open="importOpen"
+        :action="TierDiscountController.importCsv.form()"
+        template-type="tier-discounts"
+        title="Import Tier Discount dari CSV"
+        description="Format kolom: tier,min_qty,discount_percent"
+        hint="Aturan global per (tier, min_qty)."
+    />
 </template>

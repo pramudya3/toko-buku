@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Search, X } from '@lucide/vue';
+import { Plus, Search, Upload, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import PromotionController from '@/actions/App/Http/Controllers/Admin/PromotionController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
+import ImportCsvDialog from '@/components/ImportCsvDialog.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,6 +107,7 @@ function confirmDelete(promo: Promotion) {
 }
 
 const deletingPromo = ref<Promotion | null>(null);
+const importOpen = ref(false);
 
 function executeDelete() {
     if (!deletingPromo.value) {
@@ -132,12 +134,18 @@ function executeDelete() {
                     Mengelola promo, diskon, dan bundle item
                 </p>
             </div>
-            <Button as-child>
-                <Link :href="create()">
-                    <Plus class="size-4" />
-                    Buat Promo
-                </Link>
-            </Button>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" @click="importOpen = true">
+                    <Upload class="size-4" />
+                    Import CSV
+                </Button>
+                <Button as-child>
+                    <Link :href="create()">
+                        <Plus class="size-4" />
+                        Buat Promo
+                    </Link>
+                </Button>
+            </div>
         </div>
 
         <div
@@ -237,4 +245,13 @@ function executeDelete() {
             @confirm="executeDelete"
         />
     </div>
+
+    <ImportCsvDialog
+        v-model:open="importOpen"
+        :action="PromotionController.importCsv.form()"
+        template-type="promotions"
+        title="Import Promo dari CSV"
+        description="Format kolom: promo_name,promo_type,discount_percent,komponen"
+        hint="Komponen = judul buku dipisah | (bundle)."
+    />
 </template>
