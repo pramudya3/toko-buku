@@ -99,3 +99,9 @@ resources/js/
 ## 📄 Lisensi
 
 Proyek internal — hubungi pemilik repository untuk detail lisensi.
+
+## Deployment
+
+- Push ke `main` → auto-deploy via GitHub webhook (deploy.sh di server).
+- Wayfinder (resources/js/{routes,actions,wayfinder}) di-generate otomatis
+  di dalam Docker build — tidak perlu generate manual.
