@@ -13,12 +13,11 @@ final class LogoutResponse implements LogoutResponseContract
     /**
      * Create an HTTP response after a successful logout.
      *
-     * Redirect 302 biasa membuat Inertia client diam (response HTML tanpa
-     * header X-Inertia tidak bisa diproses) → user harus refresh manual.
-     * Inertia::location() mengembalikan 409 + header X-Inertia-Location
-     * sehingga client melakukan full page reload ke halaman tujuan.
+     * Inertia::location() (409 + X-Inertia-Location) agar client Inertia
+     * langsung full page reload ke halaman login — 302 biasa membuat UI
+     * diam dan user harus refresh manual.
      *
-     * @param Request $request
+     * @param  Request  $request
      */
     public function toResponse($request): Response
     {
@@ -26,6 +25,6 @@ final class LogoutResponse implements LogoutResponseContract
             return new JsonResponse('', 204);
         }
 
-        return Inertia::location(url('/'));
+        return Inertia::location(route('login'));
     }
 }
