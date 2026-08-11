@@ -1,0 +1,33 @@
+# Override lokal: tambah PostgreSQL sendiri untuk toko-buku.
+# Postgres "host" (pondok-live-db) hanya bind 127.0.0.1 → tak bisa
+# diakses dari container bridge via host.docker.internal.
+# Konsisten dengan pola tabungan/keuangan (tiap app punya db sendiri).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: toko_buku
+      POSTGRES_USER: toko_buku
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - tb-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toko_buku -d toko_buku"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+  app:
+    environment:
+      DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  tb-db-data:

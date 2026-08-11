@@ -83,7 +83,6 @@ require __DIR__.'/settings.php';
 */
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::redirect('/', '/admin/dashboard');
-    Route::redirect('dashboard', '/admin/dashboard');
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
