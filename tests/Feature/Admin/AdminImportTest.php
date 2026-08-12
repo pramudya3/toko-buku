@@ -233,3 +233,90 @@ it('requires admin on all import routes', function (): void {
             ->assertForbidden();
     }
 });
+
+// ── Header Validation ────────────────────────────────────────────────────
+
+it('rejects category import with wrong columns', function (): void {
+    // Kolom buku, bukan kolom kategori (kode, nama)
+    $csv = "judul,penulis,harga\nBuku A,Penulis A,50000\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.categories.import'), ['file' => importCsvUpload($csv)])
+        ->assertSessionHasErrors('file');
+
+    expect(Category::count())->toBe(0);
+});
+
+it('rejects tier discount import with wrong columns', function (): void {
+    // Kolom kategori, bukan tier discount
+    $csv = "kode,nama\nPRN,Parenting\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.tier-discounts.import'), ['file' => importCsvUpload($csv)])
+        ->assertSessionHasErrors('file');
+
+    expect(TierDiscount::count())->toBe(0);
+});
+
+it('rejects promotion import without promo_name column', function (): void {
+    $csv = "nama,diskon\nPromo A,10\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.promotions.import'), ['file' => importCsvUpload($csv)])
+        ->assertSessionHasErrors('file');
+
+    expect(Promotion::count())->toBe(0);
+});
+
+it('rejects book import with completely wrong columns', function (): void {
+    // Kolom pelanggan, bukan kolom buku
+    $csv = "penerima,tujuan,kota/kabupaten\nBudi,Jawa Barat,Bandung\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.books.import'), ['file' => bookCsvUpload($csv)])
+        ->assertSessionHasErrors('file');
+
+    expect(Book::count())->toBe(0);
+});
+
+it('accepts category import with correct columns (kode, nama)', function (): void {
+    $csv = "kode,nama\nALQ,Tafsir dan Tadabbur\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.categories.import'), ['file' => importCsvUpload($csv)])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors('file');
+
+    expect(Category::count())->toBe(1);
+});
+
+it('accepts tier discount import with correct columns', function (): void {
+    $csv = "tier,min_qty,discount_percent\nguru,1,30\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.tier-discounts.import'), ['file' => importCsvUpload($csv)])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors('file');
+
+    expect(TierDiscount::count())->toBe(1);
+});
+
+it('accepts promotion import with correct columns', function (): void {
+    $csv = "promo_name,promo_type,discount_percent,komponen\nTest Promo,bundle,10,\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.promotions.import'), ['file' => importCsvUpload($csv)])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors('file');
+
+    expect(Promotion::count())->toBe(1);
+});
+
+it('rejects customer import with wrong columns', function (): void {
+    // Kolom buku, bukan kolom pelanggan
+    $csv = "judul,penulis,harga\nBuku A,Penulis A,50000\n";
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.customers.import'), ['file' => importCsvUpload($csv)])
+        ->assertSessionHasErrors('file');
+});

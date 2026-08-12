@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,7 +15,7 @@ class MyOrderController extends Controller
 {
     public function index(Request $request): Response
     {
-        $orders = \App\Models\Order::query()
+        $orders = Order::query()
             ->where('user_id', $request->user()->id)
             ->withCount('items')
             ->orderByDesc('created_at')

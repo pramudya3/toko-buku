@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\CsvHeaderValidator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class PromotionImportRequest extends FormRequest
 {
@@ -34,6 +36,32 @@ class PromotionImportRequest extends FormRequest
         return [
             'file.mimes' => 'File harus berformat CSV.',
             'file.max' => 'Ukuran file maksimal 2 MB.',
+        ];
+    }
+
+    /**
+     * Validasi header CSV: minimal harus ada kolom promo_name.
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $file = $this->file('file');
+
+                if ($file === null) {
+                    return;
+                }
+
+                $result = CsvHeaderValidator::validate($file->getRealPath(), ['promo_name', 'promo_type', 'discount_percent', 'komponen']);
+
+                if (! $result['valid']) {
+                    $validator->errors()->add('file', $result['error']);
+                }
+            },
         ];
     }
 }

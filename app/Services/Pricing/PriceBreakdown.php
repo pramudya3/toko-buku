@@ -13,6 +13,5 @@ final readonly class PriceBreakdown
         public int $tierDiscount,
         public int $finalPrice,
         public ?string $promoName = null,
-    ) {
-    }
+    ) {}
 }

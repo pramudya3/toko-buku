@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\CsvHeaderValidator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class BookImportRequest extends FormRequest
 {
@@ -34,6 +36,37 @@ class BookImportRequest extends FormRequest
         return [
             'file.mimes' => 'File harus berformat CSV.',
             'file.max' => 'Ukuran file maksimal 2 MB.',
+        ];
+    }
+
+    /**
+     * Validasi header CSV: buku mendukung multi-layout (5-kolom, invoice, pricelist).
+     * Tolak file yang tidak cocok dengan salah satu layout yang dikenal.
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $file = $this->file('file');
+
+                if ($file === null) {
+                    return;
+                }
+
+                $result = CsvHeaderValidator::validateAny($file->getRealPath(), [
+                    'template 5-kolom' => ['judul', 'penulis', 'harga_jual'],
+                    'invoice' => ['nama barang', 'hrg jual'],
+                    'pricelist' => ['judul buku', 'harga normal'],
+                ]);
+
+                if (! $result['valid']) {
+                    $validator->errors()->add('file', $result['error']);
+                }
+            },
         ];
     }
 }
