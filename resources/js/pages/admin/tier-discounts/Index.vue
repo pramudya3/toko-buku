@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Tier Discount', href: '/admin/tier-discounts' },
+        ],
+    },
+});
+
 import { Form, Head, router } from '@inertiajs/vue3';
 import { Plus, Search, Upload, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';

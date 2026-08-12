@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             WarehouseSeeder::class,
             CourierSeeder::class,
             PaymentMethodSeeder::class,
+            SalesChannelSeeder::class,
             SuperAdminSeeder::class,
             // Data referensi wilayah (provinsi/kabupaten/kecamatan/kelurahan + kode pos) —
             // wajib untuk AddressFields di checkout & pengaturan.

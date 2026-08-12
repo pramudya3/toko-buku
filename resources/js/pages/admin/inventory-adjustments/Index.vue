@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Stok Adjustment', href: '/admin/inventory-adjustments' },
+        ],
+    },
+});
+
 import { Form, Head } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { computed, ref } from 'vue';

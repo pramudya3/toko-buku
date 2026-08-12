@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Barang Masuk', href: '/admin/purchases' },
+            { title: 'Buat' },
+        ],
+    },
+});
+
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Plus, Trash2 } from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';

@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Rekap Harian', href: '/admin/daily-recap' },
+        ],
+    },
+});
+
 import { Head, router } from '@inertiajs/vue3';
 import { Download, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
@@ -7,6 +16,13 @@ import type { DataTableColumn } from '@/components/DataTable.vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { index as indexRoute, exportMethod } from '@/routes/admin/daily-recap';
 
 type RecapRow = {
@@ -24,18 +40,24 @@ type RecapRow = {
 
 const props = defineProps<{
     rows: RecapRow[];
-    filters: { from: string; to: string };
+    filters: { from: string; to: string; sumber_pembelian: string | null };
+    salesChannels: Record<string, string>;
 }>();
 
 const from = ref(props.filters.from);
 const to = ref(props.filters.to);
+const sumberPembelian = ref(props.filters.sumber_pembelian ?? 'all');
 
 // Snapshot awal (nilai server saat load) untuk tombol Reset.
 const initialFrom = props.filters.from;
 const initialTo = props.filters.to;
+const initialSumberPembelian = props.filters.sumber_pembelian ?? 'all';
 
 const hasActiveFilters = computed(
-    () => from.value !== initialFrom || to.value !== initialTo,
+    () =>
+        from.value !== initialFrom ||
+        to.value !== initialTo ||
+        sumberPembelian.value !== initialSumberPembelian,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -45,7 +67,14 @@ function applyFilters() {
     filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
-            { from: from.value || undefined, to: to.value || undefined },
+            {
+                from: from.value || undefined,
+                to: to.value || undefined,
+                sumber_pembelian:
+                    sumberPembelian.value === 'all'
+                        ? undefined
+                        : sumberPembelian.value,
+            },
             { preserveState: true, replace: true },
         );
     }, 350);
@@ -54,13 +83,18 @@ function applyFilters() {
 function resetFilters() {
     from.value = initialFrom;
     to.value = initialTo;
+    sumberPembelian.value = initialSumberPembelian;
     applyFilters();
 }
 
-watch([from, to], applyFilters);
+watch([from, to, sumberPembelian], applyFilters);
 
 function exportUrl() {
     const params = new URLSearchParams({ from: from.value, to: to.value });
+
+    if (sumberPembelian.value && sumberPembelian.value !== 'all') {
+        params.set('sumber_pembelian', sumberPembelian.value);
+    }
 
     return `${exportMethod().url}?${params.toString()}`;
 }
@@ -162,6 +196,31 @@ const columns: DataTableColumn[] = [
                     class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-36"
                     aria-label="Sampai tanggal"
                 />
+            </div>
+
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Sumber
+                </p>
+                <Select v-model="sumberPembelian" name="sumber_pembelian">
+                    <SelectTrigger
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
+                    >
+                        <SelectValue placeholder="Semua sumber" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua sumber</SelectItem>
+                        <SelectItem
+                            v-for="(label, value) in salesChannels"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
             <button
                 v-if="hasActiveFilters"

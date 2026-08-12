@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Dropship', href: '/admin/dropship' },
+        ],
+    },
+});
+
 import { Head, router } from '@inertiajs/vue3';
 import { X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';

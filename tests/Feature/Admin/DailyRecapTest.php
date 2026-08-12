@@ -12,7 +12,7 @@ beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
 });
 
-function recapOrder(User $admin, string $metode, int $total, int $qty = 1): Order
+function recapOrder(User $admin, string $metode, int $total, int $qty = 1, ?string $sumber = null): Order
 {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => $total]);
 
@@ -21,6 +21,7 @@ function recapOrder(User $admin, string $metode, int $total, int $qty = 1): Orde
         'status' => OrderStatus::Selesai->value,
         'shipping_cost' => 10000,
         'total' => $total + 10000,
+        'sumber_pembelian' => $sumber,
     ]);
 
     $order->items()->create([
@@ -62,6 +63,28 @@ it('groups sales by day with omzet, payment split, hpp and profit', function ():
 
     expect($props['totals']['order_count'])->toBe(3)
         ->and($props['totals']['laba'])->toBe($row['laba']);
+});
+
+it('filters the recap by sales channel', function (): void {
+    recapOrder($this->admin, PaymentMethod::Cash->value, 100000, sumber: 'toko');
+    recapOrder($this->admin, PaymentMethod::Transfer->value, 50000, qty: 2, sumber: 'shopee');
+    recapOrder($this->admin, PaymentMethod::Cod->value, 75000, sumber: 'toko');
+
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index', [
+        'sumber_pembelian' => 'toko',
+    ])));
+
+    $row = $props['rows'][0];
+
+    expect($row['order_count'])->toBe(2)
+        ->and($row['omzet'])->toBe(195000) // 110000 + 85000
+        ->and($row['cash'])->toBe(110000)
+        ->and($row['cod'])->toBe(85000)
+        ->and($row['transfer'])->toBe(0)
+        // item: 1 + 1 = 2; HPP = 30000 × 2
+        ->and($row['item_count'])->toBe(2)
+        ->and($row['hpp'])->toBe(60000)
+        ->and($props['filters']['sumber_pembelian'])->toBe('toko');
 });
 
 it('subtracts sales returns from the recap', function (): void {

@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Log Aktivitas', href: '/admin/aktivitas' },
+        ],
+    },
+});
+
 import { Head, router } from '@inertiajs/vue3';
 import { Search, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';

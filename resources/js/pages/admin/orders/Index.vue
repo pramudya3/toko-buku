@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Pesanan', href: '/admin/orders' },
+        ],
+    },
+});
+
 import { Head, Link, router } from '@inertiajs/vue3';
 import { PackageSearch, Search, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
@@ -24,6 +33,7 @@ type Order = {
     id: string;
     no_order: string;
     nama_pembeli: string;
+    sumber_pembelian: string | null;
     total: number;
     status: string;
     is_dropship: boolean;
@@ -40,8 +50,14 @@ type Props = {
         per_page: number;
         links: Array<{ url: string | null; label: string; active: boolean }>;
     };
-    filters: { search?: string; status?: string; dropship?: string };
+    filters: {
+        search?: string;
+        status?: string;
+        dropship?: string;
+        sumber_pembelian?: string;
+    };
     statusOptions: Record<string, string>;
+    salesChannels: Record<string, string>;
 };
 
 const props = defineProps<Props>();
@@ -49,6 +65,7 @@ const props = defineProps<Props>();
 const columns: DataTableColumn[] = [
     { key: 'no_order', header: 'No. Order', cellClass: 'font-medium' },
     { key: 'nama_pembeli', header: 'Pembeli' },
+    { key: 'sumber', header: 'Sumber' },
     {
         key: 'items_count',
         header: 'Item',
@@ -61,20 +78,24 @@ const columns: DataTableColumn[] = [
 ];
 
 const allStatuses = '__all_statuses__';
+const allSources = '__all_sources__';
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? allStatuses);
 const dropship = ref(props.filters.dropship === '1');
+const sumberPembelian = ref(props.filters.sumber_pembelian ?? allSources);
 
 // Snapshot awal (nilai server saat load) untuk tombol Reset.
 const initialSearch = props.filters.search ?? '';
 const initialStatus = props.filters.status ?? allStatuses;
 const initialDropship = props.filters.dropship === '1';
+const initialSumberPembelian = props.filters.sumber_pembelian ?? allSources;
 
 const hasActiveFilters = computed(
     () =>
         search.value !== initialSearch ||
         status.value !== initialStatus ||
-        dropship.value !== initialDropship,
+        dropship.value !== initialDropship ||
+        sumberPembelian.value !== initialSumberPembelian,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -88,6 +109,10 @@ function applyFilters() {
                 search: search.value || undefined,
                 status: status.value === allStatuses ? undefined : status.value,
                 dropship: dropship.value ? '1' : undefined,
+                sumber_pembelian:
+                    sumberPembelian.value === allSources
+                        ? undefined
+                        : sumberPembelian.value,
             },
             {
                 preserveState: true,
@@ -101,10 +126,11 @@ function resetFilters() {
     search.value = initialSearch;
     status.value = initialStatus;
     dropship.value = initialDropship;
+    sumberPembelian.value = initialSumberPembelian;
     applyFilters();
 }
 
-watch([search, status, dropship], applyFilters);
+watch([search, status, dropship, sumberPembelian], applyFilters);
 
 const statusVariant: Record<
     string,
@@ -178,6 +204,32 @@ const statusVariant: Record<
                 </Select>
             </div>
             <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Sumber
+                </p>
+                <Select v-model="sumberPembelian" name="sumber_pembelian">
+                    <SelectTrigger
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
+                    >
+                        <SelectValue placeholder="Semua sumber" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem :value="allSources"
+                            >Semua sumber</SelectItem
+                        >
+                        <SelectItem
+                            v-for="(label, value) in salesChannels"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div class="md:flex md:items-center">
                 <Label class="flex h-11 items-center gap-2 px-3 text-sm md:h-9">
                     <Checkbox v-model="dropship" />
                     Dropship
@@ -211,6 +263,13 @@ const statusVariant: Record<
             </template>
             <template #cell-total="{ row }">
                 <Money :value="row.total" />
+            </template>
+            <template #cell-sumber="{ row }">
+                {{
+                    salesChannels[row.sumber_pembelian ?? ''] ??
+                    row.sumber_pembelian ??
+                    '—'
+                }}
             </template>
             <template #cell-status="{ row }">
                 <StatusBadge

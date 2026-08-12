@@ -204,7 +204,7 @@ function loadMore() {
             name="description"
             content="Katalog buku toko — fiksi, non-fiksi, pendidikan, dan religi. Belanja mudah, harga bersahabat."
         />
-        <meta property="og:title" content="Katalog Buku — Toko Buku Online" />
+        <meta property="og:title" content="Katalog Buku — Pustaka Cahaya Peradaban" />
         <meta
             property="og:description"
             content="Temukan buku berkualitas untuk semua kalangan."

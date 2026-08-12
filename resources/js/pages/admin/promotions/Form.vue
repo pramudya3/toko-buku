@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: (pageProps: any) => ({
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Promosi', href: '/admin/promotions' },
+            { title: pageProps.promotion ? 'Edit' : 'Tambah' },
+        ],
+    }),
+});
+
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import PromotionController from '@/actions/App/Http/Controllers/Admin/PromotionController';

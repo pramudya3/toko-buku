@@ -37,6 +37,7 @@ class OrderStoreRequest extends FormRequest
             'kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'metode_bayar' => ['required', Rule::in(StoreSettings::enabledPaymentMethodValues() ?: ['__tidak_ada__'])],
+            'sumber_pembelian' => ['nullable', 'string', 'max:50', Rule::in(StoreSettings::enabledSalesChannelValues() ?: ['__tidak_ada__'])],
             'ekspedisi' => ['nullable', 'string', 'max:50'],
             'shipping_cost' => ['nullable', 'integer', 'min:0'],
             'ongkir_estimasi' => ['nullable', 'string', 'max:100'],

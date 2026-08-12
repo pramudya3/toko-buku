@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string|null $kode_pos
  * @property string|null $nama_penerima
  * @property PaymentMethod $metode_bayar
+ * @property string|null $sumber_pembelian
  * @property int $total
  * @property int $shipping_cost
  * @property bool $is_dropship
@@ -42,7 +43,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable([
     'no_order', 'user_id', 'nama_pembeli', 'no_hp', 'email_pembeli', 'alamat',
     'provinsi', 'kabupaten_kota', 'kecamatan', 'kode_pos', 'nama_penerima',
-    'metode_bayar', 'total', 'shipping_cost', 'is_dropship', 'warehouse_origin',
+    'metode_bayar', 'sumber_pembelian', 'total', 'shipping_cost', 'is_dropship', 'warehouse_origin',
     'status', 'payment_status', 'ekspedisi', 'ongkir_estimasi',
 ])]
 #[ObservedBy([OrderObserver::class])]

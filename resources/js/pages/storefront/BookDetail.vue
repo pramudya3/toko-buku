@@ -226,12 +226,12 @@ const specs = computed(() =>
             :content="
                 book.sinopsis
                     ? book.sinopsis.slice(0, 160)
-                    : `${book.judul} — ${book.penulis ?? 'Toko Buku Online'}`
+                    : `${book.judul} — ${book.penulis ?? 'Pustaka Cahaya Peradaban'}`
             "
         />
         <meta
             :property="'og:title'"
-            :content="`${book.judul} — Toko Buku Online`"
+            :content="`${book.judul} — Pustaka Cahaya Peradaban`"
         />
         <meta
             :property="'og:description'"

@@ -3,7 +3,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             { title: 'Beranda', href: '/admin/dashboard' },
-            { title: 'Pembayaran', href: '/admin/settings/pembayaran' },
+            { title: 'Sumber Penjualan' },
         ],
     },
 });
@@ -11,7 +11,7 @@ defineOptions({
 import { Form, Head, router } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { ref } from 'vue';
-import PaymentMethodController from '@/actions/App/Http/Controllers/Admin/PaymentMethodController';
+import SalesChannelController from '@/actions/App/Http/Controllers/Admin/SalesChannelController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -38,7 +38,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 
-type PaymentMethodItem = {
+type SalesChannelItem = {
     id: string;
     code: string;
     name: string;
@@ -46,25 +46,25 @@ type PaymentMethodItem = {
 };
 
 defineProps<{
-    paymentMethods: PaymentMethodItem[];
+    salesChannels: SalesChannelItem[];
 }>();
 
 const dialogOpen = ref(false);
-const editing = ref<PaymentMethodItem | null>(null);
-const deleting = ref<PaymentMethodItem | null>(null);
+const editing = ref<SalesChannelItem | null>(null);
+const deleting = ref<SalesChannelItem | null>(null);
 
 function openCreate(): void {
     editing.value = null;
     dialogOpen.value = true;
 }
 
-function openEdit(method: PaymentMethodItem): void {
-    editing.value = method;
+function openEdit(channel: SalesChannelItem): void {
+    editing.value = channel;
     dialogOpen.value = true;
 }
 
-function confirmDelete(method: PaymentMethodItem): void {
-    deleting.value = method;
+function confirmDelete(channel: SalesChannelItem): void {
+    deleting.value = channel;
 }
 
 function executeDelete(): void {
@@ -72,39 +72,38 @@ function executeDelete(): void {
         return;
     }
 
-    const method = deleting.value;
+    const channel = deleting.value;
     deleting.value = null;
 
-    router.delete(PaymentMethodController.destroy(method.id).url, {
+    router.delete(SalesChannelController.destroy(channel.id).url, {
         preserveScroll: true,
     });
 }
 </script>
 
 <template>
-    <Head title="Pengaturan — Metode Pembayaran" />
+    <Head title="Pengaturan — Sumber Penjualan" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
         <div>
             <h1 class="text-xl font-semibold tracking-tight">
-                Pengaturan Pembayaran
+                Pengaturan Sumber Penjualan
             </h1>
             <p class="text-sm text-muted-foreground">
-                Metode pembayaran yang tersedia di checkout
+                Channel tempat pembelian terjadi — toko, marketplace, dll.
             </p>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h2 class="text-base font-medium">Metode Pembayaran</h2>
+                <h2 class="text-base font-medium">Sumber Penjualan</h2>
                 <p class="text-sm text-muted-foreground">
-                    Metode aktif tampil di checkout storefront dan form pesanan
-                    admin
+                    Sumber aktif tampil di form pesanan admin
                 </p>
             </div>
             <Button @click="openCreate">
                 <Plus class="size-4" />
-                Tambah Metode
+                Tambah Sumber
             </Button>
         </div>
 
@@ -122,23 +121,23 @@ function executeDelete(): void {
                     </TableHeader>
                     <TableBody>
                         <TableRow
-                            v-for="method in paymentMethods"
-                            :key="method.id"
+                            v-for="channel in salesChannels"
+                            :key="channel.id"
                         >
                             <TableCell class="font-medium">
-                                {{ method.name }}
+                                {{ channel.name }}
                             </TableCell>
                             <TableCell>
                                 <Badge
                                     variant="outline"
                                     :class="
-                                        method.is_active
+                                        channel.is_active
                                             ? 'border-green-200 bg-green-100 text-green-800'
                                             : 'border-gray-200 bg-gray-100 text-gray-600'
                                     "
                                 >
                                     {{
-                                        method.is_active ? 'Aktif' : 'Nonaktif'
+                                        channel.is_active ? 'Aktif' : 'Nonaktif'
                                     }}
                                 </Badge>
                             </TableCell>
@@ -147,13 +146,13 @@ function executeDelete(): void {
                                     :actions="[
                                         {
                                             label: 'Edit',
-                                            onClick: () => openEdit(method),
+                                            onClick: () => openEdit(channel),
                                         },
                                         {
                                             label: 'Hapus',
                                             variant: 'destructive',
                                             onClick: () =>
-                                                confirmDelete(method),
+                                                confirmDelete(channel),
                                         },
                                     ]"
                                 />
@@ -162,9 +161,9 @@ function executeDelete(): void {
                     </TableBody>
                 </Table>
                 <EmptyState
-                    v-if="!paymentMethods.length"
-                    title="Belum ada metode pembayaran"
-                    description="Tambahkan metode yang diterima toko."
+                    v-if="!salesChannels.length"
+                    title="Belum ada sumber penjualan"
+                    description="Tambahkan channel tempat toko menjual."
                 />
             </CardContent>
         </Card>
@@ -174,17 +173,17 @@ function executeDelete(): void {
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>
-                    {{ editing ? 'Edit Metode' : 'Tambah Metode' }}
+                    {{ editing ? 'Edit Sumber' : 'Tambah Sumber' }}
                 </DialogTitle>
                 <DialogDescription>
-                    Metode pembayaran yang diterima toko.
+                    Channel tempat pembelian terjadi (toko, marketplace, dll).
                 </DialogDescription>
             </DialogHeader>
 
             <Form
                 v-if="editing"
                 :key="editing.id"
-                v-bind="PaymentMethodController.update.form(editing.id)"
+                v-bind="SalesChannelController.update.form(editing.id)"
                 class="grid gap-4"
                 v-slot="{ processing }"
             >
@@ -195,7 +194,7 @@ function executeDelete(): void {
                         name="name"
                         required
                         :default-value="editing.name"
-                        placeholder="QRIS"
+                        placeholder="Shopee"
                     />
                 </div>
                 <div
@@ -207,7 +206,7 @@ function executeDelete(): void {
                         :value="editing.is_active ? '1' : '0'"
                     />
                     <Switch v-model="editing.is_active" />
-                    Metode aktif
+                    Sumber aktif
                 </div>
 
                 <DialogFooter>
@@ -226,7 +225,7 @@ function executeDelete(): void {
 
             <Form
                 v-else
-                v-bind="PaymentMethodController.store.form()"
+                v-bind="SalesChannelController.store.form()"
                 class="grid gap-4"
                 v-slot="{ processing }"
             >
@@ -237,12 +236,17 @@ function executeDelete(): void {
                         name="code"
                         required
                         pattern="[a-z0-9_-]+"
-                        placeholder="qris (huruf kecil, tanpa spasi)"
+                        placeholder="shopee (huruf kecil, tanpa spasi)"
                     />
                 </div>
                 <div class="grid gap-2">
                     <Label for="name">Nama *</Label>
-                    <Input id="name" name="name" required placeholder="QRIS" />
+                    <Input
+                        id="name"
+                        name="name"
+                        required
+                        placeholder="Shopee"
+                    />
                 </div>
 
                 <DialogFooter>
@@ -268,10 +272,10 @@ function executeDelete(): void {
                 if (!open) deleting = null;
             }
         "
-        title="Hapus Metode Pembayaran?"
+        title="Hapus Sumber Penjualan?"
         :description="
             deleting
-                ? `Metode ${deleting.name} (${deleting.code}) akan dihapus.`
+                ? `Sumber ${deleting.name} (${deleting.code}) akan dihapus.`
                 : ''
         "
         @confirm="executeDelete"

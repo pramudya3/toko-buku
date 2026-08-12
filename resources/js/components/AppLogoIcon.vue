@@ -19,7 +19,7 @@ defineProps<Props>();
         :class="className"
         v-bind="$attrs"
         role="img"
-        aria-label="TokoBuku"
+        aria-label="Pustaka Cahaya Peradaban"
     >
         <text
             x="50%"
@@ -31,7 +31,7 @@ defineProps<Props>();
             letter-spacing="-0.5"
             fill="currentColor"
         >
-            TB
+            PC
         </text>
     </svg>
 </template>

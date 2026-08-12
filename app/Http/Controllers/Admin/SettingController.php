@@ -6,6 +6,7 @@ use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
 use App\Models\Courier;
 use App\Models\PaymentMethod as PaymentMethodModel;
+use App\Models\SalesChannel;
 use App\Models\Setting;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -121,6 +122,19 @@ class SettingController extends Controller
     {
         return Inertia::render('admin/settings/Pembayaran', [
             'paymentMethods' => PaymentMethodModel::query()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'is_active']),
+        ]);
+    }
+
+    /**
+     * Halaman pengaturan toko — daftar sumber penjualan (channel).
+     */
+    public function sumberPenjualan(): Response
+    {
+        return Inertia::render('admin/settings/SumberPenjualan', [
+            'salesChannels' => SalesChannel::query()
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(['id', 'code', 'name', 'is_active']),

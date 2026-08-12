@@ -7,6 +7,7 @@ use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\OrderStatusService;
+use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
@@ -21,6 +22,7 @@ it('creates a manual order and calculates prices via PricingService (ORD-03, ORD
             'user_id' => $customer->id,
             'nama_pembeli' => $customer->name,
             'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'shopee',
             'items' => [
                 ['book_id' => $book->id, 'qty' => 2],
             ],
@@ -31,8 +33,25 @@ it('creates a manual order and calculates prices via PricingService (ORD-03, ORD
     $order = Order::latest('id')->first();
 
     expect($order->status)->toBe(OrderStatus::MenungguKonfirmasi)
+        ->and($order->sumber_pembelian)->toBe('shopee')
         ->and($order->total)->toBe(100000)
         ->and($order->items()->first()->price_final)->toBe(50000);
+});
+
+it('filters the order list by sales channel', function (): void {
+    Order::factory()->create(['sumber_pembelian' => 'shopee', 'nama_pembeli' => 'Dari Shopee']);
+    Order::factory()->create(['sumber_pembelian' => 'toko', 'nama_pembeli' => 'Dari Toko']);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.orders.index', ['sumber_pembelian' => 'shopee']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('admin/orders/Index')
+            ->where('filters.sumber_pembelian', 'shopee')
+            ->has('orders.data', 1)
+            ->where('orders.data.0.sumber_pembelian', 'shopee')
+            ->has('salesChannels.shopee')
+        );
 });
 
 it('checks shipping cost from admin endpoint (cached shared)', function (): void {
@@ -77,6 +96,21 @@ it('saves shipping cost and courier on manual order', function (): void {
         ->and($order->ongkir_estimasi)->toBe('1 - 2 days')
         ->and($order->kode_pos)->toBe('65144')
         ->and($order->total)->toBe(112000);
+});
+
+it('rejects an unknown sales channel on manual order', function (): void {
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'blibli',
+            'items' => [
+                ['book_id' => $book->id, 'qty' => 1],
+            ],
+        ])
+        ->assertSessionHasErrors('sumber_pembelian');
 });
 
 it('generates a unique order number', function (): void {

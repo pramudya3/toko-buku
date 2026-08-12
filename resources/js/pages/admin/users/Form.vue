@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: (pageProps: any) => ({
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Staf', href: '/admin/users' },
+            { title: pageProps.user ? 'Edit' : 'Tambah' },
+        ],
+    }),
+});
+
 import { Form, Head, Link } from '@inertiajs/vue3';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import FieldHint from '@/components/FieldHint.vue';
