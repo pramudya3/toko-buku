@@ -13,11 +13,11 @@ import { Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import SalesChannelController from '@/actions/App/Http/Controllers/Admin/SalesChannelController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -29,14 +29,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 
 type SalesChannelItem = {
     id: string;
@@ -52,6 +44,12 @@ defineProps<{
 const dialogOpen = ref(false);
 const editing = ref<SalesChannelItem | null>(null);
 const deleting = ref<SalesChannelItem | null>(null);
+
+const columns: DataTableColumn[] = [
+    { key: 'name', header: 'Nama', cellClass: 'font-medium' },
+    { key: 'status', header: 'Status' },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
 
 function openCreate(): void {
     editing.value = null;
@@ -107,66 +105,40 @@ function executeDelete(): void {
             </Button>
         </div>
 
-        <Card>
-            <CardContent class="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nama</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead class="text-right">
-                                <span class="sr-only">Aksi</span>
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow
-                            v-for="channel in salesChannels"
-                            :key="channel.id"
-                        >
-                            <TableCell class="font-medium">
-                                {{ channel.name }}
-                            </TableCell>
-                            <TableCell>
-                                <Badge
-                                    variant="outline"
-                                    :class="
-                                        channel.is_active
-                                            ? 'border-green-200 bg-green-100 text-green-800'
-                                            : 'border-gray-200 bg-gray-100 text-gray-600'
-                                    "
-                                >
-                                    {{
-                                        channel.is_active ? 'Aktif' : 'Nonaktif'
-                                    }}
-                                </Badge>
-                            </TableCell>
-                            <TableCell class="text-right">
-                                <DataTableActions
-                                    :actions="[
-                                        {
-                                            label: 'Edit',
-                                            onClick: () => openEdit(channel),
-                                        },
-                                        {
-                                            label: 'Hapus',
-                                            variant: 'destructive',
-                                            onClick: () =>
-                                                confirmDelete(channel),
-                                        },
-                                    ]"
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-                <EmptyState
-                    v-if="!salesChannels.length"
-                    title="Belum ada sumber penjualan"
-                    description="Tambahkan channel tempat toko menjual."
+        <DataTable
+            :data="salesChannels"
+            :columns="columns"
+            empty-title="Belum ada sumber penjualan"
+            empty-description="Tambahkan channel tempat toko menjual."
+        >
+            <template #cell-status="{ row }">
+                <Badge
+                    variant="outline"
+                    :class="
+                        row.is_active
+                            ? 'border-green-200 bg-green-100 text-green-800'
+                            : 'border-gray-200 bg-gray-100 text-gray-600'
+                    "
+                >
+                    {{ row.is_active ? 'Aktif' : 'Nonaktif' }}
+                </Badge>
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            onClick: () => openEdit(row),
+                        },
+                        {
+                            label: 'Hapus',
+                            variant: 'destructive',
+                            onClick: () => confirmDelete(row),
+                        },
+                    ]"
                 />
-            </CardContent>
-        </Card>
+            </template>
+        </DataTable>
     </div>
 
     <Dialog v-model:open="dialogOpen">

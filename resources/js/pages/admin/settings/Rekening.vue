@@ -13,11 +13,11 @@ import { Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import BankAccountController from '@/actions/App/Http/Controllers/Admin/BankAccountController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
+import DataTable from '@/components/DataTable.vue';
+import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
-import EmptyState from '@/components/EmptyState.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -29,14 +29,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 
 type BankAccount = {
     id: string;
@@ -53,6 +45,14 @@ defineProps<{
 const dialogOpen = ref(false);
 const editing = ref<BankAccount | null>(null);
 const deleting = ref<BankAccount | null>(null);
+
+const columns: DataTableColumn[] = [
+    { key: 'bank_name', header: 'Bank', cellClass: 'font-medium' },
+    { key: 'account_number', header: 'No. Rekening', cellClass: 'font-mono' },
+    { key: 'account_holder', header: 'Atas Nama' },
+    { key: 'status', header: 'Status' },
+    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+];
 
 function openCreate(): void {
     editing.value = null;
@@ -108,69 +108,40 @@ function executeDelete(): void {
             </Button>
         </div>
 
-        <Card>
-            <CardContent class="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Bank</TableHead>
-                            <TableHead>No. Rekening</TableHead>
-                            <TableHead>Atas Nama</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead class="text-right">
-                                <span class="sr-only">Aksi</span>
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-for="account in accounts" :key="account.id">
-                            <TableCell class="font-medium">
-                                {{ account.bank_name }}
-                            </TableCell>
-                            <TableCell class="font-mono">
-                                {{ account.account_number }}
-                            </TableCell>
-                            <TableCell>{{ account.account_holder }}</TableCell>
-                            <TableCell>
-                                <Badge
-                                    variant="outline"
-                                    :class="
-                                        account.is_active
-                                            ? 'border-green-200 bg-green-100 text-green-800'
-                                            : 'border-gray-200 bg-gray-100 text-gray-600'
-                                    "
-                                >
-                                    {{
-                                        account.is_active ? 'Aktif' : 'Nonaktif'
-                                    }}
-                                </Badge>
-                            </TableCell>
-                            <TableCell class="text-right">
-                                <DataTableActions
-                                    :actions="[
-                                        {
-                                            label: 'Edit',
-                                            onClick: () => openEdit(account),
-                                        },
-                                        {
-                                            label: 'Hapus',
-                                            variant: 'destructive',
-                                            onClick: () =>
-                                                confirmDelete(account),
-                                        },
-                                    ]"
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-                <EmptyState
-                    v-if="!accounts.length"
-                    title="Belum ada rekening"
-                    description="Tambahkan rekening bank untuk tujuan transfer pembeli."
+        <DataTable
+            :data="accounts"
+            :columns="columns"
+            empty-title="Belum ada rekening"
+            empty-description="Tambahkan rekening bank untuk tujuan transfer pembeli."
+        >
+            <template #cell-status="{ row }">
+                <Badge
+                    variant="outline"
+                    :class="
+                        row.is_active
+                            ? 'border-green-200 bg-green-100 text-green-800'
+                            : 'border-gray-200 bg-gray-100 text-gray-600'
+                    "
+                >
+                    {{ row.is_active ? 'Aktif' : 'Nonaktif' }}
+                </Badge>
+            </template>
+            <template #cell-aksi="{ row }">
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            onClick: () => openEdit(row),
+                        },
+                        {
+                            label: 'Hapus',
+                            variant: 'destructive',
+                            onClick: () => confirmDelete(row),
+                        },
+                    ]"
                 />
-            </CardContent>
-        </Card>
+            </template>
+        </DataTable>
     </div>
 
     <Dialog v-model:open="dialogOpen">
