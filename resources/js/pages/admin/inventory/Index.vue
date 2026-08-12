@@ -87,12 +87,8 @@ const selectedBook = ref<Book | null>(null);
 const selectedEditionId = ref<string>('');
 const movementType = ref('in');
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-const initialLowStock = props.filters.low_stock === '1';
-
 const hasActiveFilters = computed(
-    () => search.value !== initialSearch || lowStock.value !== initialLowStock,
+    () => search.value !== '' || lowStock.value !== false,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -115,8 +111,8 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
-    lowStock.value = initialLowStock;
+    search.value = '';
+    lowStock.value = false;
     applyFilters();
 }
 

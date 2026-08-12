@@ -84,18 +84,12 @@ const status = ref(props.filters.status ?? allStatuses);
 const dropship = ref(props.filters.dropship === '1');
 const sumberPembelian = ref(props.filters.sumber_pembelian ?? allSources);
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-const initialStatus = props.filters.status ?? allStatuses;
-const initialDropship = props.filters.dropship === '1';
-const initialSumberPembelian = props.filters.sumber_pembelian ?? allSources;
-
 const hasActiveFilters = computed(
     () =>
-        search.value !== initialSearch ||
-        status.value !== initialStatus ||
-        dropship.value !== initialDropship ||
-        sumberPembelian.value !== initialSumberPembelian,
+        search.value !== '' ||
+        status.value !== allStatuses ||
+        dropship.value !== false ||
+        sumberPembelian.value !== allSources,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -123,10 +117,10 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
-    status.value = initialStatus;
-    dropship.value = initialDropship;
-    sumberPembelian.value = initialSumberPembelian;
+    search.value = '';
+    status.value = allStatuses;
+    dropship.value = false;
+    sumberPembelian.value = allSources;
     applyFilters();
 }
 

@@ -56,7 +56,7 @@ class InventoryReportController extends Controller
                 'user:id,name',
             ])
             ->orderByDesc('created_at')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('admin/inventory-reports/Index', [

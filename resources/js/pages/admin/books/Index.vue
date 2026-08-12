@@ -78,24 +78,26 @@ const columns: DataTableColumn[] = [
 const allCategories = '__all_categories__';
 const allStatuses = '__all_statuses__';
 const allStocks = '__all_stocks__';
+const stockFilters = ['1', 'kosong'];
 const search = ref(props.filters.search ?? '');
 const importOpen = ref(false);
 const categoryId = ref(props.filters.category_id ?? allCategories);
 const status = ref(props.filters.status ?? allStatuses);
-const lowStock = ref(props.filters.low_stock === '1' ? '1' : allStocks);
+const lowStock = ref(
+    stockFilters.includes(props.filters.low_stock ?? '')
+        ? props.filters.low_stock!
+        : allStocks,
+);
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-const initialCategoryId = props.filters.category_id ?? allCategories;
-const initialStatus = props.filters.status ?? allStatuses;
-const initialLowStock = props.filters.low_stock === '1' ? '1' : allStocks;
-
+// Snapshot tidak dipakai: default = kondisi tanpa filter, sehingga
+// filter yang datang dari URL (mis. link dashboard low_stock=kosong)
+// tetap bisa di-reset ke kondisi netral.
 const hasActiveFilters = computed(
     () =>
-        search.value !== initialSearch ||
-        categoryId.value !== initialCategoryId ||
-        status.value !== initialStatus ||
-        lowStock.value !== initialLowStock,
+        search.value !== '' ||
+        categoryId.value !== allCategories ||
+        status.value !== allStatuses ||
+        lowStock.value !== allStocks,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -124,10 +126,10 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
-    categoryId.value = initialCategoryId;
-    status.value = initialStatus;
-    lowStock.value = initialLowStock;
+    search.value = '';
+    categoryId.value = allCategories;
+    status.value = allStatuses;
+    lowStock.value = allStocks;
     applyFilters();
 }
 

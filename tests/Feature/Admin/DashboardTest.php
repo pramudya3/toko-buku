@@ -13,6 +13,7 @@ beforeEach(function (): void {
 
 it('renders dashboard stats for the current period (DASH-01, DASH-02, DASH-03)', function (): void {
     Book::factory()->withStock(malang: 3)->create(['judul' => 'Buku Menipis']);
+    Book::factory()->withStock(malang: 0)->create(['judul' => 'Buku Habis']);
     Book::factory()->withStock(malang: 50)->create(['judul' => 'Buku Aman']);
 
     $order = Order::factory()->status(OrderStatus::Selesai)->create();
@@ -39,10 +40,13 @@ it('renders dashboard stats for the current period (DASH-01, DASH-02, DASH-03)',
     expect($props['stats']['revenue'])->toBe(50000)
         ->and($props['stats']['cash_in_month'])->toBe(0)
         ->and($props['stats']['orders_count'])->toBe(1)
-        ->and($props['stats']['book_count'])->toBe(2)
+        ->and($props['stats']['book_count'])->toBe(3)
         ->and($props['lowStockThreshold'])->toBe(config('pricing.low_stock_threshold'))
         ->and(count($props['salesChart']))->toBe(now()->day)
         ->and(collect($props['lowStockBooks'])->pluck('judul'))->toContain('Buku Menipis')
+        ->and(collect($props['lowStockBooks'])->pluck('judul'))->not->toContain('Buku Habis')
+        ->and(collect($props['emptyStockBooks'])->pluck('judul'))->toContain('Buku Habis')
+        ->and(collect($props['emptyStockBooks'])->pluck('judul'))->not->toContain('Buku Menipis')
         ->and(collect($props['recentOrders'])->pluck('no_order'))->toContain($order->no_order)
         ->and(count($props['salesChart']))->toBeGreaterThan(0);
 });

@@ -3,6 +3,7 @@
 use App\Enums\OrderStatus;
 use App\Models\BankAccount;
 use App\Models\Book;
+use App\Models\BookEdition;
 use App\Models\BookImage;
 use App\Models\Category;
 use App\Models\District;
@@ -261,6 +262,29 @@ it('returns 404 for inactive book detail', function (): void {
     $book = Book::factory()->create(['aktif' => false]);
 
     $this->get(route('books.show', $book))->assertNotFound();
+});
+
+it('includes the full address (incl. kelurahan) of the logged-in user on checkout', function (): void {
+    $user = User::factory()->create([
+        'name' => 'Pembeli Lengkap',
+        'provinsi' => 'JAWA TIMUR',
+        'kabupaten_kota' => 'KOTA MALANG',
+        'kecamatan' => 'KLOJEN',
+        'kelurahan' => 'BARENG',
+        'village_code' => '3573010001',
+        'kode_pos' => '65116',
+        'alamat' => 'Jl. Bareng Raya 12',
+    ]);
+    $book = Book::factory()->withStock(malang: 10)->create(['judul' => 'Buku Checkout', 'aktif' => true]);
+
+    session(['cart' => [$book->id => 1]]);
+
+    $props = inertiaProps($this->actingAs($user)->get(route('checkout.index')));
+
+    expect($props['user']['kelurahan'])->toBe('BARENG')
+        ->and($props['user']['village_code'])->toBe('3573010001')
+        ->and($props['user']['provinsi'])->toBe('JAWA TIMUR')
+        ->and($props['user']['kode_pos'])->toBe('65116');
 });
 
 it('groups checkout items by bundle promo with per-group pricing', function (): void {
@@ -730,4 +754,33 @@ it('hides active books without a price from the catalog', function (): void {
         ->assertOk()
         ->assertDontSee($noPrice->judul)
         ->assertSee($normal->judul);
+});
+
+it('changes the edition of a cart item from checkout', function (): void {
+    $book = Book::factory()->withStock(malang: 10)->create(['judul' => 'Buku Cetakan', 'harga' => 10000, 'aktif' => true]);
+    $edition2 = BookEdition::factory()->create([
+        'book_id' => $book->id,
+        'cetakan_ke' => 2,
+        'harga_jual' => 12000,
+    ]);
+
+    // Masukkan cetakan 1 ke keranjang.
+    $edition1 = $book->editions()->first();
+    session(['cart' => [$book->id.':'.$edition1->id => ['qty' => 1, 'edition_id' => $edition1->id]]]);
+
+    // Ganti ke cetakan 2.
+    $this->post(route('cart.edition', $book->id), ['book_edition_id' => $edition2->id])
+        ->assertRedirect();
+
+    $cart = session('cart');
+    $entry = $cart[$book->id.':'.$edition1->id];
+
+    expect($entry['edition_id'])->toBe($edition2->id);
+
+    // Checkout menampilkan cetakan 2 dengan harga baru.
+    $props = inertiaProps($this->get(route('checkout.index')));
+    $item = $props['groups'][0]['items'][0];
+
+    expect($item['edition_label'])->toBe('Cetakan ke-2')
+        ->and($item['price_original'])->toBe(12000);
 });

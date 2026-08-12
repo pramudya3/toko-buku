@@ -120,10 +120,7 @@ const availableOrders = ref<OrderOption[]>([]);
 const orderSearchRequest = useHttp({ search: '' });
 let orderSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-
-const hasActiveFilters = computed(() => search.value !== initialSearch);
+const hasActiveFilters = computed(() => search.value !== '');
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -139,7 +136,7 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
+    search.value = '';
     applyFilters();
 }
 

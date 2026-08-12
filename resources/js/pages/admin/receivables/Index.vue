@@ -106,12 +106,8 @@ const availableCustomers = ref<Customer[]>(props.customers);
 const customerSearchRequest = useHttp({ search: '' });
 let customerSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-const initialStatus = props.filters.status ?? '';
-
 const hasActiveFilters = computed(
-    () => search.value !== initialSearch || status.value !== initialStatus,
+    () => search.value !== '' || status.value !== '',
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -131,8 +127,8 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
-    status.value = initialStatus;
+    search.value = '';
+    status.value = '';
     applyFilters();
 }
 

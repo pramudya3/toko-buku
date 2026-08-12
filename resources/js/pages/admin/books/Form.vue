@@ -688,7 +688,7 @@ function onFormError() {
                                     <th
                                         class="border-b px-2 pb-2 text-center font-medium whitespace-nowrap text-muted-foreground"
                                     >
-                                        Aktif
+                                        Default
                                     </th>
                                     <th class="w-10 border-b px-2 pb-2"></th>
                                 </tr>

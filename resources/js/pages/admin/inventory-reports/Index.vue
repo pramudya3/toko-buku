@@ -104,7 +104,8 @@ const warehouseId = ref(
 );
 const search = ref(props.filters.search ?? '');
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
+// Snapshot awal (nilai server saat load) untuk tombol Reset — laporan punya
+// default periode dari server (bulan berjalan), jadi reset kembali ke sana.
 const initialFrom = props.filters.from;
 const initialTo = props.filters.to;
 const initialType = props.filters.type ?? '';

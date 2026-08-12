@@ -48,7 +48,8 @@ const from = ref(props.filters.from);
 const to = ref(props.filters.to);
 const sumberPembelian = ref(props.filters.sumber_pembelian ?? 'all');
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
+// Snapshot awal (nilai server saat load) untuk tombol Reset — laporan punya
+// default periode dari server (bulan berjalan), jadi reset kembali ke sana.
 const initialFrom = props.filters.from;
 const initialTo = props.filters.to;
 const initialSumberPembelian = props.filters.sumber_pembelian ?? 'all';

@@ -5,6 +5,7 @@ import {
     LayoutGrid,
     LogIn,
     LogOut,
+    MapPin,
     Package,
     ShoppingCart,
     UserPen,
@@ -23,7 +24,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Toaster } from '@/components/ui/sonner';
 import { about, home, logout } from '@/routes';
+import { edit as editAddress } from '@/routes/address';
 import { dashboard as adminDashboard } from '@/routes/admin';
+import { edit as editProfile } from '@/routes/profile';
 import type { User } from '@/types';
 
 const page = usePage();
@@ -136,40 +139,22 @@ function isBottomNavActive(href: string): boolean {
     <div class="flex min-h-svh flex-col bg-background">
         <!-- ── Top bar ── -->
         <header
-            class="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-        >
-            <div
-                class="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4"
-            >
+            class="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div class="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4">
                 <!-- Logo → Tentang Kami -->
-                <Link
-                    :href="about().url"
-                    class="flex items-center gap-2"
-                    title="Tentang Kami"
-                >
-                    <img
-                        v-if="storeLogoUrl"
-                        :src="storeLogoUrl"
-                        :alt="storeName"
-                        class="h-8 w-auto object-contain"
-                    />
+                <Link :href="about().url" class="flex items-center gap-2" title="Tentang Kami">
+                    <img v-if="storeLogoUrl" :src="storeLogoUrl" :alt="storeName" class="h-8 w-auto object-contain" />
                     <AppLogoIcon v-else class="size-5 fill-current" />
                     <span class="text-sm font-semibold">{{ storeName }}</span>
                 </Link>
 
                 <!-- Nav desktop -->
                 <nav class="ml-4 hidden items-center gap-1 text-sm md:flex">
-                    <Link
-                        v-for="item in desktopNavItems"
-                        :key="item.label"
-                        :href="item.href"
-                        class="relative rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
+                    <Link v-for="item in desktopNavItems" :key="item.label" :href="item.href"
+                        class="relative rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                         {{ item.label }}
-                        <span
-                            v-if="item.badge && item.badge > 0"
-                            class="ml-1.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground"
-                        >
+                        <span v-if="item.badge && item.badge > 0"
+                            class="ml-1.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                             {{ item.badge }}
                         </span>
                     </Link>
@@ -179,15 +164,9 @@ function isBottomNavActive(href: string): boolean {
                     <!-- Avatar dropdown (customer & admin) -->
                     <DropdownMenu v-if="user">
                         <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                class="size-9 rounded-full p-0"
-                                title="Menu akun"
-                            >
+                            <Button variant="ghost" class="size-9 rounded-full p-0" title="Menu akun">
                                 <Avatar class="size-8">
-                                    <AvatarFallback
-                                        class="bg-primary text-primary-foreground"
-                                    >
+                                    <AvatarFallback class="bg-primary text-primary-foreground">
                                         {{ initials }}
                                     </AvatarFallback>
                                 </Avatar>
@@ -198,22 +177,31 @@ function isBottomNavActive(href: string): boolean {
                                 <p class="truncate text-sm font-medium">
                                     {{ user.name }}
                                 </p>
-                                <p
-                                    class="truncate text-xs text-muted-foreground"
-                                >
+                                <p class="truncate text-xs text-muted-foreground">
                                     {{ user.email }}
                                 </p>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                class="text-destructive focus:text-destructive"
-                                as-child
-                            >
-                                <Link
-                                    :href="logout()"
-                                    @click="router.flushAll()"
-                                    as="button"
-                                >
+                            <div class="hidden md:block">
+                                <DropdownMenuLabel class="text-xs text-muted-foreground">
+                                    Pengaturan
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem as-child>
+                                    <Link :href="editProfile()">
+                                        <UserPen class="size-4" />
+                                        Akun
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem as-child>
+                                    <Link :href="editAddress()">
+                                        <MapPin class="size-4" />
+                                        Alamat
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                            </div>
+                            <DropdownMenuItem class="text-destructive focus:text-destructive" as-child>
+                                <Link :href="logout()" @click="router.flushAll()" as="button">
                                     <LogOut class="size-4" />
                                     Logout
                                 </Link>
@@ -223,19 +211,10 @@ function isBottomNavActive(href: string): boolean {
 
                     <!-- Guest: login/register (desktop only) -->
                     <template v-if="!user">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            class="hidden md:inline-flex"
-                            as-child
-                        >
+                        <Button variant="ghost" size="sm" class="hidden md:inline-flex" as-child>
                             <Link :href="'/login'">Masuk</Link>
                         </Button>
-                        <Button
-                            size="sm"
-                            class="hidden md:inline-flex"
-                            as-child
-                        >
+                        <Button size="sm" class="hidden md:inline-flex" as-child>
                             <Link :href="'/register'">
                                 <UserPen class="size-4" />
                                 Daftar
@@ -259,29 +238,18 @@ function isBottomNavActive(href: string): boolean {
         </footer>
 
         <!-- ── Bottom nav (mobile only) ── -->
-        <nav
-            class="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden"
-        >
-            <div
-                class="mx-auto flex h-16 max-w-6xl items-center justify-around px-2"
-            >
-                <Link
-                    v-for="item in bottomNavItems"
-                    :key="item.label"
-                    :href="item.href"
+        <nav class="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden">
+            <div class="mx-auto flex h-16 max-w-6xl items-center justify-around px-2">
+                <Link v-for="item in bottomNavItems" :key="item.label" :href="item.href"
                     class="relative flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors"
-                    :class="
-                        isBottomNavActive(item.href)
+                    :class="isBottomNavActive(item.href)
                             ? 'text-primary'
                             : 'text-muted-foreground'
-                    "
-                >
+                        ">
                     <component :is="item.icon" class="size-5" />
                     <span>{{ item.label }}</span>
-                    <span
-                        v-if="item.badge && item.badge > 0"
-                        class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
-                    >
+                    <span v-if="item.badge && item.badge > 0"
+                        class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
                         {{ item.badge }}
                     </span>
                 </Link>

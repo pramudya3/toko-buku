@@ -335,6 +335,10 @@ async function hydrateFromPreset() {
         kodePos.value = village?.kode_pos ?? district?.kode_pos ?? '';
     }
 
+    // Parent (mis. form checkout) membaca nilai via v-model — pastikan
+    // tersinkron meski user tidak menyentuh field apa pun.
+    syncToParent();
+
     hydrating.value = false;
 }
 
@@ -348,7 +352,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="grid gap-4 md:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-2">
         <div class="grid gap-2">
             <Label for="provinsi">Provinsi</Label>
             <SearchableSelect

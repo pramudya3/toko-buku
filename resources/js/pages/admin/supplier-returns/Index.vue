@@ -67,16 +67,11 @@ const supplierId = ref(props.filters.supplier_id ?? '');
 const from = ref(props.filters.from ?? '');
 const to = ref(props.filters.to ?? '');
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSupplierId = props.filters.supplier_id ?? '';
-const initialFrom = props.filters.from ?? '';
-const initialTo = props.filters.to ?? '';
-
 const hasActiveFilters = computed(
     () =>
-        supplierId.value !== initialSupplierId ||
-        from.value !== initialFrom ||
-        to.value !== initialTo,
+        supplierId.value !== '' ||
+        from.value !== '' ||
+        to.value !== '',
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -98,9 +93,9 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    supplierId.value = initialSupplierId;
-    from.value = initialFrom;
-    to.value = initialTo;
+    supplierId.value = '';
+    from.value = '';
+    to.value = '';
     applyFilters();
 }
 
