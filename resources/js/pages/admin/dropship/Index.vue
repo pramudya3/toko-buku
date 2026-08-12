@@ -60,6 +60,11 @@ type Props = {
 const props = defineProps<Props>();
 
 const columns: DataTableColumn[] = [
+    {
+        key: 'created_at',
+        header: 'Tanggal',
+        cellClass: 'text-muted-foreground whitespace-nowrap',
+    },
     { key: 'no_order', header: 'No. Order', cellClass: 'font-medium' },
     { key: 'dropshipper', header: 'Dropshipper' },
     { key: 'end_customer', header: 'End-Customer' },
@@ -219,6 +224,13 @@ const statusVariant: Record<
             empty-title="Tidak ada order dropship"
             empty-description="Order dengan is_dropship akan tampil di sini."
         >
+            <template #cell-created_at="{ row }">
+                {{
+                    new Date(row.created_at).toLocaleDateString('id-ID', {
+                        timeZone: 'Asia/Jakarta',
+                    })
+                }}
+            </template>
             <template #cell-dropshipper="{ row }">
                 {{ row.user?.name ?? row.nama_pembeli }}
             </template>

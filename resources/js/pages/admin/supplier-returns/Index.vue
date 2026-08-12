@@ -56,8 +56,8 @@ const props = defineProps<{
 }>();
 
 const columns: DataTableColumn[] = [
-    { key: 'ref', header: 'Ref', cellClass: 'font-mono text-xs' },
     { key: 'return_date', header: 'Tanggal', cellClass: 'tabular-nums' },
+    { key: 'ref', header: 'Ref', cellClass: 'font-mono text-xs' },
     { key: 'supplier', header: 'Supplier' },
     { key: 'items', header: 'Item', cellClass: 'text-muted-foreground' },
     { key: 'total', header: 'Total', cellClass: 'text-right tabular-nums' },
