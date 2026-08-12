@@ -372,6 +372,7 @@ function onFormError() {
                     class="grid gap-4"
                     v-slot="{ processing }"
                     @error="onFormError"
+                    @success="movementOpen = false"
                 >
                     <input
                         type="hidden"

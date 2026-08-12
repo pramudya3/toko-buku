@@ -400,6 +400,7 @@ const totalRefund = computed(() =>
                     v-bind="SalesReturnController.store.form()"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
+                    @success="createOpen = false"
                 >
                     <input
                         type="hidden"

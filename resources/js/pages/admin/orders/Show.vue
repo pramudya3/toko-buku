@@ -587,6 +587,7 @@ const flowTypeVariant: Record<
                     v-bind="OrderController.process.form(order.id)"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
+                    @success="processOpen = false"
                 >
                     <div class="grid gap-2">
                         <Label for="shipping_cost">Ongkir Final (Rp) *</Label>

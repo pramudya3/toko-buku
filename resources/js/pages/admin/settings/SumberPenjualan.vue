@@ -186,6 +186,7 @@ function executeDelete(): void {
                 v-bind="SalesChannelController.update.form(editing.id)"
                 class="grid gap-4"
                 v-slot="{ processing }"
+                @success="dialogOpen = false"
             >
                 <div class="grid gap-2">
                     <Label for="name">Nama *</Label>
@@ -228,6 +229,7 @@ function executeDelete(): void {
                 v-bind="SalesChannelController.store.form()"
                 class="grid gap-4"
                 v-slot="{ processing }"
+                @success="dialogOpen = false"
             >
                 <div class="grid gap-2">
                     <Label for="code">Kode *</Label>

@@ -219,6 +219,7 @@ function executeDelete() {
                     v-bind="CategoryController.update.form(editing.id)"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
+                    @success="dialogOpen = false"
                 >
                     <div class="grid gap-2">
                         <Label for="nama">Nama</Label>
@@ -260,6 +261,7 @@ function executeDelete() {
                     v-bind="CategoryController.store.form()"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
+                    @success="dialogOpen = false"
                 >
                     <div class="grid gap-2">
                         <Label for="nama">Nama</Label>

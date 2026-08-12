@@ -190,6 +190,7 @@ function executeDelete(): void {
                 v-bind="BankAccountController.update.form(editing.id)"
                 class="grid gap-4"
                 v-slot="{ processing }"
+                @success="dialogOpen = false"
             >
                 <div class="grid gap-2">
                     <Label for="bank_name">Bank *</Label>
@@ -252,6 +253,7 @@ function executeDelete(): void {
                 v-bind="BankAccountController.store.form()"
                 class="grid gap-4"
                 v-slot="{ processing }"
+                @success="dialogOpen = false"
             >
                 <div class="grid gap-2">
                     <Label for="bank_name">Bank *</Label>

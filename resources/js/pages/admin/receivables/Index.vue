@@ -334,6 +334,7 @@ function executeDelete() {
                     v-bind="ReceivableController.store.form()"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
+                    @success="createOpen = false"
                 >
                     <div class="grid gap-2">
                         <Label for="customer_search">Pelanggan *</Label>
@@ -446,6 +447,7 @@ function executeDelete() {
                     v-bind="ReceivableController.pay.form(payReceivable.id)"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
+                    @success="createOpen = false"
                 >
                     <div class="grid gap-2">
                         <Label for="pay_amount">Jumlah Bayar (Rp) *</Label>

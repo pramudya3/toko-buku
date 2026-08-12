@@ -187,6 +187,7 @@ function executeDelete(): void {
                 v-bind="PaymentMethodController.update.form(editing.id)"
                 class="grid gap-4"
                 v-slot="{ processing }"
+                @success="dialogOpen = false"
             >
                 <div class="grid gap-2">
                     <Label for="name">Nama *</Label>
@@ -229,6 +230,7 @@ function executeDelete(): void {
                 v-bind="PaymentMethodController.store.form()"
                 class="grid gap-4"
                 v-slot="{ processing }"
+                @success="dialogOpen = false"
             >
                 <div class="grid gap-2">
                     <Label for="code">Kode *</Label>
