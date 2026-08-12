@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'API Key', href: '/admin/settings/api-key' },
+        ],
+    },
+});
+
 import { Form, Head } from '@inertiajs/vue3';
 import { KeyRound, Loader2, ShieldCheck } from '@lucide/vue';
 import SettingController from '@/actions/App/Http/Controllers/Admin/SettingController';

@@ -215,6 +215,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Log aktivitas (audit).
     Route::get('aktivitas', [ActivityLogController::class, 'index'])->name('aktivitas.index');
 
+    // Panduan penggunaan panel admin.
+    Route::get('panduan', fn () => inertia('admin/Panduan'))->name('panduan');
+
     // Pengaturan toko: alamat & identitas digabung di halaman Lembaga.
     Route::redirect('settings', '/admin/settings/lembaga')->name('settings.index');
     Route::get('settings/lembaga', [SettingController::class, 'lembaga'])->name('settings.lembaga');

@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: (pageProps: any) => ({
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Supplier', href: '/admin/suppliers' },
+            { title: pageProps.supplier ? 'Edit' : 'Tambah' },
+        ],
+    }),
+});
+
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';

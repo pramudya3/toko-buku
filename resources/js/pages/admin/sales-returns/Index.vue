@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Retur Penjualan', href: '/admin/sales-returns' },
+        ],
+    },
+});
+
 import { Form, Head, router, useHttp } from '@inertiajs/vue3';
 import { Plus, RotateCcw, Search, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';

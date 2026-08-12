@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Hutang Supplier', href: '/admin/supplier-debts' },
+        ],
+    },
+});
+
 import { Head, router } from '@inertiajs/vue3';
 import { Banknote } from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';

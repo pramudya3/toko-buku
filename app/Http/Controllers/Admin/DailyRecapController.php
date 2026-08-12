@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\SalesReturn;
 use App\Models\SalesReturnItem;
 use App\Services\DailyRecapXlsxExporter;
+use App\Support\StoreSettings;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -29,7 +30,9 @@ class DailyRecapController extends Controller
     {
         [$from, $to] = $this->dateRange($request);
 
-        $rows = $this->buildRows($from, $to);
+        $sumberPembelian = $request->string('sumber_pembelian')->toString() ?: null;
+
+        $rows = $this->buildRows($from, $to, $sumberPembelian);
 
         return Inertia::render('admin/daily-recap/Index', [
             'rows' => $rows,
@@ -37,7 +40,9 @@ class DailyRecapController extends Controller
             'filters' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
+                'sumber_pembelian' => $sumberPembelian,
             ],
+            'salesChannels' => StoreSettings::allSalesChannels(),
         ]);
     }
 
@@ -48,7 +53,9 @@ class DailyRecapController extends Controller
     {
         [$from, $to] = $this->dateRange($request);
 
-        return $this->exporter->download($this->buildRows($from, $to), $from, $to);
+        $sumberPembelian = $request->string('sumber_pembelian')->toString() ?: null;
+
+        return $this->exporter->download($this->buildRows($from, $to, $sumberPembelian), $from, $to, $sumberPembelian);
     }
 
     /**
@@ -57,11 +64,12 @@ class DailyRecapController extends Controller
      *
      * @return Collection<int, array<string, mixed>>
      */
-    private function buildRows(Carbon $from, Carbon $to): Collection
+    private function buildRows(Carbon $from, Carbon $to, ?string $sumberPembelian = null): Collection
     {
         $orders = Order::query()
             ->whereBetween('orders.created_at', [$from->startOfDay(), $to->endOfDay()])
             ->where('status', '!=', 'batal')
+            ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->selectRaw("
                 date(created_at) as tgl,
                 count(*) as order_count,
@@ -77,6 +85,7 @@ class DailyRecapController extends Controller
         $items = Order::query()
             ->whereBetween('orders.created_at', [$from->startOfDay(), $to->endOfDay()])
             ->where('orders.status', '!=', 'batal')
+            ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->join('order_items', 'order_items.order_id', '=', 'orders.id')
             ->selectRaw('
                 date(orders.created_at) as tgl,
@@ -94,6 +103,7 @@ class DailyRecapController extends Controller
         // sales report & dashboard.
         $returns = SalesReturn::query()
             ->whereBetween('return_date', [$from->toDateString(), $to->toDateString()])
+            ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->join('orders', 'orders.id', '=', 'sales_returns.order_id')
             ->selectRaw("
                 sales_returns.return_date as tgl,
@@ -108,8 +118,10 @@ class DailyRecapController extends Controller
 
         $returnItems = SalesReturnItem::query()
             ->whereBetween('sales_returns.return_date', [$from->toDateString(), $to->toDateString()])
+            ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->join('sales_returns', 'sales_returns.id', '=', 'sales_return_items.sales_return_id')
             ->join('order_items', 'order_items.id', '=', 'sales_return_items.order_item_id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->selectRaw('
                 sales_returns.return_date as tgl,
                 COALESCE(SUM(sales_return_items.qty), 0) as item_count,

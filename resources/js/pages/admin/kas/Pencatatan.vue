@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Kas', href: '/admin/kas' },
+        ],
+    },
+});
+
 import { Form, Head } from '@inertiajs/vue3';
 import { ArrowDownCircle, ArrowUpCircle, Plus } from '@lucide/vue';
 import { computed, ref } from 'vue';

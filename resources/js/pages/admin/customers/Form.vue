@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: (pageProps: any) => ({
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Pelanggan', href: '/admin/customers' },
+            { title: pageProps.customer ? 'Edit' : 'Tambah' },
+        ],
+    }),
+});
+
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import CustomerController from '@/actions/App/Http/Controllers/Admin/CustomerController';

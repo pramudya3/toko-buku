@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Lembaga', href: '/admin/settings/lembaga' },
+        ],
+    },
+});
+
 import { Form, Head } from '@inertiajs/vue3';
 import { Building2, Loader2 } from '@lucide/vue';
 import { ref } from 'vue';
@@ -125,7 +134,7 @@ const address = ref<AddressValue>({
                                 type="text"
                                 required
                                 :default-value="nama_lembaga"
-                                placeholder="Toko Buku ..."
+                                placeholder="Pustaka Cahaya Peradaban"
                             />
                         </div>
 

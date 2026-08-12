@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Retur Supplier', href: '/admin/supplier-returns' },
+            { title: 'Buat' },
+        ],
+    },
+});
+
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Trash2, Undo2 } from '@lucide/vue';
 import { computed, reactive, ref, watch } from 'vue';

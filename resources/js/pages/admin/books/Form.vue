@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: (pageProps: any) => ({
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Buku', href: '/admin/books' },
+            { title: pageProps.book ? 'Edit' : 'Tambah' },
+        ],
+    }),
+});
+
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { Plus, Trash2, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
