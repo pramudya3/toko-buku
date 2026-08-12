@@ -146,14 +146,14 @@ const navGroups = computed<NavGroup[]>(() => [
                 badge: pendingOrdersCount.value,
             },
             {
-                title: 'Sumber Penjualan',
-                href: sumberPenjualanRoute(),
-                icon: Store,
-            },
-            {
                 title: 'Dropship',
                 href: dropshipIndex(),
                 icon: Truck,
+            },
+            {
+                title: 'Retur Penjualan',
+                href: salesReturnsIndex(),
+                icon: PackageX,
             },
             {
                 title: 'Piutang',
@@ -164,11 +164,6 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Laporan Penjualan',
                 href: salesReportsIndex(),
                 icon: ChartColumn,
-            },
-            {
-                title: 'Retur Penjualan',
-                href: salesReturnsIndex(),
-                icon: PackageX,
             },
             {
                 title: 'Rekap Harian',
@@ -269,6 +264,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Metode Pembayaran',
                 href: pembayaranRoute(),
                 icon: Wallet,
+            },
+            {
+                title: 'Sumber Penjualan',
+                href: sumberPenjualanRoute(),
+                icon: Store,
             },
             {
                 title: 'Staf',
