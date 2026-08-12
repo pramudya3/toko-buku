@@ -78,7 +78,7 @@ const address = ref<AddressValue>({
                         v-if="logo_url"
                         :src="logo_url"
                         :alt="nama_lembaga || 'Logo'"
-                        class="size-16 rounded-lg border bg-muted object-contain p-1"
+                        class="max-h-20 w-auto object-contain"
                     />
                     <div class="grid gap-2">
                         <Label for="logo">Ganti Logo</Label>
@@ -90,7 +90,8 @@ const address = ref<AddressValue>({
                         />
                         <p class="text-xs text-muted-foreground">
                             JPG/PNG/WebP, maksimal 2 MB — tampil di judul
-                            sidebar dan halaman Tentang Kami.
+                            sidebar, header toko, dan halaman Tentang Kami
+                            (tanpa border).
                         </p>
                     </div>
                     <label

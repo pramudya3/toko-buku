@@ -387,7 +387,7 @@ function onFormError() {
 <template>
     <Head title="Checkout" />
 
-    <div class="flex flex-col gap-6 pb-24 lg:pb-0">
+    <div class="flex flex-col gap-6 pb-36 lg:pb-0">
         <div>
             <h1 class="text-2xl font-bold tracking-tight">Checkout</h1>
             <p class="text-sm text-muted-foreground">
@@ -943,7 +943,7 @@ function onFormError() {
             <!-- Bottom bar mobile: total + tombol submit selalu terlihat -->
             <div
                 v-if="groups.length"
-                class="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur lg:hidden"
+                class="fixed inset-x-0 bottom-16 z-50 border-t bg-background/95 p-3 backdrop-blur lg:hidden"
             >
                 <div
                     class="mx-auto flex max-w-2xl items-center justify-between gap-3"
@@ -969,6 +969,7 @@ function onFormError() {
 
             <EmptyState
                 v-else
+                icon="/img/empty-cart.png"
                 title="Keranjang kosong"
                 description="Belum ada buku di keranjang."
             >

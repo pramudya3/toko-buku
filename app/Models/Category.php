@@ -15,8 +15,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property int $id
  * @property string $nama
+ * @property string|null $kode
  */
-#[Fillable(['nama'])]
+#[Fillable(['nama', 'kode'])]
 #[ObservedBy([CategoryObserver::class])]
 class Category extends Model
 {

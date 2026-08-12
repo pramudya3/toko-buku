@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -18,14 +17,8 @@ return new class extends Migration
 
             $table->unique(['tier', 'min_qty']);
         });
-
-        // Aturan default = perilaku lama dari config/pricing.php.
-        DB::table('tier_discounts')->insert([
-            ['tier' => 'reseller', 'min_qty' => 10, 'discount_percent' => 10],
-            ['tier' => 'reseller', 'min_qty' => 20, 'discount_percent' => 15],
-            ['tier' => 'bazaf', 'min_qty' => 10, 'discount_percent' => 5],
-            ['tier' => 'bazaf', 'min_qty' => 20, 'discount_percent' => 8],
-        ]);
+        // Catatan: tanpa data default — aturan tier discount diisi via
+        // menu Tier Discount (form atau import CSV).
     }
 
     public function down(): void

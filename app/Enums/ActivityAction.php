@@ -21,9 +21,11 @@ enum ActivityAction: string
     case BookUpdate = 'book.update';
     case BookDelete = 'book.delete';
     case BookRestore = 'book.restore';
+    case BookImport = 'book.import';
     case CategoryCreate = 'category.create';
     case CategoryUpdate = 'category.update';
     case CategoryDelete = 'category.delete';
+    case CategoryImport = 'category.import';
 
     // Penjualan
     case OrderCreate = 'order.create';
@@ -55,6 +57,8 @@ enum ActivityAction: string
     case PromotionCreate = 'promotion.create';
     case PromotionUpdate = 'promotion.update';
     case PromotionDelete = 'promotion.delete';
+    case PromotionImport = 'promotion.import';
+    case TierDiscountImport = 'tier_discount.import';
 
     /**
      * @return array<string, string>
@@ -82,9 +86,11 @@ enum ActivityAction: string
             self::BookUpdate => 'Ubah Buku',
             self::BookDelete => 'Hapus Buku',
             self::BookRestore => 'Pulihkan Buku',
+            self::BookImport => 'Import Buku',
             self::CategoryCreate => 'Buat Kategori',
             self::CategoryUpdate => 'Ubah Kategori',
             self::CategoryDelete => 'Hapus Kategori',
+            self::CategoryImport => 'Import Kategori',
             self::OrderCreate => 'Buat Pesanan',
             self::OrderStatus => 'Ubah Status Pesanan',
             self::OrderProcess => 'Proses Pesanan',
@@ -108,6 +114,8 @@ enum ActivityAction: string
             self::PromotionCreate => 'Buat Promosi',
             self::PromotionUpdate => 'Ubah Promosi',
             self::PromotionDelete => 'Hapus Promosi',
+            self::PromotionImport => 'Import Promosi',
+            self::TierDiscountImport => 'Import Tier Discount',
         };
     }
 }

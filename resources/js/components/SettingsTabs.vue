@@ -11,8 +11,8 @@ const isAdmin = computed(() => page.props.auth?.user?.is_admin === true);
 const { isCurrentUrl } = useCurrentUrl();
 
 const tabs = [
-    { label: 'Akun', href: editProfile() },
     { label: 'Alamat', href: editAddress() },
+    { label: 'Akun', href: editProfile() },
 ];
 </script>
 

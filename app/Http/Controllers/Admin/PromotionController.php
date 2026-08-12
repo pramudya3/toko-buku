@@ -2,19 +2,270 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ActivityAction;
 use App\Enums\PromotionType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PromotionImportRequest;
 use App\Http\Requests\Admin\PromotionRequest;
 use App\Models\Book;
 use App\Models\Promotion;
+use App\Support\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class PromotionController extends Controller
 {
+    /**
+     * Import promo bundle dari file CSV.
+     *
+     * Kolom (deteksi header): promo_name, promo_type (bundle),
+     * discount_percent, komponen (judul buku dipisah |). Kolom bundle_qty
+     * legacy diabaikan. Komponen di-resolve by judul (case-insensitive,
+     * tanpa spasi/tanda baca).
+     */
+    public function importCsv(PromotionImportRequest $request): RedirectResponse
+    {
+        $result = DB::transaction(function () use ($request): array {
+            $rows = $this->parseCsvRows($request->file('file')->getRealPath());
+
+            return Promotion::withoutEvents(fn (): array => $this->processPromoRows($rows));
+        });
+
+        ActivityLogger::log(
+            ActivityAction::PromotionImport,
+            "Import CSV promo: {$result['created']} dibuat, {$result['updated']} diperbarui, {$result['skipped']} dilewati.",
+            null,
+            ['summary' => $result],
+        );
+
+        $message = "Import CSV selesai: {$result['created']} promo baru, {$result['updated']} diperbarui, {$result['skipped']} dilewati.";
+
+        if ($result['errors'] !== []) {
+            $message .= ' '.count($result['errors']).' baris gagal ('.implode('; ', array_slice($result['errors'], 0, 3)).').';
+        }
+
+        if ($result['missing'] > 0) {
+            $message .= " {$result['missing']} baris dengan komponen tidak ditemukan (lengkapi manual).";
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+
+        return back();
+    }
+
+    /**
+     * @return array<int, array{line: int, cells: array<int, string>}>
+     */
+    private function parseCsvRows(string $path): array
+    {
+        $handle = fopen($path, 'r');
+
+        if ($handle === false) {
+            throw new RuntimeException('Tidak dapat membaca file CSV.');
+        }
+
+        $rows = [];
+        $lineNumber = 0;
+
+        while (($cells = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
+            $lineNumber++;
+            $cells = array_map(fn ($cell): string => trim((string) $cell), $cells);
+
+            if ($lineNumber === 1) {
+                $cells[0] = (string) preg_replace('/^\xEF\xBB\xBF/', '', $cells[0] ?? '');
+            }
+
+            if (count(array_filter($cells, fn ($cell): bool => $cell !== '')) === 0) {
+                continue;
+            }
+
+            $rows[] = ['line' => $lineNumber, 'cells' => $cells];
+        }
+
+        fclose($handle);
+
+        return $rows;
+    }
+
+    /**
+     * Deteksi posisi kolom dari header (dukung format lama & baru).
+     *
+     * @param  array<int, string>  $cells
+     * @return array{nama: int, tipe: int, diskon: int, komponen: int}|null
+     */
+    private function detectPromoColumns(array $cells): ?array
+    {
+        $keys = array_map(fn (string $cell): string => strtolower(trim($cell)), $cells);
+
+        $find = function (array $keywords) use ($keys): ?int {
+            foreach ($keys as $index => $key) {
+                if (in_array($key, $keywords, true)) {
+                    return $index;
+                }
+            }
+
+            return null;
+        };
+
+        $nama = $find(['promo_name', 'nama promo', 'promo name']);
+
+        if ($nama === null) {
+            return null;
+        }
+
+        return [
+            'nama' => $nama,
+            'tipe' => $find(['promo_type', 'tipe']) ?? -1,
+            'diskon' => $find(['discount_percent', 'discount_percentage', 'diskon']) ?? -1,
+            'komponen' => $find(['komponen', 'books', 'buku']) ?? -1,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{line: int, cells: array<int, string>}>  $rows
+     * @return array{created: int, updated: int, skipped: int, missing: int, errors: list<string>}
+     */
+    private function processPromoRows(array $rows): array
+    {
+        $created = 0;
+        $updated = 0;
+        $skipped = 0;
+        $missing = 0;
+        $errors = [];
+
+        if ($rows === []) {
+            return compact('created', 'updated', 'skipped', 'missing', 'errors');
+        }
+
+        $columns = $this->detectPromoColumns($rows[0]['cells']);
+        $isHeader = $columns !== null;
+
+        $bookByJudul = Book::query()
+            ->whereNull('deleted_at')
+            ->get(['id', 'judul'])
+            ->keyBy(fn (Book $book): string => $this->normJudul($book->judul));
+
+        foreach ($rows as $index => $row) {
+            $line = $row['line'];
+            $cells = $row['cells'];
+
+            if ($isHeader && $index === 0) {
+                continue;
+            }
+
+            $get = fn (string $key): string => trim((string) ($cells[$columns[$key]] ?? ''));
+
+            $nama = $get('nama');
+            $tipe = strtolower($get('tipe')) ?: 'bundle';
+
+            if ($nama === '') {
+                $errors[] = "Baris {$line}: promo_name kosong";
+
+                continue;
+            }
+
+            if ($tipe !== 'bundle') {
+                $errors[] = "Baris {$line} ({$nama}): tipe {$tipe} belum didukung — hanya bundle";
+
+                continue;
+            }
+
+            $discount = $this->parseHarga($get('diskon'));
+            $komponenRaw = $get('komponen');
+            $hasKomponen = $komponenRaw !== '';
+            $bookIds = [];
+            $unresolved = [];
+
+            if ($hasKomponen) {
+                foreach (array_filter(array_map('trim', explode('|', $komponenRaw))) as $judul) {
+                    $book = $bookByJudul->get($this->normJudul($judul));
+
+                    if ($book !== null) {
+                        $bookIds[] = $book->id;
+                    } else {
+                        $unresolved[] = $judul;
+                    }
+                }
+            }
+
+            if ($unresolved !== []) {
+                $missing++;
+            }
+
+            $existing = Promotion::query()
+                ->whereRaw('LOWER(promo_name) = ?', [strtolower($nama)])
+                ->whereNull('deleted_at')
+                ->first();
+
+            if ($existing !== null) {
+                $same = $existing->discount_percentage === $discount
+                    && (! $hasKomponen || $existing->books()->pluck('books.id')->sort()->values()->all() === collect($bookIds)->sort()->values()->all());
+
+                if ($same) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                // Update hanya field yang ada di file — tanggal/is_active dan
+                // komponen manual (saat kolom komponen kosong) TIDAK ditimpa.
+                $existing->update([
+                    'promo_name' => $nama,
+                    'promo_type' => PromotionType::Bundle,
+                    'discount_percentage' => $discount,
+                ]);
+
+                if ($hasKomponen) {
+                    $existing->books()->sync($bookIds);
+                }
+
+                $updated++;
+
+                continue;
+            }
+
+            $promotion = Promotion::create([
+                'promo_name' => $nama,
+                'promo_type' => PromotionType::Bundle,
+                'discount_percentage' => $discount,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addYear()->toDateString(),
+                'is_active' => true,
+            ]);
+
+            if ($hasKomponen) {
+                $promotion->books()->sync($bookIds);
+            }
+
+            $created++;
+        }
+
+        return compact('created', 'updated', 'skipped', 'missing', 'errors');
+    }
+
+    private function normJudul(string $judul): string
+    {
+        return (string) preg_replace('/[^a-z0-9]/', '', strtolower($judul));
+    }
+
+    private function parseHarga(string $raw): ?int
+    {
+        $raw = strtoupper(trim($raw));
+
+        if ($raw === '' || str_contains($raw, '#N/A')) {
+            return null;
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $raw);
+
+        return $digits === '' ? null : (int) $digits;
+    }
+
     /**
      * List promosi + jumlah buku (PROM-01..05).
      */

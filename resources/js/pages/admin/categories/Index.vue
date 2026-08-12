@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Plus, Search, X } from '@lucide/vue';
+import { Plus, Search, Upload, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import CategoryController from '@/actions/App/Http/Controllers/Admin/CategoryController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import DataTableActions from '@/components/DataTableActions.vue';
+import ImportCsvDialog from '@/components/ImportCsvDialog.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -23,6 +24,7 @@ import { index as indexRoute } from '@/routes/admin/categories';
 type Category = {
     id: string;
     nama: string;
+    kode: string | null;
     books_count: number;
 };
 
@@ -42,6 +44,7 @@ const props = defineProps<Props>();
 
 const columns: DataTableColumn[] = [
     { key: 'nama', header: 'Nama', cellClass: 'font-medium' },
+    { key: 'kode', header: 'Kode', cellClass: 'font-mono text-xs' },
     { key: 'books_count', header: 'Jumlah Buku' },
     { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
 ];
@@ -78,6 +81,7 @@ watch([search], applyFilters);
 
 const editing = ref<Category | null>(null);
 const dialogOpen = ref(false);
+const importOpen = ref(false);
 const deletingCategory = ref<Category | null>(null);
 
 function openEdit(category: Category) {
@@ -119,10 +123,16 @@ function executeDelete() {
                     Kelompokkan buku agar mudah dicari
                 </p>
             </div>
-            <Button @click="openCreate">
-                <Plus class="size-4" />
-                Buat Kategori
-            </Button>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" @click="importOpen = true">
+                    <Upload class="size-4" />
+                    Import CSV
+                </Button>
+                <Button @click="openCreate">
+                    <Plus class="size-4" />
+                    Buat Kategori
+                </Button>
+            </div>
         </div>
 
         <div
@@ -158,6 +168,12 @@ function executeDelete() {
             empty-title="Tidak ada kategori"
             empty-description="Buat kategori pertama untuk mengelompokkan buku."
         >
+            <template #cell-kode="{ row }">
+                <span v-if="row.kode" class="font-mono text-xs">
+                    {{ row.kode }}
+                </span>
+                <span v-else class="text-muted-foreground">—</span>
+            </template>
             <template #cell-books_count="{ row }">
                 {{ row.books_count }} buku
             </template>
@@ -209,6 +225,20 @@ function executeDelete() {
                             >{{ errors.nama }}</span
                         >
                     </div>
+                    <div class="grid gap-2">
+                        <Label for="kode">Kode (abreviasi SKU)</Label>
+                        <Input
+                            id="kode"
+                            name="kode"
+                            :default-value="editing.kode ?? undefined"
+                            placeholder="Contoh: PRN"
+                        />
+                        <span
+                            v-if="errors.kode"
+                            class="text-sm text-destructive"
+                            >{{ errors.kode }}</span
+                        >
+                    </div>
                     <DialogFooter>
                         <Button type="submit" :disabled="processing"
                             >Simpan</Button
@@ -236,6 +266,19 @@ function executeDelete() {
                             >{{ errors.nama }}</span
                         >
                     </div>
+                    <div class="grid gap-2">
+                        <Label for="kode">Kode (abreviasi SKU)</Label>
+                        <Input
+                            id="kode"
+                            name="kode"
+                            placeholder="Contoh: PRN"
+                        />
+                        <span
+                            v-if="errors.kode"
+                            class="text-sm text-destructive"
+                            >{{ errors.kode }}</span
+                        >
+                    </div>
                     <DialogFooter>
                         <Button type="submit" :disabled="processing"
                             >Buat</Button
@@ -261,4 +304,12 @@ function executeDelete() {
             @confirm="executeDelete"
         />
     </div>
+
+    <ImportCsvDialog
+        v-model:open="importOpen"
+        :action="CategoryController.importCsv.form()"
+        template-type="categories"
+        title="Import Kategori dari CSV"
+        description="Format kolom: kode, nama — kode = abreviasi SKU (mis. PRN)"
+    />
 </template>

@@ -37,33 +37,33 @@ class WilayahSeeder extends Seeder
      */
     private function seedVillages(): void
     {
-        $rows = $this->readCsv(database_path('data/villages.csv'));
+        $chunk = [];
+        $seen = []; // beberapa baris duplikat di dataset — sisakan yang pertama
 
-        // Beberapa baris duplikat di dataset — sisakan yang pertama.
-        $seen = [];
-        $rows = array_values(array_filter($rows, function (array $row) use (&$seen): bool {
+        $this->streamCsv(database_path('data/villages.csv'), function (array $row) use (&$chunk, &$seen): void {
             $code = trim($row[0]);
 
             if (isset($seen[$code])) {
-                return false;
+                return;
             }
 
             $seen[$code] = true;
 
-            return true;
-        }));
+            $chunk[] = [
+                'id' => (string) Str::uuid7(),
+                'code' => $code,
+                'district_code' => trim($row[1]),
+                'name' => trim($row[2]),
+            ];
 
-        $chunks = array_chunk($rows, 2000);
+            if (count($chunk) >= 2000) {
+                DB::table('villages')->insert($chunk);
+                $chunk = [];
+            }
+        });
 
-        foreach ($chunks as $chunk) {
-            DB::table('villages')->insert(
-                array_map(fn (array $row) => [
-                    'id' => (string) Str::uuid7(),
-                    'code' => trim($row[0]),
-                    'district_code' => trim($row[1]),
-                    'name' => trim($row[2]),
-                ], $chunk),
-            );
+        if ($chunk !== []) {
+            DB::table('villages')->insert($chunk);
         }
     }
 
@@ -162,32 +162,34 @@ class WilayahSeeder extends Seeder
             return;
         }
 
+        // Map kode pos dibaca streaming (83rb baris) — hemat memori.
         $map = [];
 
-        foreach ($this->readCsv($path) as $row) {
+        $this->streamCsv($path, function (array $row) use (&$map): void {
             $map[$this->normalizeCsvKey($row[0])] = trim($row[1]);
-        }
+        });
 
-        $villages = DB::table('villages')
+        // Desa diproses per chunk — update langsung di-flush (hemat memori).
+        DB::table('villages')
             ->join('districts', 'districts.code', '=', 'villages.district_code')
             ->join('cities', 'cities.code', '=', 'districts.city_code')
             ->join('provinces', 'provinces.code', '=', 'cities.province_code')
-            ->select('villages.code', 'villages.name', 'districts.name as district', 'cities.name as city', 'provinces.name as province')
-            ->get();
+            ->select('villages.id', 'villages.code', 'villages.name', 'districts.name as district', 'cities.name as city', 'provinces.name as province')
+            ->chunkById(2000, function ($villages) use ($map): void {
+                $updates = [];
 
-        $updates = [];
+                foreach ($villages as $village) {
+                    $key = $this->provinceKey($village->province).'|'.$this->normalize($village->city).'|'.$this->normalize($village->district).'|'.$this->normalize($village->name);
 
-        foreach ($villages as $village) {
-            $key = $this->provinceKey($village->province).'|'.$this->normalize($village->city).'|'.$this->normalize($village->district).'|'.$this->normalize($village->name);
+                    if (isset($map[$key])) {
+                        $updates[] = ['code' => $village->code, 'kode_pos' => $map[$key]];
+                    }
+                }
 
-            if (isset($map[$key])) {
-                $updates[] = ['code' => $village->code, 'kode_pos' => $map[$key]];
-            }
-        }
-
-        foreach (array_chunk($updates, 500) as $chunk) {
-            $this->bulkUpdateKodePos('villages', $chunk);
-        }
+                foreach (array_chunk($updates, 500) as $chunk) {
+                    $this->bulkUpdateKodePos('villages', $chunk);
+                }
+            }, 'villages.id', 'id');
     }
 
     /**
@@ -256,6 +258,34 @@ class WilayahSeeder extends Seeder
     /**
      * @return array<int, array<int, string>>
      */
+    /**
+     * Baca CSV baris per baris (hemat memori untuk file besar).
+     *
+     * @param  callable(array<int, string>): void  $handler
+     */
+    private function streamCsv(string $path, callable $handler, bool $skipHeader = false): void
+    {
+        $handle = fopen($path, 'r');
+
+        if ($handle === false) {
+            return;
+        }
+
+        $line = 0;
+
+        while (($cells = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
+            $line++;
+
+            if ($skipHeader && $line === 1) {
+                continue;
+            }
+
+            $handler(array_map(fn ($cell): string => trim((string) $cell), $cells));
+        }
+
+        fclose($handle);
+    }
+
     private function readCsv(string $path): array
     {
         $rows = [];

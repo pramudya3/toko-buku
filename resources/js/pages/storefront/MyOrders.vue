@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { PackageOpen } from '@lucide/vue';
+import EmptyState from '@/components/EmptyState.vue';
 import Money from '@/components/Money.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -111,14 +111,15 @@ defineOptions({
             </CardContent>
         </Card>
 
-        <div v-else class="flex flex-col items-center gap-3 py-10 text-center">
-            <PackageOpen class="size-10 text-muted-foreground" />
-            <p class="text-sm text-muted-foreground">
-                Belum ada pesanan. Yuk belanja buku pertama Anda!
-            </p>
+        <EmptyState
+            v-else
+            icon="/img/empty-orders.png"
+            title="Belum ada pesanan"
+            description="Yuk belanja buku pertama Anda!"
+        >
             <Button size="sm" as-child>
                 <Link :href="'/buku'">Lihat Katalog</Link>
             </Button>
-        </div>
+        </EmptyState>
     </div>
 </template>

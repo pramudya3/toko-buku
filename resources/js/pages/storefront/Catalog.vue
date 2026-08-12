@@ -219,7 +219,7 @@ function loadMore() {
             </p>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-3">
+        <div class="grid gap-4 md:grid-cols-2">
             <div class="relative">
                 <Search
                     class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -264,7 +264,7 @@ function loadMore() {
                 <div
                     v-for="bundle in bundles"
                     :key="bundle.id"
-                    class="flex w-[280px] shrink-0 snap-start flex-col gap-3 rounded-xl border p-4 transition-shadow hover:shadow-md lg:w-auto"
+                    class="flex w-[85vw] max-w-[280px] shrink-0 snap-start flex-col gap-3 rounded-xl border p-4 transition-shadow hover:shadow-md lg:w-auto"
                 >
                     <div class="flex items-start gap-3">
                         <!-- Cover buku paket (tumpuk) -->

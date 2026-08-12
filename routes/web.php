@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DailyRecapController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DropshipController;
+use App\Http\Controllers\Admin\ImportTemplateController;
 use App\Http\Controllers\Admin\InventoryAdjustmentController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\InventoryReportController;
@@ -87,11 +88,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    Route::get('imports/templates/{type}', [ImportTemplateController::class, 'download'])
+        ->name('imports.template')
+        ->whereIn('type', ['customers', 'books', 'categories', 'promotions', 'tier-discounts']);
+
     Route::resource('books', BookController::class)->except(['show']);
+    Route::post('books/import', [BookController::class, 'importCsv'])->name('books.import');
     Route::post('books/{book}/restore', [BookController::class, 'restore'])->name('books.restore')->withTrashed();
     Route::patch('books/{book}/toggle-active', [BookController::class, 'toggleActive'])->name('books.toggle-active');
 
     Route::resource('categories', CategoryController::class)->except(['show']);
+    Route::post('categories/import', [CategoryController::class, 'importCsv'])->name('categories.import');
     Route::post('categories/{category}/restore', [CategoryController::class, 'restore'])->name('categories.restore')->withTrashed();
 
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
@@ -120,6 +127,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('promotions/options/books', [PromotionController::class, 'bookOptions'])->name('promotions.options.books');
     Route::resource('promotions', PromotionController::class)->except(['show']);
+    Route::post('promotions/import', [PromotionController::class, 'importCsv'])->name('promotions.import');
     Route::patch('promotions/{promotion}/toggle', [PromotionController::class, 'toggle'])->name('promotions.toggle');
     Route::post('promotions/{promotion}/restore', [PromotionController::class, 'restore'])->name('promotions.restore')->withTrashed();
 
@@ -135,6 +143,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('warehouses', WarehouseController::class)->except(['show']);
 
     Route::get('tier-discounts', [TierDiscountController::class, 'index'])->name('tier-discounts.index');
+    Route::post('tier-discounts/import', [TierDiscountController::class, 'importCsv'])->name('tier-discounts.import');
     Route::post('tier-discounts', [TierDiscountController::class, 'store'])->name('tier-discounts.store');
     Route::put('tier-discounts/{tierDiscount}', [TierDiscountController::class, 'update'])->name('tier-discounts.update');
     Route::delete('tier-discounts/{tierDiscount}', [TierDiscountController::class, 'destroy'])->name('tier-discounts.destroy');

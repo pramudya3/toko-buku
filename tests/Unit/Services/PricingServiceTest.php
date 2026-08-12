@@ -4,6 +4,7 @@ use App\Enums\CustomerTier;
 use App\Models\Book;
 use App\Models\Order;
 use App\Models\Promotion;
+use App\Models\TierDiscount;
 use App\Services\Pricing\PriceBreakdown;
 use App\Services\PricingService;
 
@@ -232,6 +233,10 @@ it('does not apply bundle when order is missing a bundle book', function (): voi
 });
 
 it('applies tier discount after promotion (BR-01, BR-03)', function (): void {
+    TierDiscount::create(['tier' => 'reseller', 'min_qty' => 10, 'discount_percent' => 10]);
+    TierDiscount::create(['tier' => 'reseller', 'min_qty' => 20, 'discount_percent' => 15]);
+    TierDiscount::create(['tier' => 'bazaf', 'min_qty' => 10, 'discount_percent' => 5]);
+
     $book = Book::factory()->create(['harga' => 100000]);
 
     // Reseller: qty 10 → 10% tier discount.
@@ -255,6 +260,8 @@ it('applies tier discount after promotion (BR-01, BR-03)', function (): void {
 });
 
 it('chains promotion then tier discount (BR-01)', function (): void {
+    TierDiscount::create(['tier' => 'reseller', 'min_qty' => 10, 'discount_percent' => 10]);
+
     $book = Book::factory()->create(['harga' => 100000]);
     $book->promotions()->attach(Promotion::factory()->percentage(20)->create());
 

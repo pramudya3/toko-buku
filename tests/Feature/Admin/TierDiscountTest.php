@@ -16,13 +16,13 @@ it('lists tier discounts with tier filter', function (): void {
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
             ->component('admin/tier-discounts/Index')
-            // 4 rule default dari migration + 2 buatan test.
-            ->has('tierDiscounts.data', 6));
+            // 2 rule buatan test (tanpa default dari migration).
+            ->has('tierDiscounts.data', 2));
 
     $this->actingAs($this->admin)
         ->get(route('admin.tier-discounts.index', ['tier' => 'reseller']))
         ->assertSuccessful()
-        ->assertInertia(fn ($page) => $page->has('tierDiscounts.data', 3));
+        ->assertInertia(fn ($page) => $page->has('tierDiscounts.data', 1));
 });
 
 it('creates a tier discount rule', function (): void {
@@ -77,8 +77,8 @@ it('validates tier discount rules', function (): void {
         ])
         ->assertSessionHasErrors(['tier', 'min_qty', 'discount_percent']);
 
-    // Rule default dari migration tetap utuh.
-    expect(TierDiscount::count())->toBe(4);
+    // Tanpa default dari migration — tabel kosong.
+    expect(TierDiscount::count())->toBe(0);
 });
 
 it('soft deletes and restores a tier discount rule', function (): void {
