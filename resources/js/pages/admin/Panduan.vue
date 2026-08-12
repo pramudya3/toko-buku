@@ -65,14 +65,15 @@ const sections: Section[] = [
     {
         id: 'penjualan',
         icon: ShoppingCart,
-        title: 'Penjualan — Pesanan, Dropship, Piutang, Laporan & Retur',
+        title: 'Penjualan — Pesanan, Dropship, Piutang, Laporan, Retur & Rekap',
         content: [
-            '<strong>Pesanan</strong>: Daftar semua pesanan dari customer & admin. Filter per status (menunggu, diproses, dikirim, selesai, batal). Klik nomor order untuk detail & update status.',
-            '<strong>Buat Pesanan (admin)</strong>: Admin bisa membuat pesanan manual — pilih customer, tambah buku, hitung ongkir, submit.',
-            '<strong>Dropship</strong>: Pesanan dengan nama pengirim berbeda dari nama pembeli. Cek dropdown "Dropship" di form pesanan.',
+            '<strong>Pesanan</strong>: Daftar semua pesanan dari customer & admin. Filter per status, dropship, dan sumber pembelian. Klik nomor order untuk detail & update status.',
+            '<strong>Buat Pesanan (admin)</strong>: Admin bisa membuat pesanan manual — pilih customer, tambah buku, hitung ongkir, tentukan sumber pembelian (toko, Shopee, dll), submit.',
+            '<strong>Dropship</strong>: Pesanan dengan nama pengirim berbeda dari nama pembeli. Cek checkbox "Dropship" di form pesanan.',
             '<strong>Piutang</strong>: Catat pembayaran cicilan dari pelanggan yang belum lunas.',
-            '<strong>Laporan Penjualan</strong>: Export .xlsx dengan filter periode, status, metode bayar.',
+            '<strong>Laporan Penjualan</strong>: Export .xlsx dengan filter periode, status, metode bayar, dan sumber penjualan.',
             '<strong>Retur Penjualan</strong>: Proses barang yang dikembalikan pembeli — stok akan otomatis bertambah.',
+            '<strong>Rekap Harian</strong>: Ringkasan omzet, cash/transfer/COD, HPP & laba per tanggal. Bisa difilter per periode dan sumber penjualan, plus export .xlsx.',
         ],
         tips: [
             'Konfirmasi pembayaran sebelum memproses pesanan — cek bukti transfer WA.',
@@ -128,17 +129,19 @@ const sections: Section[] = [
     {
         id: 'pengaturan',
         icon: Settings,
-        title: 'Pengaturan — Lembaga, Rekening, Ekspedisi, Pembayaran & Staf',
+        title: 'Pengaturan — Lembaga, Rekening, Ekspedisi, Pembayaran, Sumber Penjualan & Staf',
         content: [
             '<strong>Lembaga</strong>: Identitas toko — nama, logo, tagline, visi, misi, kontak, alamat. Data ini tampil di halaman Tentang Kami (publik).',
             '<strong>Rekening Bank</strong>: Daftar rekening untuk pembayaran transfer. Tampil di halaman checkout & invoice.',
             '<strong>Ekspedisi</strong>: Kurir yang tersedia untuk pengiriman (terintegrasi Biteship API).',
             '<strong>Metode Pembayaran</strong>: Pilihan bayar yang muncul di checkout (transfer, COD, dll).',
+            '<strong>Sumber Penjualan</strong>: Channel tempat pembelian terjadi — toko, Shopee, Tokopedia, TikTok Shop, dll. Channel aktif muncul di form pesanan manual dan dipakai sebagai filter laporan.',
             '<strong>Staf</strong>: Manajemen user admin — tambah, edit, nonaktifkan, reset password. Hanya bisa diakses oleh admin.',
         ],
         tips: [
             'Nonaktifkan ekspedisi lewat soft-delete, bukan hapus permanen — data historis pesanan tetap utuh.',
             'API Key Biteship disetting di halaman API Key (menu Pengaturan).',
+            'Sumber penjualan dipakai sebagai filter di laporan penjualan & rekap harian — kelola di Pengaturan → Sumber Penjualan.',
         ],
     },
     {
@@ -222,11 +225,10 @@ function isOpen(id: string): boolean {
                         :class="isOpen(section.id) && 'rotate-180'"
                     />
                 </button>
-                <div
-                    v-if="isOpen(section.id)"
-                    class="border-t px-5 py-4"
-                >
-                    <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
+                <div v-if="isOpen(section.id)" class="border-t px-5 py-4">
+                    <ul
+                        class="flex flex-col gap-2 text-sm text-muted-foreground"
+                    >
                         <li
                             v-for="(line, i) in section.content"
                             :key="i"
