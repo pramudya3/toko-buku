@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useHttp } from '@inertiajs/vue3';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import type { SelectOption } from '@/components/SearchableSelect.vue';
 import { Input } from '@/components/ui/input';
@@ -109,6 +109,11 @@ const villageOptions = computed<SelectOption[]>(() =>
 function syncToParent() {
     emit('update:modelValue', currentValue.value);
 }
+
+// Setiap perubahan field (termasuk ketikan manual alamat/kode pos) langsung
+// disinkronkan ke parent — tanpa ini tombol submit di halaman induk tidak
+// pernah melihat nilai alamat yang diketik.
+watch(currentValue, () => syncToParent());
 
 const routes = computed(() =>
     props.endpoint === 'public'
