@@ -84,10 +84,7 @@ const to = ref(props.filters.to ?? '');
 const status = ref(props.filters.status ?? allStatuses);
 
 const hasActiveFilters = computed(
-    () =>
-        from.value !== '' ||
-        to.value !== '' ||
-        status.value !== allStatuses,
+    () => from.value !== '' || to.value !== '' || status.value !== allStatuses,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;

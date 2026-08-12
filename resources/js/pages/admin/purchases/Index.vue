@@ -81,10 +81,7 @@ const from = ref(props.filters.from ?? '');
 const to = ref(props.filters.to ?? '');
 
 const hasActiveFilters = computed(
-    () =>
-        supplierId.value !== '' ||
-        from.value !== '' ||
-        to.value !== '',
+    () => supplierId.value !== '' || from.value !== '' || to.value !== '',
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
