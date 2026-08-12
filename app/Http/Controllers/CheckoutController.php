@@ -70,6 +70,8 @@ class CheckoutController extends Controller
                 'provinsi' => $user->provinsi,
                 'kabupaten_kota' => $user->kabupaten_kota,
                 'kecamatan' => $user->kecamatan,
+                'kelurahan' => $user->kelurahan,
+                'village_code' => $user->village_code,
                 'kode_pos' => $user->kode_pos,
             ] : null,
         ]);
@@ -282,8 +284,46 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Proses pembelian — buat order dengan status menunggu konfirmasi.
+     * Ganti cetakan item di keranjang (semua entri buku ini).
      */
+    public function updateEdition(Request $request, string $bookId): RedirectResponse
+    {
+        $validated = $request->validate([
+            'book_edition_id' => ['nullable', 'string', 'exists:book_editions,id'],
+        ]);
+
+        $editionId = ! empty($validated['book_edition_id']) ? (string) $validated['book_edition_id'] : null;
+
+        if ($editionId !== null) {
+            $edition = BookEdition::query()->findOrFail($editionId);
+
+            if ($edition->book_id !== $bookId) {
+                return back()->withErrors(['edition' => 'Cetakan tidak sesuai dengan buku.']);
+            }
+        }
+
+        $cart = $this->cart();
+        $book = Book::find($bookId);
+
+        $capStock = $editionId !== null
+            ? BookEdition::query()
+                ->whereKey($editionId)
+                ->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')
+                ->first()?->sellable_total
+            : $book?->stok;
+
+        foreach (array_keys($cart) as $key) {
+            if ($this->keyBookId($key) === $bookId) {
+                $cart[$key]['edition_id'] = $editionId;
+                $cart[$key]['qty'] = min((int) $cart[$key]['qty'], max((int) $capStock, 1));
+            }
+        }
+
+        session(['cart' => $cart]);
+
+        return back();
+    }
+
     public function store(CheckoutRequest $request): RedirectResponse
     {
         $data = $request->validated();
@@ -764,6 +804,7 @@ class CheckoutController extends Controller
                 'book' => $book,
                 'qty' => $item['qty'],
                 'edition_label' => $item['edition_label'] ?? null,
+                'editions' => $item['editions'] ?? [],
                 'price_original' => $breakdown->originalPrice,
                 'promo_discount' => $inBundle ? 0 : $breakdown->promoDiscount,
                 'promo_name' => $inBundle ? null : $breakdown->promoName,
@@ -897,6 +938,14 @@ class CheckoutController extends Controller
             ->get()
             ->keyBy('id');
 
+        // Semua cetakan utk tiap buku di keranjang — dipakai dropdown ganti cetakan.
+        $allEditions = BookEdition::query()
+            ->whereIn('book_id', $this->cartBookIds($cart))
+            ->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')
+            ->orderBy('cetakan_ke')
+            ->get()
+            ->groupBy('book_id');
+
         $items = [];
 
         foreach ($cart as $key => $entry) {
@@ -932,6 +981,15 @@ class CheckoutController extends Controller
                 'qty' => (int) $entry['qty'],
                 'edition' => $edition,
                 'edition_label' => $edition !== null ? "Cetakan ke-{$edition->cetakan_ke}" : null,
+                'editions' => ($allEditions->get($book->id) ?? collect())->map(
+                    fn (BookEdition $e): array => [
+                        'id' => $e->id,
+                        'cetakan_ke' => $e->cetakan_ke,
+                        'harga_jual' => $e->harga_jual,
+                        'is_active' => $e->is_active,
+                        'stok' => (int) ($e->sellable_total ?? 0),
+                    ]
+                )->values()->all(),
             ];
         }
 

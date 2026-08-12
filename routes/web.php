@@ -63,6 +63,7 @@ Route::post('keranjang/{book}/remove', [CheckoutController::class, 'remove'])->n
 Route::post('keranjang/grup/toggle', [CheckoutController::class, 'toggleGroup'])->name('cart.toggle-group');
 Route::post('keranjang/grup/hapus', [CheckoutController::class, 'removeGroup'])->name('cart.remove-group');
 Route::post('keranjang/{book}/qty', [CheckoutController::class, 'updateQty'])->name('cart.qty');
+Route::post('keranjang/{book}/edition', [CheckoutController::class, 'updateEdition'])->name('cart.edition');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('pesanan-saya', [MyOrderController::class, 'index'])->name('my-orders.index');
