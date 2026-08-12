@@ -6,11 +6,10 @@ import {
     LogIn,
     LogOut,
     Package,
-    Settings,
     ShoppingCart,
     UserPen,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -22,13 +21,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
 import { Toaster } from '@/components/ui/sonner';
 import { about, home, logout } from '@/routes';
 import { dashboard as adminDashboard } from '@/routes/admin';
@@ -40,7 +32,6 @@ const storeLogoUrl = computed(() => page.props.storeLogoUrl ?? '');
 const user = computed<User | null>(() => page.props.auth?.user ?? null);
 const isAdmin = computed(() => user.value?.is_admin === true);
 const cartCount = computed<number>(() => Number(page.props.cartCount ?? 0));
-const avatarSheetOpen = ref(false);
 
 const initials = computed(() => {
     const name = user.value?.name ?? '';
@@ -58,16 +49,16 @@ const initials = computed(() => {
 
 // ── Desktop nav (header, hidden md:flex) ──
 const desktopNavItems = computed(() => {
-    const items = [
+    const items: { label: string; href: string; badge?: number }[] = [
         { label: 'Beranda', href: home().url },
-        {
-            label: 'Keranjang',
-            href: '/checkout',
-            badge: cartCount.value,
-        },
     ];
 
     if (user.value && !isAdmin.value) {
+        items.push({
+            label: 'Keranjang',
+            href: '/checkout',
+            badge: cartCount.value,
+        });
         items.push({ label: 'Pesanan Saya', href: '/pesanan-saya' });
     }
 
@@ -75,6 +66,15 @@ const desktopNavItems = computed(() => {
         items.push({
             label: 'Dashboard',
             href: adminDashboard().url,
+        });
+    }
+
+    // Guest: hanya Keranjang setelah Beranda
+    if (!user.value) {
+        items.push({
+            label: 'Keranjang',
+            href: '/checkout',
+            badge: cartCount.value,
         });
     }
 
@@ -100,12 +100,6 @@ const bottomNavItems = computed(() => {
     if (isAdmin.value) {
         return [
             { label: 'Beranda', href: home().url, icon: BookOpen },
-            {
-                label: 'Keranjang',
-                href: '/checkout',
-                icon: ShoppingCart,
-                badge: cartCount.value,
-            },
             {
                 label: 'Dashboard',
                 href: adminDashboard().url,
@@ -182,121 +176,52 @@ function isBottomNavActive(href: string): boolean {
                 </nav>
 
                 <div class="ml-auto flex items-center gap-1">
-                    <!-- Desktop: avatar dropdown (customer login) -->
-                    <template v-if="user && !isAdmin">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button
-                                    variant="ghost"
-                                    class="hidden size-9 rounded-full p-0 md:inline-flex"
-                                    title="Menu akun"
-                                >
-                                    <Avatar class="size-8">
-                                        <AvatarFallback
-                                            class="bg-primary text-primary-foreground"
-                                        >
-                                            {{ initials }}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-56">
-                                <DropdownMenuLabel class="font-normal">
-                                    <p class="truncate text-sm font-medium">
-                                        {{ user.name }}
-                                    </p>
-                                    <p
-                                        class="truncate text-xs text-muted-foreground"
+                    <!-- Avatar dropdown (customer & admin) -->
+                    <DropdownMenu v-if="user">
+                        <DropdownMenuTrigger as-child>
+                            <Button
+                                variant="ghost"
+                                class="size-9 rounded-full p-0"
+                                title="Menu akun"
+                            >
+                                <Avatar class="size-8">
+                                    <AvatarFallback
+                                        class="bg-primary text-primary-foreground"
                                     >
-                                        {{ user.email }}
-                                    </p>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem as-child>
-                                    <Link :href="'/settings/alamat'">
-                                        <Settings class="size-4" />
-                                        Settings
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    class="text-destructive focus:text-destructive"
-                                    as-child
+                                        {{ initials }}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="min-w-40">
+                            <DropdownMenuLabel class="font-normal">
+                                <p class="truncate text-sm font-medium">
+                                    {{ user.name }}
+                                </p>
+                                <p
+                                    class="truncate text-xs text-muted-foreground"
                                 >
-                                    <Link
-                                        :href="logout()"
-                                        @click="router.flushAll()"
-                                        as="button"
-                                    >
-                                        <LogOut class="size-4" />
-                                        Logout
-                                    </Link>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </template>
+                                    {{ user.email }}
+                                </p>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                class="text-destructive focus:text-destructive"
+                                as-child
+                            >
+                                <Link
+                                    :href="logout()"
+                                    @click="router.flushAll()"
+                                    as="button"
+                                >
+                                    <LogOut class="size-4" />
+                                    Logout
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
 
-                    <!-- Desktop: admin avatar dropdown -->
-                    <template v-if="isAdmin && user">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button
-                                    variant="ghost"
-                                    class="hidden size-9 rounded-full p-0 md:inline-flex"
-                                    title="Menu akun"
-                                >
-                                    <Avatar class="size-8">
-                                        <AvatarFallback
-                                            class="bg-primary text-primary-foreground"
-                                        >
-                                            {{ initials }}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-56">
-                                <DropdownMenuLabel class="font-normal">
-                                    <p class="truncate text-sm font-medium">
-                                        {{ user.name }}
-                                    </p>
-                                    <p
-                                        class="truncate text-xs text-muted-foreground"
-                                    >
-                                        {{ user.email }}
-                                    </p>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem as-child>
-                                    <Link :href="adminDashboard()">
-                                        <LayoutGrid class="size-4" />
-                                        Dashboard Admin
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem as-child>
-                                    <Link :href="'/settings/alamat'">
-                                        <Settings class="size-4" />
-                                        Settings
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    class="text-destructive focus:text-destructive"
-                                    as-child
-                                >
-                                    <Link
-                                        :href="logout()"
-                                        @click="router.flushAll()"
-                                        as="button"
-                                    >
-                                        <LogOut class="size-4" />
-                                        Logout
-                                    </Link>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </template>
-
-                    <!-- Desktop: login/register (guest) -->
+                    <!-- Guest: login/register (desktop only) -->
                     <template v-if="!user">
                         <Button
                             variant="ghost"
@@ -317,75 +242,6 @@ function isBottomNavActive(href: string): boolean {
                             </Link>
                         </Button>
                     </template>
-
-                    <!-- Mobile: avatar → Sheet akun -->
-                    <Sheet v-model:open="avatarSheetOpen">
-                        <SheetTrigger as-child>
-                            <Button
-                                v-if="user"
-                                variant="ghost"
-                                class="size-9 rounded-full p-0 md:hidden"
-                                title="Menu akun"
-                            >
-                                <Avatar class="size-8">
-                                    <AvatarFallback
-                                        class="bg-primary text-primary-foreground"
-                                    >
-                                        {{ initials }}
-                                    </AvatarFallback>
-                                </Avatar>
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" class="w-72">
-                            <template v-if="user">
-                                <SheetHeader>
-                                    <SheetTitle>{{ user.name }}</SheetTitle>
-                                </SheetHeader>
-                                <p
-                                    class="px-0.5 text-xs text-muted-foreground"
-                                >
-                                    {{ user.email }}
-                                </p>
-
-                                <div
-                                    class="mt-4 flex flex-col gap-1 border-t pt-4"
-                                >
-                                    <Link
-                                        v-if="isAdmin"
-                                        :href="adminDashboard()"
-                                        class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
-                                        @click="avatarSheetOpen = false"
-                                    >
-                                        <LayoutGrid class="size-4" />
-                                        Dashboard Admin
-                                    </Link>
-                                    <Link
-                                        :href="'/settings/alamat'"
-                                        class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
-                                        @click="avatarSheetOpen = false"
-                                    >
-                                        <Settings class="size-4" />
-                                        Settings
-                                    </Link>
-                                </div>
-
-                                <div class="mt-auto border-t pt-4">
-                                    <Link
-                                        :href="logout()"
-                                        class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
-                                        @click="
-                                            avatarSheetOpen = false;
-                                            router.flushAll();
-                                        "
-                                        as="button"
-                                    >
-                                        <LogOut class="size-4" />
-                                        Logout
-                                    </Link>
-                                </div>
-                            </template>
-                        </SheetContent>
-                    </Sheet>
                 </div>
             </div>
         </header>
