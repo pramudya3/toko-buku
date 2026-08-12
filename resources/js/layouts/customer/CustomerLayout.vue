@@ -6,7 +6,6 @@ import {
     LogIn,
     LogOut,
     Package,
-    Settings,
     ShoppingCart,
     UserPen,
 } from '@lucide/vue';
@@ -58,16 +57,16 @@ const initials = computed(() => {
 
 // ── Desktop nav (header, hidden md:flex) ──
 const desktopNavItems = computed(() => {
-    const items = [
+    const items: { label: string; href: string; badge?: number }[] = [
         { label: 'Beranda', href: home().url },
-        {
-            label: 'Keranjang',
-            href: '/checkout',
-            badge: cartCount.value,
-        },
     ];
 
     if (user.value && !isAdmin.value) {
+        items.push({
+            label: 'Keranjang',
+            href: '/checkout',
+            badge: cartCount.value,
+        });
         items.push({ label: 'Pesanan Saya', href: '/pesanan-saya' });
     }
 
@@ -75,6 +74,15 @@ const desktopNavItems = computed(() => {
         items.push({
             label: 'Dashboard',
             href: adminDashboard().url,
+        });
+    }
+
+    // Guest: hanya Keranjang setelah Beranda
+    if (!user.value) {
+        items.push({
+            label: 'Keranjang',
+            href: '/checkout',
+            badge: cartCount.value,
         });
     }
 
@@ -100,12 +108,6 @@ const bottomNavItems = computed(() => {
     if (isAdmin.value) {
         return [
             { label: 'Beranda', href: home().url, icon: BookOpen },
-            {
-                label: 'Keranjang',
-                href: '/checkout',
-                icon: ShoppingCart,
-                badge: cartCount.value,
-            },
             {
                 label: 'Dashboard',
                 href: adminDashboard().url,
@@ -212,13 +214,6 @@ function isBottomNavActive(href: string): boolean {
                                     </p>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem as-child>
-                                    <Link :href="'/settings/alamat'">
-                                        <Settings class="size-4" />
-                                        Settings
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     class="text-destructive focus:text-destructive"
                                     as-child
@@ -254,7 +249,7 @@ function isBottomNavActive(href: string): boolean {
                                     </Avatar>
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-56">
+                            <DropdownMenuContent align="end" class="w-48">
                                 <DropdownMenuLabel class="font-normal">
                                     <p class="truncate text-sm font-medium">
                                         {{ user.name }}
@@ -270,12 +265,6 @@ function isBottomNavActive(href: string): boolean {
                                     <Link :href="adminDashboard()">
                                         <LayoutGrid class="size-4" />
                                         Dashboard Admin
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem as-child>
-                                    <Link :href="'/settings/alamat'">
-                                        <Settings class="size-4" />
-                                        Settings
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -348,24 +337,16 @@ function isBottomNavActive(href: string): boolean {
                                 </p>
 
                                 <div
+                                    v-if="isAdmin"
                                     class="mt-4 flex flex-col gap-1 border-t pt-4"
                                 >
                                     <Link
-                                        v-if="isAdmin"
                                         :href="adminDashboard()"
                                         class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
                                         @click="avatarSheetOpen = false"
                                     >
                                         <LayoutGrid class="size-4" />
                                         Dashboard Admin
-                                    </Link>
-                                    <Link
-                                        :href="'/settings/alamat'"
-                                        class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
-                                        @click="avatarSheetOpen = false"
-                                    >
-                                        <Settings class="size-4" />
-                                        Settings
                                     </Link>
                                 </div>
 
