@@ -147,7 +147,7 @@ class SalesReportController extends Controller
         $summary['laba'] = $summary['omzet'] - $summary['hpp'];
 
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = 15;
+        $perPage = 10;
 
         $paginated = new LengthAwarePaginator(
             collect($rows)->forPage($page, $perPage)->values(),

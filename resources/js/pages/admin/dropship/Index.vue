@@ -83,16 +83,11 @@ const from = ref(props.filters.from ?? '');
 const to = ref(props.filters.to ?? '');
 const status = ref(props.filters.status ?? allStatuses);
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialFrom = props.filters.from ?? '';
-const initialTo = props.filters.to ?? '';
-const initialStatus = props.filters.status ?? allStatuses;
-
 const hasActiveFilters = computed(
     () =>
-        from.value !== initialFrom ||
-        to.value !== initialTo ||
-        status.value !== initialStatus,
+        from.value !== '' ||
+        to.value !== '' ||
+        status.value !== allStatuses,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -116,9 +111,9 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    from.value = initialFrom;
-    to.value = initialTo;
-    status.value = initialStatus;
+    from.value = '';
+    to.value = '';
+    status.value = allStatuses;
     applyFilters();
 }
 

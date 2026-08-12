@@ -73,20 +73,13 @@ const to = ref(props.filters.to ?? '');
 const userId = ref(props.filters.user_id ?? allUsers);
 const action = ref(props.filters.action ?? allActions);
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-const initialFrom = props.filters.from ?? '';
-const initialTo = props.filters.to ?? '';
-const initialUserId = props.filters.user_id ?? allUsers;
-const initialAction = props.filters.action ?? allActions;
-
 const hasActiveFilters = computed(
     () =>
-        search.value !== initialSearch ||
-        from.value !== initialFrom ||
-        to.value !== initialTo ||
-        userId.value !== initialUserId ||
-        action.value !== initialAction,
+        search.value !== '' ||
+        from.value !== '' ||
+        to.value !== '' ||
+        userId.value !== allUsers ||
+        action.value !== allActions,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -112,11 +105,11 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
-    from.value = initialFrom;
-    to.value = initialTo;
-    userId.value = initialUserId;
-    action.value = initialAction;
+    search.value = '';
+    from.value = '';
+    to.value = '';
+    userId.value = allUsers;
+    action.value = allActions;
     applyFilters();
 }
 

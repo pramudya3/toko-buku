@@ -59,8 +59,15 @@ class DashboardController extends Controller
         $totalStock = Book::sum('stok');
 
         $lowStock = Book::where('aktif', true)
+            ->where('stok', '>', 0)
             ->where('stok', '<=', config('pricing.low_stock_threshold'))
             ->orderBy('stok')
+            ->limit(10)
+            ->get(['id', 'judul', 'kode_sku', 'stok']);
+
+        $emptyStock = Book::where('aktif', true)
+            ->where('stok', 0)
+            ->orderByDesc('updated_at')
             ->limit(10)
             ->get(['id', 'judul', 'kode_sku', 'stok']);
 
@@ -82,6 +89,7 @@ class DashboardController extends Controller
                 'total_stock' => $totalStock,
             ],
             'lowStockBooks' => $lowStock,
+            'emptyStockBooks' => $emptyStock,
             'lowStockThreshold' => config('pricing.low_stock_threshold'),
             'recentOrders' => $recentOrders,
             'salesChart' => $salesPerDay,

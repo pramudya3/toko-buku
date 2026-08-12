@@ -30,7 +30,7 @@ class SupplierReportController extends Controller
         $rows = $this->exporter->buildRows($from, $to, $supplierId, $jenis);
 
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = 15;
+        $perPage = 10;
 
         $paginated = new LengthAwarePaginator(
             $rows->forPage($page, $perPage)->values(),

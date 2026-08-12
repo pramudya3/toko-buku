@@ -75,12 +75,8 @@ const allTiersFilter = '__all_tiers__';
 const search = ref(props.filters.search ?? '');
 const filterTier = ref(props.filters.tier ?? allTiersFilter);
 
-// Snapshot awal (nilai server saat load) untuk tombol Reset.
-const initialSearch = props.filters.search ?? '';
-const initialTier = props.filters.tier ?? allTiersFilter;
-
 const hasActiveFilters = computed(
-    () => search.value !== initialSearch || filterTier.value !== initialTier,
+    () => search.value !== '' || filterTier.value !== allTiersFilter,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -106,8 +102,8 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    search.value = initialSearch;
-    filterTier.value = initialTier;
+    search.value = '';
+    filterTier.value = allTiersFilter;
     applyFilters();
 }
 
