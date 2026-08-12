@@ -53,8 +53,15 @@ class BookController extends Controller
             ->when($request->filled('status'), function ($query) use ($request): void {
                 $query->where('aktif', $request->string('status')->toString() === 'aktif');
             })
-            ->when($request->boolean('low_stock'), function ($query): void {
-                $query->where('stok', '<=', config('pricing.low_stock_threshold'));
+            ->when($request->filled('low_stock'), function ($query) use ($request): void {
+                if ($request->string('low_stock')->toString() === 'kosong') {
+                    $query->where('stok', 0);
+
+                    return;
+                }
+
+                $query->where('stok', '>', 0)
+                    ->where('stok', '<=', config('pricing.low_stock_threshold'));
             })
             ->orderByDesc('created_at')
             ->paginate(10)

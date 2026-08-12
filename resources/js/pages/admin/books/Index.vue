@@ -154,6 +154,7 @@ function executeDelete() {
 </script>
 
 <template>
+
     <Head title="Buku" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
@@ -181,40 +182,27 @@ function executeDelete() {
         </div>
 
         <div
-            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
-        >
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0">
             <div class="relative flex items-center">
                 <Search
-                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                    v-model="search"
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input v-model="search"
                     class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-56"
-                    placeholder="Cari judul, penulis, ISBN, SKU..."
-                />
+                    placeholder="Cari judul, penulis, ISBN, SKU..." />
             </div>
 
             <div class="md:flex md:items-center">
-                <p
-                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
-                >
+                <p class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden">
                     Kategori
                 </p>
                 <Select v-model="categoryId">
                     <SelectTrigger
-                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
-                    >
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40">
                         <SelectValue placeholder="Semua kategori" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem :value="allCategories"
-                            >Semua kategori</SelectItem
-                        >
-                        <SelectItem
-                            v-for="category in categories"
-                            :key="category.id"
-                            :value="String(category.id)"
-                        >
+                        <SelectItem :value="allCategories">Semua kategori</SelectItem>
+                        <SelectItem v-for="category in categories" :key="category.id" :value="String(category.id)">
                             {{ category.nama }}
                         </SelectItem>
                     </SelectContent>
@@ -222,21 +210,16 @@ function executeDelete() {
             </div>
 
             <div class="md:flex md:items-center">
-                <p
-                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
-                >
+                <p class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden">
                     Status
                 </p>
                 <Select v-model="status">
                     <SelectTrigger
-                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
-                    >
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40">
                         <SelectValue placeholder="Semua status" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem :value="allStatuses"
-                            >Semua status</SelectItem
-                        >
+                        <SelectItem :value="allStatuses">Semua status</SelectItem>
                         <SelectItem value="aktif">Aktif</SelectItem>
                         <SelectItem value="nonaktif">Nonaktif</SelectItem>
                     </SelectContent>
@@ -244,57 +227,37 @@ function executeDelete() {
             </div>
 
             <div class="md:flex md:items-center">
-                <p
-                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
-                >
+                <p class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden">
                     Stok
                 </p>
                 <Select v-model="lowStock">
                     <SelectTrigger
-                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-44"
-                    >
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-44">
                         <SelectValue placeholder="Semua stok" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem :value="allStocks">Semua stok</SelectItem>
-                        <SelectItem value="1"
-                            >Menipis (≤ {{ lowStockThreshold }})</SelectItem
-                        >
+                        <SelectItem value="1">Menipis (≤ {{ lowStockThreshold }})</SelectItem>
+                        <SelectItem value="kosong">Kosong (0)</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
-            <button
-                v-if="hasActiveFilters"
-                type="button"
+            <button v-if="hasActiveFilters" type="button"
                 class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
-                title="Hapus filter"
-                aria-label="Hapus filter"
-                @click="resetFilters"
-            >
+                title="Hapus filter" aria-label="Hapus filter" @click="resetFilters">
                 <X class="size-4" />
                 <span class="md:hidden">Hapus filter</span>
             </button>
         </div>
 
-        <DataTable
-            :data="books.data"
-            :columns="columns"
-            :paginator="books"
-            empty-title="Tidak ada buku"
-            empty-description="Coba ubah pencarian, atau buat buku pertama Anda."
-        >
+        <DataTable :data="books.data" :columns="columns" :paginator="books" empty-title="Tidak ada buku"
+            empty-description="Coba ubah pencarian, atau buat buku pertama Anda.">
             <template #cell-judul="{ row }">
                 <div class="flex items-center gap-3">
-                    <img
-                        v-if="row.cover_url"
-                        :src="row.cover_url"
-                        :alt="row.judul"
-                        class="h-12 w-8 rounded border object-cover"
-                    />
-                    <div
-                        v-else
-                        class="flex h-12 w-9 items-center justify-center rounded border bg-muted text-xs text-muted-foreground"
-                    >
+                    <img v-if="row.cover_url" :src="row.cover_url" :alt="row.judul"
+                        class="h-12 w-8 rounded border object-cover" />
+                    <div v-else
+                        class="flex h-12 w-9 items-center justify-center rounded border bg-muted text-xs text-muted-foreground">
                         📖
                     </div>
                     <div class="min-w-0">
@@ -310,45 +273,37 @@ function executeDelete() {
             <template #cell-category="{ row }">
                 <span class="max-w-36 truncate">{{
                     row.category?.nama ?? '—'
-                }}</span>
+                    }}</span>
             </template>
             <template #cell-harga="{ row }">
                 <Money :value="row.harga" />
             </template>
             <template #cell-stok="{ row }">
-                <StatusBadge
-                    :variant="row.stok <= 5 ? 'warning' : 'neutral'"
-                    :label="String(row.stok)"
-                />
+                <StatusBadge :variant="row.stok <= 5 ? 'warning' : 'neutral'" :label="String(row.stok)" />
             </template>
             <template #cell-aktif="{ row }">
-                <StatusBadge
-                    :variant="row.aktif ? 'success' : 'danger'"
-                    :label="row.aktif ? 'Aktif' : 'Nonaktif'"
-                />
+                <StatusBadge :variant="row.aktif ? 'success' : 'danger'" :label="row.aktif ? 'Aktif' : 'Nonaktif'" />
             </template>
             <template #cell-aksi="{ row }">
-                <DataTableActions
-                    :actions="[
-                        {
-                            label: 'Edit',
-                            href: edit(row.id).url,
-                        },
-                        {
-                            label: row.aktif ? 'Nonaktifkan' : 'Aktifkan',
-                            onClick: () =>
-                                router.patch(
-                                    BookController.toggleActive(row.id).url,
-                                    { preserveScroll: true },
-                                ),
-                        },
-                        {
-                            label: 'Hapus',
-                            variant: 'destructive',
-                            onClick: () => confirmDelete(row),
-                        },
-                    ]"
-                />
+                <DataTableActions :actions="[
+                    {
+                        label: 'Edit',
+                        href: edit(row.id).url,
+                    },
+                    {
+                        label: row.aktif ? 'Nonaktifkan' : 'Aktifkan',
+                        onClick: () =>
+                            router.patch(
+                                BookController.toggleActive(row.id).url,
+                                { preserveScroll: true },
+                            ),
+                    },
+                    {
+                        label: 'Hapus',
+                        variant: 'destructive',
+                        onClick: () => confirmDelete(row),
+                    },
+                ]" />
             </template>
             <template #empty>
                 <Button size="sm" as-child>
@@ -357,29 +312,17 @@ function executeDelete() {
             </template>
         </DataTable>
 
-        <ConfirmDeleteDialog
-            :open="!!deletingBook"
-            @update:open="
-                (open) => {
-                    if (!open) deletingBook = null;
-                }
-            "
-            title="Hapus Buku?"
-            :description="
-                deletingBook
+        <ConfirmDeleteDialog :open="!!deletingBook" @update:open="
+            (open) => {
+                if (!open) deletingBook = null;
+            }
+        " title="Hapus Buku?" :description="deletingBook
                     ? `'${deletingBook.judul}' akan dihapus. Buku ber-riwayat pesanan tidak dapat dihapus.`
                     : ''
-            "
-            @confirm="executeDelete"
-        />
+                " @confirm="executeDelete" />
     </div>
 
-    <ImportCsvDialog
-        v-model:open="importOpen"
-        :action="BookController.importCsv.form()"
-        template-type="books"
-        title="Import Buku dari CSV"
-        description="Format kolom: Kategori, Kode Brg, Nama Barang, Penulis, Hrg Jual"
-        hint="Harga format Indonesia (30.000). Kode SKU otomatis dibuat dari abreviasi kategori bila kosong/tidak valid."
-    />
+    <ImportCsvDialog v-model:open="importOpen" :action="BookController.importCsv.form()" template-type="books"
+        title="Import Buku dari CSV" description="Format kolom: Kategori, Kode Brg, Nama Barang, Penulis, Hrg Jual"
+        hint="Harga format Indonesia (30.000). Kode SKU otomatis dibuat dari abreviasi kategori bila kosong/tidak valid." />
 </template>

@@ -264,12 +264,27 @@ it('orders gallery images by urutan on the edit form', function (): void {
 
 it('filters books by low stock on the index page', function (): void {
     Book::factory()->withStock(malang: 2)->create(['judul' => 'Buku Stok Menipis']);
+    Book::factory()->withStock(malang: 0)->create(['judul' => 'Buku Stok Habis']);
     Book::factory()->withStock(malang: 50)->create(['judul' => 'Buku Stok Aman']);
 
     $this->actingAs($this->admin)
         ->get(route('admin.books.index', ['low_stock' => '1']))
         ->assertSuccessful()
         ->assertSee('Buku Stok Menipis')
+        ->assertDontSee('Buku Stok Habis')
+        ->assertDontSee('Buku Stok Aman');
+});
+
+it('filters books with empty stock on the index page', function (): void {
+    Book::factory()->withStock(malang: 0)->create(['judul' => 'Buku Stok Habis']);
+    Book::factory()->withStock(malang: 2)->create(['judul' => 'Buku Stok Menipis']);
+    Book::factory()->withStock(malang: 50)->create(['judul' => 'Buku Stok Aman']);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.books.index', ['low_stock' => 'kosong']))
+        ->assertSuccessful()
+        ->assertSee('Buku Stok Habis')
+        ->assertDontSee('Buku Stok Menipis')
         ->assertDontSee('Buku Stok Aman');
 });
 
