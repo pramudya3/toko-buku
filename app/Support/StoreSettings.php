@@ -3,8 +3,10 @@
 namespace App\Support;
 
 use App\Enums\PaymentMethod as PaymentMethodEnum;
+use App\Enums\SalesChannel as SalesChannelEnum;
 use App\Models\Courier;
 use App\Models\PaymentMethod;
+use App\Models\SalesChannel;
 
 /**
  * Pembacaan pengaturan toko yang dipakai di alur transaksi.
@@ -88,5 +90,49 @@ final class StoreSettings
     public static function enabledPaymentMethodValues(): array
     {
         return array_keys(self::enabledPaymentMethods());
+    }
+
+    /**
+     * Sumber penjualan aktif — [kode => nama].
+     *
+     * @return array<string, string>
+     */
+    public static function enabledSalesChannels(): array
+    {
+        $channels = SalesChannel::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'code');
+
+        if ($channels->isEmpty() && ! SalesChannel::query()->withTrashed()->exists()) {
+            return SalesChannelEnum::options();
+        }
+
+        return $channels->all();
+    }
+
+    /**
+     * Semua sumber penjualan (termasuk nonaktif) — untuk label order lama.
+     *
+     * @return array<string, string>
+     */
+    public static function allSalesChannels(): array
+    {
+        return SalesChannel::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'code')
+            ->all() ?: SalesChannelEnum::options();
+    }
+
+    /**
+     * Nilai sumber penjualan aktif (untuk validasi Rule::in).
+     *
+     * @return list<string>
+     */
+    public static function enabledSalesChannelValues(): array
+    {
+        return array_keys(self::enabledSalesChannels());
     }
 }

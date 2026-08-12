@@ -45,6 +45,7 @@ it('runs the full order lifecycle: cart → checkout → process → complete �
     $order = Order::latest('id')->firstOrFail();
 
     expect($order->status)->toBe(OrderStatus::MenungguKonfirmasi)
+        ->and($order->sumber_pembelian)->toBe('website')
         ->and($order->items()->count())->toBe(1)
         ->and($order->shipping_cost)->toBe(12000)
         ->and($order->total)->toBe(112000)

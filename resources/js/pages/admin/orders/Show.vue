@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Pesanan', href: '/admin/orders' },
+            { title: 'Detail' },
+        ],
+    },
+});
+
 import { Form, Head, Link } from '@inertiajs/vue3';
 import {
     ArrowRight,
@@ -65,6 +75,7 @@ type Order = {
     nama_pembeli: string;
     alamat: string | null;
     metode_bayar: string;
+    sumber_pembelian: string | null;
     total: number;
     shipping_cost: number;
     is_dropship: boolean;
@@ -101,6 +112,7 @@ type Props = {
     statusOptions: Record<string, string>;
     couriers: Record<string, string>;
     paymentMethods: Record<string, string>;
+    salesChannels: Record<string, string>;
     warehouseOptions: Record<string, string>;
 };
 
@@ -428,6 +440,20 @@ const flowTypeVariant: Record<
                                 {{
                                     paymentLabel[order.metode_bayar] ??
                                     order.metode_bayar
+                                }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">
+                                Pembelian Dari
+                            </p>
+                            <p>
+                                {{
+                                    props.salesChannels[
+                                        order.sumber_pembelian ?? ''
+                                    ] ??
+                                    order.sumber_pembelian ??
+                                    '—'
                                 }}
                             </p>
                         </div>

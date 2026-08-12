@@ -237,6 +237,85 @@ it('filters orders by payment method', function (): void {
         ->and($props['summary']['order_count'])->toBe(1);
 });
 
+it('filters orders by sales channel and shows the source label', function (): void {
+    $shopee = Order::factory()->create(['sumber_pembelian' => 'shopee', 'total' => 50000]);
+    $toko = Order::factory()->create(['sumber_pembelian' => 'toko', 'total' => 60000]);
+    $book = Book::factory()->withStock(malang: 5)->create(['harga' => 50000]);
+    $shopee->items()->create([
+        'book_id' => $book->id,
+        'judul_snapshot' => $book->judul,
+        'qty' => 1,
+        'harga_snapshot' => 50000,
+        'harga_beli_snapshot' => 25000,
+        'price_original' => 50000,
+        'promo_discount_amount' => 0,
+        'tier_discount_amount' => 0,
+        'price_final' => 50000,
+    ]);
+
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.sales-reports.index', [
+        'sumber_pembelian' => 'shopee',
+    ])));
+
+    expect(collect($props['rows']['data'])->pluck('no_order')->all())->toBe([$shopee->no_order])
+        ->and($props['rows']['data'][0]['sumber'])->toBe('Shopee')
+        ->and($props['summary']['order_count'])->toBe(1)
+        ->and($props['summary']['omzet'])->toBe(50000)
+        ->and($props['filters']['sumber_pembelian'])->toBe('shopee');
+});
+
+it('filters returns by sales channel in the report', function (): void {
+    $shopeeOrder = Order::factory()->create(['sumber_pembelian' => 'shopee', 'total' => 50000]);
+    $tokoOrder = Order::factory()->create(['sumber_pembelian' => 'toko', 'total' => 40000]);
+    $book = Book::factory()->withStock(malang: 5)->create(['harga' => 50000]);
+
+    $orderItems = [];
+
+    foreach ([$shopeeOrder, $tokoOrder] as $order) {
+        $orderItems[$order->id] = $order->items()->create([
+            'book_id' => $book->id,
+            'judul_snapshot' => $book->judul,
+            'qty' => 1,
+            'harga_snapshot' => 50000,
+            'harga_beli_snapshot' => 25000,
+            'price_original' => 50000,
+            'promo_discount_amount' => 0,
+            'tier_discount_amount' => 0,
+            'price_final' => 50000,
+        ]);
+    }
+
+    foreach ([$shopeeOrder, $tokoOrder] as $order) {
+        $return = SalesReturn::create([
+            'order_id' => $order->id,
+            'return_date' => now()->toDateString(),
+            'total_refund' => 50000,
+            'user_id' => $this->admin->id,
+        ]);
+
+        SalesReturnItem::create([
+            'sales_return_id' => $return->id,
+            'order_item_id' => $orderItems[$order->id]->id,
+            'book_id' => $book->id,
+            'qty' => 1,
+            'price_refund' => 50000,
+            'condition' => 'baik',
+        ]);
+    }
+
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.sales-reports.index', [
+        'sumber_pembelian' => 'shopee',
+    ])));
+
+    // Hanya retur dari order channel shopee yang muncul & mengurangi omzet.
+    // 2 baris: penjualan + retur — keduanya dari order yang sama.
+    expect(collect($props['rows']['data'])->pluck('no_order')->all())->toBe([$shopeeOrder->no_order, $shopeeOrder->no_order])
+        ->and($props['rows']['data'][1]['sumber'])->toBe('Shopee')
+        ->and($props['summary']['order_count'])->toBe(1)
+        ->and($props['summary']['omzet'])->toBe(0)
+        ->and($props['summary']['item_count'])->toBe(0);
+});
+
 it('exports sales report as xlsx with per-item HPP and profit rows', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 40000]);
     $edition = $book->editions()->orderBy('cetakan_ke')->first();

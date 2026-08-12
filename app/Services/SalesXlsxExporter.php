@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\SalesChannel as SalesChannelEnum;
 use App\Models\Order;
 use App\Models\SalesReturn;
 use Carbon\CarbonInterface;
@@ -24,6 +25,7 @@ final class SalesXlsxExporter
         'Tanggal',
         'No. Order',
         'Pembeli',
+        'Sumber',
         'Metode Bayar',
         'Status',
         'Buku',
@@ -38,16 +40,17 @@ final class SalesXlsxExporter
 
     /**
      * Baris per item order dalam rentang tanggal, dengan filter opsional
-     * metode bayar & status.
+     * metode bayar, status & sumber penjualan.
      *
      * @return Collection<int, array<string, mixed>>
      */
-    public function buildRows(CarbonInterface $from, CarbonInterface $to, ?string $metodeBayar = null, ?string $status = null): Collection
+    public function buildRows(CarbonInterface $from, CarbonInterface $to, ?string $metodeBayar = null, ?string $status = null, ?string $sumberPembelian = null): Collection
     {
         $orders = Order::query()
             ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
             ->when($metodeBayar !== null && $metodeBayar !== '', fn ($q) => $q->where('metode_bayar', $metodeBayar))
             ->when($status !== null && $status !== '', fn ($q) => $q->where('status', $status))
+            ->when($sumberPembelian !== null && $sumberPembelian !== '', fn ($q) => $q->where('sumber_pembelian', $sumberPembelian))
             ->with('items:id,order_id,book_id,judul_snapshot,edition_snapshot,qty,price_original,promo_discount_amount,tier_discount_amount,price_final,harga_beli_snapshot')
             ->orderBy('created_at')
             ->get();
@@ -69,6 +72,9 @@ final class SalesXlsxExporter
                     'sort_date' => $order->created_at->toDateString(),
                     'no_order' => $order->no_order,
                     'pembeli' => $order->nama_pembeli,
+                    'sumber' => $order->sumber_pembelian !== null
+                        ? SalesChannelEnum::labelFor((string) $order->sumber_pembelian)
+                        : '',
                     'metode_bayar' => $metodeLabel,
                     'status' => $statusLabel,
                     'buku' => $item->judul_snapshot,
@@ -89,8 +95,9 @@ final class SalesXlsxExporter
             ->whereBetween('return_date', [$from->toDateString(), $to->toDateString()])
             ->when($metodeBayar !== null && $metodeBayar !== '', fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('metode_bayar', $metodeBayar)))
             ->when($status !== null && $status !== '', fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('status', $status)))
+            ->when($sumberPembelian !== null && $sumberPembelian !== '', fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sumber_pembelian', $sumberPembelian)))
             ->with([
-                'order:id,no_order,nama_pembeli,metode_bayar,status',
+                'order:id,no_order,nama_pembeli,metode_bayar,status,sumber_pembelian',
                 'items:id,sales_return_id,order_item_id,qty,price_refund',
                 'items.orderItem:id,judul_snapshot,edition_snapshot,harga_beli_snapshot',
             ])
@@ -111,6 +118,9 @@ final class SalesXlsxExporter
                     'sort_date' => $return->return_date->toDateString(),
                     'no_order' => $return->order->no_order,
                     'pembeli' => $return->order->nama_pembeli,
+                    'sumber' => $return->order->sumber_pembelian !== null
+                        ? SalesChannelEnum::labelFor((string) $return->order->sumber_pembelian)
+                        : '',
                     'metode_bayar' => $returnMetodeLabel,
                     'status' => $returnStatusLabel.' (retur)',
                     'buku' => $item->orderItem->judul_snapshot,
@@ -133,7 +143,7 @@ final class SalesXlsxExporter
     /**
      * Download laporan sebagai file .xlsx (StreamedResponse).
      */
-    public function download(Collection $rows, CarbonInterface $from, CarbonInterface $to, ?string $metodeBayar = null, ?string $status = null): StreamedResponse
+    public function download(Collection $rows, CarbonInterface $from, CarbonInterface $to, ?string $metodeBayar = null, ?string $status = null, ?string $sumberPembelian = null): StreamedResponse
     {
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
@@ -146,11 +156,15 @@ final class SalesXlsxExporter
         $subtitleParts = [];
 
         if ($metodeBayar !== null && $metodeBayar !== '') {
-            $subtitleParts[] = 'Metode: '.PaymentMethod::tryFrom($metodeBayar)?->label() ?? $metodeBayar;
+            $subtitleParts[] = 'Metode: '.(PaymentMethod::tryFrom($metodeBayar)?->label() ?? $metodeBayar);
         }
 
         if ($status !== null && $status !== '') {
-            $subtitleParts[] = 'Status: '.OrderStatus::tryFrom($status)?->label() ?? $status;
+            $subtitleParts[] = 'Status: '.(OrderStatus::tryFrom($status)?->label() ?? $status);
+        }
+
+        if ($sumberPembelian !== null && $sumberPembelian !== '') {
+            $subtitleParts[] = 'Sumber: '.(SalesChannelEnum::tryFrom($sumberPembelian)?->label() ?? $sumberPembelian);
         }
 
         $sheet->setCellValue('A2', implode(' | ', $subtitleParts));
@@ -163,7 +177,7 @@ final class SalesXlsxExporter
             $sheet->setCellValue($column.$headerRow, $header);
         }
 
-        $headerStyle = $sheet->getStyle("A{$headerRow}:M{$headerRow}");
+        $headerStyle = $sheet->getStyle("A{$headerRow}:N{$headerRow}");
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
         $headerStyle->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -181,6 +195,7 @@ final class SalesXlsxExporter
                 $row['tanggal'],
                 $row['no_order'],
                 $row['pembeli'],
+                $row['sumber'],
                 $row['metode_bayar'],
                 $row['status'],
                 $row['buku'],
@@ -218,20 +233,21 @@ final class SalesXlsxExporter
         $sheet->getStyle($summaryRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFEF3C7');
 
         // Format angka
-        $sheet->getStyle("H{$headerRow}:M{$rowIndex}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("H{$headerRow}:N{$rowIndex}")->getNumberFormat()->setFormatCode('#,##0');
 
         // Lebar kolom
-        foreach (range('A', 'M') as $column) {
+        foreach (range('A', 'N') as $column) {
             $sheet->getColumnDimension($column)->setWidth(
                 match ($column) {
                     'A' => 12,
                     'B' => 20,
                     'C' => 26,
                     'D' => 14,
-                    'E' => 18,
-                    'F' => 40,
-                    'G' => 14,
-                    'H', 'I', 'J', 'K', 'L', 'M' => 13,
+                    'E' => 14,
+                    'F' => 18,
+                    'G' => 40,
+                    'H' => 14,
+                    'I', 'J', 'K', 'L', 'M', 'N' => 13,
                     default => 13,
                 },
             );

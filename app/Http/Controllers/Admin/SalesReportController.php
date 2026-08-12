@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\SalesChannel as SalesChannelEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\SalesReturn;
 use App\Services\SalesXlsxExporter;
+use App\Support\StoreSettings;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,11 +35,13 @@ class SalesReportController extends Controller
 
         $metodeBayar = $request->string('metode_bayar')->toString() ?: null;
         $status = $request->string('status')->toString() ?: null;
+        $sumberPembelian = $request->string('sumber_pembelian')->toString() ?: null;
 
         $orders = Order::query()
             ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
             ->when($metodeBayar !== null, fn ($q) => $q->where('metode_bayar', $metodeBayar))
             ->when($status !== null, fn ($q) => $q->where('status', $status))
+            ->when($sumberPembelian !== null, fn ($q) => $q->where('sumber_pembelian', $sumberPembelian))
             ->with('items:id,order_id,judul_snapshot,edition_snapshot,qty,price_original,promo_discount_amount,tier_discount_amount,price_final,harga_beli_snapshot')
             ->orderByDesc('created_at')
             ->get();
@@ -69,6 +73,9 @@ class SalesReportController extends Controller
                     'sort_date' => $order->created_at->toDateString(),
                     'no_order' => $order->no_order,
                     'pembeli' => $order->nama_pembeli,
+                    'sumber' => $order->sumber_pembelian !== null
+                        ? SalesChannelEnum::labelFor((string) $order->sumber_pembelian)
+                        : '',
                     'metode_bayar' => PaymentMethod::labelFor((string) $order->metode_bayar),
                     'status' => $order->status->label(),
                     'buku' => $item->judul_snapshot,
@@ -91,8 +98,9 @@ class SalesReportController extends Controller
             ->whereBetween('return_date', [$from->toDateString(), $to->toDateString()])
             ->when($metodeBayar !== null, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('metode_bayar', $metodeBayar)))
             ->when($status !== null, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('status', $status)))
+            ->when($sumberPembelian !== null, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sumber_pembelian', $sumberPembelian)))
             ->with([
-                'order:id,no_order,nama_pembeli,metode_bayar,status',
+                'order:id,no_order,nama_pembeli,metode_bayar,status,sumber_pembelian',
                 'items:id,sales_return_id,order_item_id,qty,price_refund',
                 'items.orderItem:id,judul_snapshot,edition_snapshot,harga_beli_snapshot',
             ])
@@ -116,6 +124,9 @@ class SalesReportController extends Controller
                     'sort_date' => $return->return_date->toDateString(),
                     'no_order' => $return->order->no_order,
                     'pembeli' => $return->order->nama_pembeli,
+                    'sumber' => $return->order->sumber_pembelian !== null
+                        ? SalesChannelEnum::labelFor((string) $return->order->sumber_pembelian)
+                        : '',
                     'metode_bayar' => PaymentMethod::labelFor((string) $return->order->metode_bayar),
                     'status' => $statusLabel.' (retur)',
                     'buku' => $item->orderItem->judul_snapshot,
@@ -154,9 +165,11 @@ class SalesReportController extends Controller
                 'to' => $to->toDateString(),
                 'metode_bayar' => $metodeBayar,
                 'status' => $status,
+                'sumber_pembelian' => $sumberPembelian,
             ],
             'paymentOptions' => PaymentMethod::options(),
             'statusOptions' => OrderStatus::options(),
+            'salesChannels' => StoreSettings::allSalesChannels(),
         ]);
     }
 
@@ -169,10 +182,11 @@ class SalesReportController extends Controller
 
         $metodeBayar = $request->string('metode_bayar')->toString() ?: null;
         $status = $request->string('status')->toString() ?: null;
+        $sumberPembelian = $request->string('sumber_pembelian')->toString() ?: null;
 
-        $rows = $this->exporter->buildRows($from, $to, $metodeBayar, $status);
+        $rows = $this->exporter->buildRows($from, $to, $metodeBayar, $status, $sumberPembelian);
 
-        return $this->exporter->download($rows, $from, $to, $metodeBayar, $status);
+        return $this->exporter->download($rows, $from, $to, $metodeBayar, $status, $sumberPembelian);
     }
 
     /**

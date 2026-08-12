@@ -55,14 +55,16 @@ class OrderController extends Controller
             })
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->boolean('dropship'), fn ($query) => $query->where('is_dropship', true))
+            ->when($request->filled('sumber_pembelian'), fn ($query) => $query->where('sumber_pembelian', $request->string('sumber_pembelian')->toString()))
             ->orderByDesc('created_at')
             ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('admin/orders/Index', [
             'orders' => $orders,
-            'filters' => $request->only(['search', 'status', 'dropship']),
+            'filters' => $request->only(['search', 'status', 'dropship', 'sumber_pembelian']),
             'statusOptions' => OrderStatus::options(),
+            'salesChannels' => StoreSettings::allSalesChannels(),
         ]);
     }
 
@@ -76,6 +78,7 @@ class OrderController extends Controller
             'books' => Book::where('aktif', true)->orderBy('judul')->limit(50)->get(['id', 'judul', 'kode_sku', 'harga', 'stok']),
             'paymentOptions' => StoreSettings::enabledPaymentMethods(),
             'couriers' => StoreSettings::enabledCouriers(),
+            'salesChannels' => StoreSettings::enabledSalesChannels(),
             'tierDiscounts' => TierDiscount::query()
                 ->orderBy('tier')
                 ->orderBy('min_qty')
@@ -217,6 +220,7 @@ class OrderController extends Controller
                         'kelurahan' => $data['kelurahan'] ?? null,
                         'kode_pos' => $data['kode_pos'] ?? null,
                         'metode_bayar' => $data['metode_bayar'],
+                        'sumber_pembelian' => $data['sumber_pembelian'] ?? null,
                         'total' => 0,
                         'ekspedisi' => $courierCode,
                         'shipping_cost' => $shippingCost,
@@ -273,6 +277,7 @@ class OrderController extends Controller
             'statusOptions' => OrderStatus::options(),
             'couriers' => StoreSettings::enabledCouriers(),
             'paymentMethods' => StoreSettings::allPaymentMethods(),
+            'salesChannels' => StoreSettings::allSalesChannels(),
             'warehouseOptions' => Warehouse::query()
                 ->sellable()
                 ->orderBy('nama')

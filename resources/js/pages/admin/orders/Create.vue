@@ -1,4 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Pesanan', href: '/admin/orders' },
+            { title: 'Buat' },
+        ],
+    },
+});
+
 import { Form, Head, Link, useHttp } from '@inertiajs/vue3';
 import { Loader2, Minus, Plus, Search, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
@@ -74,6 +84,7 @@ const props = defineProps<{
     books: Book[];
     paymentOptions: Record<string, string>;
     couriers: Record<string, string>;
+    salesChannels: Record<string, string>;
     tierDiscounts: TierDiscountRule[];
 }>();
 
@@ -283,7 +294,7 @@ function addToCart(book: Book) {
         (item) =>
             item.book.id === book.id &&
             item.edition_id ===
-            (book.editions?.find((e) => e.is_active)?.id ?? null),
+                (book.editions?.find((e) => e.is_active)?.id ?? null),
     );
 
     if (existing) {
@@ -332,10 +343,12 @@ const today = new Date().toLocaleDateString('id-ID', {
     year: 'numeric',
     timeZone: 'Asia/Jakarta',
 });
+
+// Channel default: yang pertama urut (biasanya 'toko').
+const defaultChannel = Object.keys(props.salesChannels)[0] ?? '';
 </script>
 
 <template>
-
     <Head title="Buat Pesanan" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
@@ -348,8 +361,12 @@ const today = new Date().toLocaleDateString('id-ID', {
             </p>
         </div>
 
-        <Form v-bind="OrderController.store.form()" class="flex flex-col gap-4" v-slot="{ errors, processing, submit }"
-            @error="onFormError">
+        <Form
+            v-bind="OrderController.store.form()"
+            class="flex flex-col gap-4"
+            v-slot="{ errors, processing, submit }"
+            @error="onFormError"
+        >
             <FormErrorAlert :errors="errors" />
             <!-- 1 · Pembeli -->
             <Card>
@@ -358,15 +375,28 @@ const today = new Date().toLocaleDateString('id-ID', {
                 </CardHeader>
                 <CardContent class="flex flex-col gap-4">
                     <div class="relative">
-                        <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input v-model="customerSearch" class="pl-9" placeholder="Cari pelanggan yang sudah ada..."
-                            @input="searchCustomers" @blur="onCustomerSearchBlur" />
-                        <div v-if="customerListOpen && customerSearch.trim()"
-                            class="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-background shadow-md">
+                        <Search
+                            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            v-model="customerSearch"
+                            class="pl-9"
+                            placeholder="Cari pelanggan yang sudah ada..."
+                            @input="searchCustomers"
+                            @blur="onCustomerSearchBlur"
+                        />
+                        <div
+                            v-if="customerListOpen && customerSearch.trim()"
+                            class="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-background shadow-md"
+                        >
                             <template v-if="availableCustomers.length">
-                                <button v-for="customer in availableCustomers" :key="customer.id" type="button"
+                                <button
+                                    v-for="customer in availableCustomers"
+                                    :key="customer.id"
+                                    type="button"
                                     class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50"
-                                    @click="selectCustomer(customer)">
+                                    @click="selectCustomer(customer)"
+                                >
                                     <span class="font-medium">
                                         {{ customer.name }}
                                     </span>
@@ -376,22 +406,43 @@ const today = new Date().toLocaleDateString('id-ID', {
                                     </span>
                                 </button>
                             </template>
-                            <p v-else class="px-3 py-2 text-sm text-muted-foreground">
+                            <p
+                                v-else
+                                class="px-3 py-2 text-sm text-muted-foreground"
+                            >
                                 Tidak ditemukan — isi manual di bawah.
                             </p>
                         </div>
-                        <input type="hidden" name="user_id" :value="customerId" />
+                        <input
+                            type="hidden"
+                            name="user_id"
+                            :value="customerId"
+                        />
                     </div>
                     <div class="grid gap-4 md:grid-cols-2">
                         <div class="grid gap-2">
                             <Label for="nama_pembeli">Nama Pembeli *</Label>
-                            <Input id="nama_pembeli" name="nama_pembeli" v-model="buyerName" :aria-invalid="errors.nama_pembeli ? true : undefined
-                                " placeholder="Nama lengkap" required />
+                            <Input
+                                id="nama_pembeli"
+                                name="nama_pembeli"
+                                v-model="buyerName"
+                                :aria-invalid="
+                                    errors.nama_pembeli ? true : undefined
+                                "
+                                placeholder="Nama lengkap"
+                                required
+                            />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="whatsapp_pembeli">WhatsApp Pembeli</Label>
-                            <Input id="whatsapp_pembeli" name="whatsapp_pembeli" v-model="buyerWhatsapp"
-                                placeholder="08xxxxxxxxxx" />
+                            <Label for="whatsapp_pembeli"
+                                >WhatsApp Pembeli</Label
+                            >
+                            <Input
+                                id="whatsapp_pembeli"
+                                name="whatsapp_pembeli"
+                                v-model="buyerWhatsapp"
+                                placeholder="08xxxxxxxxxx"
+                            />
                         </div>
                     </div>
                     <p class="text-xs text-muted-foreground">
@@ -404,19 +455,51 @@ const today = new Date().toLocaleDateString('id-ID', {
             <!-- 2 · Pengiriman & Pembayaran -->
             <Card>
                 <CardHeader>
-                    <CardTitle class="text-base font-medium">Pengiriman & Pembayaran</CardTitle>
+                    <CardTitle class="text-base font-medium"
+                        >Pengiriman & Pembayaran</CardTitle
+                    >
                 </CardHeader>
                 <CardContent class="flex flex-col gap-4">
-                    <AddressFields :key="`address-${customerId}-${buyerName}`" v-model="buyerAddress" />
+                    <AddressFields
+                        :key="`address-${customerId}-${buyerName}`"
+                        v-model="buyerAddress"
+                    />
                     <div class="grid gap-4 md:grid-cols-2">
                         <div class="grid gap-2">
                             <Label for="metode_bayar">Metode Bayar *</Label>
-                            <Select name="metode_bayar" default-value="transfer">
+                            <Select
+                                name="metode_bayar"
+                                default-value="transfer"
+                            >
                                 <SelectTrigger id="metode_bayar">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem v-for="(label, value) in paymentOptions" :key="value" :value="value">
+                                    <SelectItem
+                                        v-for="(label, value) in paymentOptions"
+                                        :key="value"
+                                        :value="value"
+                                    >
+                                        {{ label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="sumber_pembelian">Pembelian Dari</Label>
+                            <Select
+                                name="sumber_pembelian"
+                                :default-value="defaultChannel"
+                            >
+                                <SelectTrigger id="sumber_pembelian">
+                                    <SelectValue placeholder="Pilih sumber" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="(label, value) in salesChannels"
+                                        :key="value"
+                                        :value="value"
+                                    >
                                         {{ label }}
                                     </SelectItem>
                                 </SelectContent>
@@ -426,38 +509,61 @@ const today = new Date().toLocaleDateString('id-ID', {
                             <Label for="ekspedisi">Ekspedisi & Ongkir</Label>
                             <div class="flex items-end gap-2">
                                 <div class="grid flex-1 gap-2">
-                                    <Select v-model="selectedCourier" name="ekspedisi" :disabled="ongkirLoading ||
-                                        shippingCosts.length === 0
-                                        ">
+                                    <Select
+                                        v-model="selectedCourier"
+                                        name="ekspedisi"
+                                        :disabled="
+                                            ongkirLoading ||
+                                            shippingCosts.length === 0
+                                        "
+                                    >
                                         <SelectTrigger id="ekspedisi">
-                                            <SelectValue :placeholder="ongkirLoading
-                                                    ? 'Menghitung ongkir...'
-                                                    : buyerAddress.kelurahan
-                                                        ? 'Pilih ekspedisi'
-                                                        : 'Pilih alamat lengkap dulu'
-                                                " />
+                                            <SelectValue
+                                                :placeholder="
+                                                    ongkirLoading
+                                                        ? 'Menghitung ongkir...'
+                                                        : buyerAddress.kelurahan
+                                                          ? 'Pilih ekspedisi'
+                                                          : 'Pilih alamat lengkap dulu'
+                                                "
+                                            />
                                         </SelectTrigger>
                                         <SelectContent class="max-h-64">
-                                            <SelectItem v-for="option in shippingCosts" :key="option.courier_code"
-                                                :value="option.courier_code">
+                                            <SelectItem
+                                                v-for="option in shippingCosts"
+                                                :key="option.courier_code"
+                                                :value="option.courier_code"
+                                            >
                                                 {{ option.courier_name }} — Rp
                                                 {{
                                                     option.price.toLocaleString(
                                                         'id-ID',
                                                     )
                                                 }}
-                                                <span v-if="option.estimation" class="text-xs text-muted-foreground">
+                                                <span
+                                                    v-if="option.estimation"
+                                                    class="text-xs text-muted-foreground"
+                                                >
                                                     ({{ option.estimation }})
                                                 </span>
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button type="button" variant="outline" :disabled="ongkirLoading ||
-                                    !buyerAddress.kode_pos ||
-                                    cart.length === 0
-                                    " @click="checkOngkir">
-                                    <Loader2 v-if="ongkirLoading" class="size-4 animate-spin" />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    :disabled="
+                                        ongkirLoading ||
+                                        !buyerAddress.kode_pos ||
+                                        cart.length === 0
+                                    "
+                                    @click="checkOngkir"
+                                >
+                                    <Loader2
+                                        v-if="ongkirLoading"
+                                        class="size-4 animate-spin"
+                                    />
                                     {{
                                         ongkirLoading
                                             ? 'Menghitung...'
@@ -465,19 +571,36 @@ const today = new Date().toLocaleDateString('id-ID', {
                                     }}
                                 </Button>
                             </div>
-                            <p v-if="ongkirLoading" class="text-xs text-muted-foreground">
+                            <p
+                                v-if="ongkirLoading"
+                                class="text-xs text-muted-foreground"
+                            >
                                 Menghitung ongkir ke
                                 {{ buyerAddress.kelurahan }}...
                             </p>
-                            <p v-else-if="ongkirError" class="text-xs text-destructive">
+                            <p
+                                v-else-if="ongkirError"
+                                class="text-xs text-destructive"
+                            >
                                 {{ ongkirError }}
                             </p>
-                            <p v-else-if="shippingCosts.length" class="text-xs text-muted-foreground">
+                            <p
+                                v-else-if="shippingCosts.length"
+                                class="text-xs text-muted-foreground"
+                            >
                                 Berat {{ totalWeightKg }} kg ·
                                 {{ shippingCosts.length }} ekspedisi tersedia
                             </p>
-                            <input type="hidden" name="shipping_cost" :value="shippingCost" />
-                            <input type="hidden" name="ongkir_estimasi" :value="shippingEstimation ?? ''" />
+                            <input
+                                type="hidden"
+                                name="shipping_cost"
+                                :value="shippingCost"
+                            />
+                            <input
+                                type="hidden"
+                                name="ongkir_estimasi"
+                                :value="shippingEstimation ?? ''"
+                            />
                         </div>
                     </div>
                 </CardContent>
@@ -486,26 +609,50 @@ const today = new Date().toLocaleDateString('id-ID', {
             <!-- 3 · Dropship -->
             <Card>
                 <CardHeader>
-                    <CardTitle class="text-base font-medium">Dropship</CardTitle>
+                    <CardTitle class="text-base font-medium"
+                        >Dropship</CardTitle
+                    >
                 </CardHeader>
                 <CardContent class="flex flex-col gap-4">
                     <Label class="flex items-center gap-2">
-                        <input type="hidden" name="is_dropship" :value="isDropship ? '1' : '0'" />
+                        <input
+                            type="hidden"
+                            name="is_dropship"
+                            :value="isDropship ? '1' : '0'"
+                        />
                         <Checkbox v-model="isDropship" />
                         Order dropship (kirim ke end-customer)
                     </Label>
                     <div v-if="isDropship" class="grid gap-4 md:grid-cols-3">
                         <div class="grid gap-2">
-                            <Label for="end_customer_name">Nama End-Customer</Label>
-                            <Input id="end_customer_name" name="end_customer_name" placeholder="Nama penerima akhir" />
+                            <Label for="end_customer_name"
+                                >Nama End-Customer</Label
+                            >
+                            <Input
+                                id="end_customer_name"
+                                name="end_customer_name"
+                                placeholder="Nama penerima akhir"
+                            />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="end_customer_whatsapp">WhatsApp End-Customer</Label>
-                            <Input id="end_customer_whatsapp" name="end_customer_whatsapp" placeholder="08xxxxxxxxxx" />
+                            <Label for="end_customer_whatsapp"
+                                >WhatsApp End-Customer</Label
+                            >
+                            <Input
+                                id="end_customer_whatsapp"
+                                name="end_customer_whatsapp"
+                                placeholder="08xxxxxxxxxx"
+                            />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="end_customer_address">Alamat End-Customer</Label>
-                            <Textarea id="end_customer_address" name="end_customer_address" rows="1" />
+                            <Label for="end_customer_address"
+                                >Alamat End-Customer</Label
+                            >
+                            <Textarea
+                                id="end_customer_address"
+                                name="end_customer_address"
+                                rows="1"
+                            />
                         </div>
                     </div>
                 </CardContent>
@@ -514,15 +661,25 @@ const today = new Date().toLocaleDateString('id-ID', {
             <!-- 4 · Item Buku -->
             <Card>
                 <CardHeader>
-                    <CardTitle class="text-base font-medium">Item Buku</CardTitle>
+                    <CardTitle class="text-base font-medium"
+                        >Item Buku</CardTitle
+                    >
                 </CardHeader>
                 <CardContent class="flex flex-col gap-4">
-                    <BookPicker :base-url="bookOptions().url" placeholder="Cari judul / SKU untuk menambahkan..."
-                        @select="onBookSelect" />
+                    <BookPicker
+                        :base-url="bookOptions().url"
+                        placeholder="Cari judul / SKU untuk menambahkan..."
+                        @select="onBookSelect"
+                    />
 
                     <!-- Invoice Preview -->
-                    <div v-if="cart.length" class="overflow-hidden rounded-lg border">
-                        <div class="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/50 px-4 py-3">
+                    <div
+                        v-if="cart.length"
+                        class="overflow-hidden rounded-lg border"
+                    >
+                        <div
+                            class="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/50 px-4 py-3"
+                        >
                             <div>
                                 <p class="text-sm font-semibold">Invoice</p>
                                 <p class="text-xs text-muted-foreground">
@@ -538,143 +695,248 @@ const today = new Date().toLocaleDateString('id-ID', {
                                 {{ today }}
                             </p>
                         </div>
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b bg-muted/50 text-left text-xs text-muted-foreground">
-                                    <th class="px-2 py-2"></th>
-                                    <th class="px-4 py-2">Buku</th>
-                                    <th class="px-4 py-2">Harga</th>
-                                    <th class="px-4 py-2">Cetakan</th>
-                                    <th class="px-4 py-2">Qty</th>
-                                    <th class="px-4 py-2 text-right">
-                                        Diskon Tier
-                                    </th>
-                                    <th class="px-4 py-2 text-right">
-                                        Subtotal
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(item, index) in cart" :key="`${item.book.id}-${item.edition_id ?? ''}`"
-                                    class="border-b last:border-0">
-                                    <td class="px-2 py-2">
-                                        <Button type="button" variant="ghost" size="icon-sm" class="text-destructive"
-                                            title="Hapus item" @click="removeFromCart(item)">
-                                            <Trash2 class="size-3.5" />
-                                        </Button>
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <p class="font-medium">
-                                            {{ item.book.judul }}
-                                        </p>
-                                        <p class="text-xs text-muted-foreground">
-                                            {{ item.book.kode_sku }}
-                                        </p>
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <Money :value="itemPrice(item)" />
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <!-- Pilih cetakan bila buku punya >1 -->
-                                        <template v-if="
-                                            (item.book.editions ?? [])
-                                                .length > 1
-                                        ">
-                                            <Select :model-value="item.edition_id
-                                                    ? String(
-                                                        item.edition_id,
-                                                    )
-                                                    : undefined
-                                                " @update:model-value="
-                                                    (val) => {
-                                                        item.edition_id = val
-                                                            ? String(val)
-                                                            : null;
-                                                    }
-                                                ">
-                                                <SelectTrigger class="h-8 w-44">
-                                                    <SelectValue placeholder="Cetakan" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem v-for="edition in item
-                                                        .book.editions" :key="edition.id" :value="String(edition.id)
-                                                                ">
-                                                        Cetakan
-                                                        {{ edition.cetakan_ke }}
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </template>
-                                        <span v-else class="text-xs text-muted-foreground">
-                                            Cetakan ke-1
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2">
-                                        <div class="flex items-center gap-2">
-                                            <Button type="button" variant="outline" size="icon-sm"
-                                                @click="changeQty(item, -1)">
-                                                <Minus class="size-3.5" />
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr
+                                        class="border-b bg-muted/50 text-left text-xs text-muted-foreground"
+                                    >
+                                        <th class="px-2 py-2"></th>
+                                        <th class="px-4 py-2">Buku</th>
+                                        <th class="px-4 py-2">Harga</th>
+                                        <th class="px-4 py-2">Cetakan</th>
+                                        <th class="px-4 py-2">Qty</th>
+                                        <th class="px-4 py-2 text-right">
+                                            Diskon Tier
+                                        </th>
+                                        <th class="px-4 py-2 text-right">
+                                            Subtotal
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="(item, index) in cart"
+                                        :key="`${item.book.id}-${item.edition_id ?? ''}`"
+                                        class="border-b last:border-0"
+                                    >
+                                        <td class="px-2 py-2">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                class="text-destructive"
+                                                title="Hapus item"
+                                                @click="removeFromCart(item)"
+                                            >
+                                                <Trash2 class="size-3.5" />
                                             </Button>
-                                            <span class="w-8 text-center tabular-nums">{{ item.qty }}</span>
-                                            <Button type="button" variant="outline" size="icon-sm"
-                                                @click="changeQty(item, 1)">
-                                                <Plus class="size-3.5" />
-                                            </Button>
-                                        </div>
-                                        <input type="hidden" :name="`items[${index}][book_id]`" :value="item.book.id" />
-                                        <input type="hidden" :name="`items[${index}][book_edition_id]`"
-                                            :value="item.edition_id ?? ''" />
-                                        <input type="hidden" :name="`items[${index}][qty]`" :value="item.qty" />
-                                    </td>
-                                    <td class="px-4 py-2 text-right text-destructive tabular-nums">
-                                        <template v-if="itemTierDiscount(item) > 0">
-                                            -
-                                            <Money :value="itemTierDiscount(item)" />
-                                        </template>
-                                        <span v-else class="text-muted-foreground">—</span>
-                                    </td>
-                                    <td class="px-4 py-2 text-right tabular-nums">
-                                        <Money :value="itemPrice(item) * item.qty" />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div class="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <p class="font-medium">
+                                                {{ item.book.judul }}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{ item.book.kode_sku }}
+                                            </p>
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <Money :value="itemPrice(item)" />
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <!-- Pilih cetakan bila buku punya >1 -->
+                                            <template
+                                                v-if="
+                                                    (item.book.editions ?? [])
+                                                        .length > 1
+                                                "
+                                            >
+                                                <Select
+                                                    :model-value="
+                                                        item.edition_id
+                                                            ? String(
+                                                                  item.edition_id,
+                                                              )
+                                                            : undefined
+                                                    "
+                                                    @update:model-value="
+                                                        (val) => {
+                                                            item.edition_id =
+                                                                val
+                                                                    ? String(
+                                                                          val,
+                                                                      )
+                                                                    : null;
+                                                        }
+                                                    "
+                                                >
+                                                    <SelectTrigger
+                                                        class="h-8 w-44"
+                                                    >
+                                                        <SelectValue
+                                                            placeholder="Cetakan"
+                                                        />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem
+                                                            v-for="edition in item
+                                                                .book.editions"
+                                                            :key="edition.id"
+                                                            :value="
+                                                                String(
+                                                                    edition.id,
+                                                                )
+                                                            "
+                                                        >
+                                                            Cetakan
+                                                            {{
+                                                                edition.cetakan_ke
+                                                            }}
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </template>
+                                            <span
+                                                v-else
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Cetakan ke-1
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    @click="changeQty(item, -1)"
+                                                >
+                                                    <Minus class="size-3.5" />
+                                                </Button>
+                                                <span
+                                                    class="w-8 text-center tabular-nums"
+                                                    >{{ item.qty }}</span
+                                                >
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    @click="changeQty(item, 1)"
+                                                >
+                                                    <Plus class="size-3.5" />
+                                                </Button>
+                                            </div>
+                                            <input
+                                                type="hidden"
+                                                :name="`items[${index}][book_id]`"
+                                                :value="item.book.id"
+                                            />
+                                            <input
+                                                type="hidden"
+                                                :name="`items[${index}][book_edition_id]`"
+                                                :value="item.edition_id ?? ''"
+                                            />
+                                            <input
+                                                type="hidden"
+                                                :name="`items[${index}][qty]`"
+                                                :value="item.qty"
+                                            />
+                                        </td>
+                                        <td
+                                            class="px-4 py-2 text-right text-destructive tabular-nums"
+                                        >
+                                            <template
+                                                v-if="
+                                                    itemTierDiscount(item) > 0
+                                                "
+                                            >
+                                                -
+                                                <Money
+                                                    :value="
+                                                        itemTierDiscount(item)
+                                                    "
+                                                />
+                                            </template>
+                                            <span
+                                                v-else
+                                                class="text-muted-foreground"
+                                                >—</span
+                                            >
+                                        </td>
+                                        <td
+                                            class="px-4 py-2 text-right tabular-nums"
+                                        >
+                                            <Money
+                                                :value="
+                                                    itemPrice(item) * item.qty
+                                                "
+                                            />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div
+                            class="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3"
+                        >
                             <div></div>
                             <div class="text-sm">
-                                <p v-if="tierDiscountTotal > 0" class="flex justify-between gap-6 text-destructive">
-                                    <span>Diskon tier ({{ selectedTier }})</span>
-                                    <span>-
+                                <p
+                                    v-if="tierDiscountTotal > 0"
+                                    class="flex justify-between gap-6 text-destructive"
+                                >
+                                    <span
+                                        >Diskon tier ({{ selectedTier }})</span
+                                    >
+                                    <span
+                                        >-
                                         <Money :value="tierDiscountTotal" />
                                     </span>
                                 </p>
-                                <p v-if="selectedCourier"
-                                    class="mt-1 flex justify-between gap-6 text-sm text-muted-foreground">
-                                    <span>Ongkir ({{
-                                        selectedShippingOption?.courier_name
-                                    }})</span>
+                                <p
+                                    v-if="selectedCourier"
+                                    class="mt-1 flex justify-between gap-6 text-sm text-muted-foreground"
+                                >
+                                    <span
+                                        >Ongkir ({{
+                                            selectedShippingOption?.courier_name
+                                        }})</span
+                                    >
                                     <Money :value="shippingCost" />
                                 </p>
-                                <p class="mt-1 flex justify-between gap-6 pt-1 font-semibold">
+                                <p
+                                    class="mt-1 flex justify-between gap-6 pt-1 font-semibold"
+                                >
                                     <span>Total</span>
                                     <Money :value="totalWithShipping" />
                                 </p>
                             </div>
                         </div>
                     </div>
-                    <EmptyState v-else title="Belum ada item"
-                        description="Cari buku di atas untuk menambahkannya ke invoice." />
+                    <EmptyState
+                        v-else
+                        title="Belum ada item"
+                        description="Cari buku di atas untuk menambahkannya ke invoice."
+                    />
                 </CardContent>
             </Card>
 
             <div class="flex items-center gap-3">
-                <Button type="button" :disabled="processing" @click="
-                    () => {
-                        if (requireItems()) {
-                            submit();
+                <Button
+                    type="button"
+                    :disabled="processing"
+                    @click="
+                        () => {
+                            if (requireItems()) {
+                                submit();
+                            }
                         }
-                    }
-                ">
+                    "
+                >
                     {{
                         processing
                             ? 'Menyimpan...'

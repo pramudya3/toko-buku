@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReceivableController;
+use App\Http\Controllers\Admin\SalesChannelController;
 use App\Http\Controllers\Admin\SalesReportController;
 use App\Http\Controllers\Admin\SalesReturnController;
 use App\Http\Controllers\Admin\SettingController;
@@ -237,6 +238,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('settings/pembayaran/{paymentMethod}', [PaymentMethodController::class, 'update'])->name('settings.pembayaran.update');
     Route::delete('settings/pembayaran/{paymentMethod}', [PaymentMethodController::class, 'destroy'])->name('settings.pembayaran.destroy');
     Route::post('settings/pembayaran/{paymentMethod}/restore', [PaymentMethodController::class, 'restore'])->name('settings.pembayaran.restore')->withTrashed();
+    Route::get('settings/sumber-penjualan', [SettingController::class, 'sumberPenjualan'])->name('settings.sumber-penjualan');
+    Route::post('settings/sumber-penjualan', [SalesChannelController::class, 'store'])->name('settings.sumber-penjualan.store');
+    Route::put('settings/sumber-penjualan/{salesChannel}', [SalesChannelController::class, 'update'])->name('settings.sumber-penjualan.update');
+    Route::delete('settings/sumber-penjualan/{salesChannel}', [SalesChannelController::class, 'destroy'])->name('settings.sumber-penjualan.destroy');
+    Route::post('settings/sumber-penjualan/{salesChannel}/restore', [SalesChannelController::class, 'restore'])->name('settings.sumber-penjualan.restore')->withTrashed();
 
     // Pengaturan toko: API key Biteship (cek ongkir) — nilai asli hanya di server.
     Route::get('settings/api-key', [SettingController::class, 'apiKey'])->name('settings.api-key');

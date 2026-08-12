@@ -1,4 +1,13 @@
 <script setup lang="ts">
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Beranda', href: '/admin/dashboard' },
+            { title: 'Laporan Penjualan', href: '/admin/sales-reports' },
+        ],
+    },
+});
+
 import { Head, router } from '@inertiajs/vue3';
 import { Download, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
@@ -23,6 +32,7 @@ type Row = {
     tanggal: string;
     no_order: string;
     pembeli: string;
+    sumber: string;
     metode_bayar: string;
     status: string;
     buku: string;
@@ -49,9 +59,11 @@ type Props = {
         to: string;
         metode_bayar: string | null;
         status: string | null;
+        sumber_pembelian: string | null;
     };
     paymentOptions: Record<string, string>;
     statusOptions: Record<string, string>;
+    salesChannels: Record<string, string>;
 };
 
 const props = defineProps<Props>();
@@ -64,6 +76,7 @@ const columns: DataTableColumn[] = [
     },
     { key: 'no_order', header: 'No. Order', cellClass: 'font-mono text-xs' },
     { key: 'pembeli', header: 'Pembeli' },
+    { key: 'sumber', header: 'Sumber' },
     { key: 'metode_bayar', header: 'Metode Bayar' },
     { key: 'status', header: 'Status' },
     { key: 'buku', header: 'Buku', cellClass: 'max-w-56 truncate' },
@@ -100,19 +113,22 @@ const from = ref(props.filters.from);
 const to = ref(props.filters.to);
 const metodeBayar = ref(props.filters.metode_bayar ?? 'all');
 const status = ref(props.filters.status ?? 'all');
+const sumberPembelian = ref(props.filters.sumber_pembelian ?? 'all');
 
 // Snapshot awal (nilai server saat load) untuk tombol Reset.
 const initialFrom = props.filters.from;
 const initialTo = props.filters.to;
 const initialMetodeBayar = props.filters.metode_bayar ?? 'all';
 const initialStatus = props.filters.status ?? 'all';
+const initialSumberPembelian = props.filters.sumber_pembelian ?? 'all';
 
 const hasActiveFilters = computed(
     () =>
         from.value !== initialFrom ||
         to.value !== initialTo ||
         metodeBayar.value !== initialMetodeBayar ||
-        status.value !== initialStatus,
+        status.value !== initialStatus ||
+        sumberPembelian.value !== initialSumberPembelian,
 );
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -128,6 +144,10 @@ function applyFilters() {
                 metode_bayar:
                     metodeBayar.value === 'all' ? undefined : metodeBayar.value,
                 status: status.value === 'all' ? undefined : status.value,
+                sumber_pembelian:
+                    sumberPembelian.value === 'all'
+                        ? undefined
+                        : sumberPembelian.value,
             },
             { preserveState: true, replace: true },
         );
@@ -139,10 +159,11 @@ function resetFilters() {
     to.value = initialTo;
     metodeBayar.value = initialMetodeBayar;
     status.value = initialStatus;
+    sumberPembelian.value = initialSumberPembelian;
     applyFilters();
 }
 
-watch([from, to, metodeBayar, status], applyFilters);
+watch([from, to, metodeBayar, status, sumberPembelian], applyFilters);
 
 function exportUrl() {
     const params = new URLSearchParams({
@@ -156,6 +177,10 @@ function exportUrl() {
 
     if (status.value && status.value !== 'all') {
         params.set('status', status.value);
+    }
+
+    if (sumberPembelian.value && sumberPembelian.value !== 'all') {
+        params.set('sumber_pembelian', sumberPembelian.value);
     }
 
     return `${exportMethod().url}?${params.toString()}`;
@@ -256,6 +281,31 @@ function exportUrl() {
                         <SelectItem value="all">Semua status</SelectItem>
                         <SelectItem
                             v-for="(label, value) in statusOptions"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Sumber
+                </p>
+                <Select v-model="sumberPembelian" name="sumber_pembelian">
+                    <SelectTrigger
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-40"
+                    >
+                        <SelectValue placeholder="Semua sumber" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua sumber</SelectItem>
+                        <SelectItem
+                            v-for="(label, value) in salesChannels"
                             :key="value"
                             :value="value"
                         >

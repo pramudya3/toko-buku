@@ -402,6 +402,7 @@ class CheckoutController extends Controller
                         'kelurahan' => $data['kelurahan'] ?? null,
                         'kode_pos' => $data['kode_pos'] ?? null,
                         'metode_bayar' => $data['metode_bayar'],
+                        'sumber_pembelian' => 'website',
                         'total' => 0,
                         'ekspedisi' => $courierCode,
                         'shipping_cost' => $shippingCost,

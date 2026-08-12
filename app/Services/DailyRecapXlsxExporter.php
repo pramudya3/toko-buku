@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SalesChannel as SalesChannelEnum;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -32,13 +33,19 @@ final class DailyRecapXlsxExporter
      *
      * @param  Collection<int, array<string, mixed>>  $rows
      */
-    public function download(Collection $rows, CarbonInterface $from, CarbonInterface $to): StreamedResponse
+    public function download(Collection $rows, CarbonInterface $from, CarbonInterface $to, ?string $sumberPembelian = null): StreamedResponse
     {
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rekap Harian');
 
-        $sheet->setCellValue('A1', "Rekap Harian Penjualan ({$from->format('d/m/Y')} - {$to->format('d/m/Y')})");
+        $title = "Rekap Harian Penjualan ({$from->format('d/m/Y')} - {$to->format('d/m/Y')})";
+
+        if ($sumberPembelian !== null && $sumberPembelian !== '') {
+            $title .= ' — Sumber: '.(SalesChannelEnum::tryFrom($sumberPembelian)?->label() ?? $sumberPembelian);
+        }
+
+        $sheet->setCellValue('A1', $title);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
 
         $headerRow = 3;

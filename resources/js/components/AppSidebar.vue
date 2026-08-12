@@ -14,6 +14,7 @@ import {
     FileSpreadsheet,
     FolderTree,
     HandCoins,
+    HelpCircle,
     History,
     // KeyRound, // API Key — disembunyikan sementara (lihat grup Pengaturan)
     Landmark,
@@ -24,6 +25,7 @@ import {
     ScrollText,
     ShieldCheck,
     ShoppingCart,
+    Store,
     Tags,
     Truck,
     Undo2,
@@ -65,6 +67,7 @@ import { ekspedisi as ekspedisiRoute } from '@/routes/admin/settings';
 import { lembaga as lembagaRoute } from '@/routes/admin/settings';
 import { pembayaran as pembayaranRoute } from '@/routes/admin/settings';
 import { rekening as rekeningRoute } from '@/routes/admin/settings';
+import { sumberPenjualan as sumberPenjualanRoute } from '@/routes/admin/settings';
 import { index as supplierDebtsIndex } from '@/routes/admin/supplier-debts';
 import { index as supplierReportsIndex } from '@/routes/admin/supplier-reports';
 import { index as supplierReturnsIndex } from '@/routes/admin/supplier-returns';
@@ -95,6 +98,11 @@ const mainItems = computed<NavItem[]>(() => [
 
 // Item mandiri di paling bawah — konfigurasi toko.
 const footerItems = computed<NavItem[]>(() => [
+    {
+        title: 'Panduan',
+        href: '/admin/panduan',
+        icon: HelpCircle,
+    },
     {
         title: 'Log Aktivitas',
         href: aktivitasIndex(),
@@ -136,6 +144,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 href: ordersIndex(),
                 icon: ShoppingCart,
                 badge: pendingOrdersCount.value,
+            },
+            {
+                title: 'Sumber Penjualan',
+                href: sumberPenjualanRoute(),
+                icon: Store,
             },
             {
                 title: 'Dropship',
