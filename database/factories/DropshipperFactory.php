@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Book;
 use App\Models\Dropshipper;
 use App\Models\Order;
 use App\Models\User;

@@ -34,3 +34,8 @@ yarn-error.log
 /storage/logs/*.log
 PELANGGAN.csv
 "INVOICE - PRICELIST.csv"
+
+# Dokumen & proposal non-teknis
+penawaran Toko Buku Online.docx
+/proposal/
+/scripts/proposal/

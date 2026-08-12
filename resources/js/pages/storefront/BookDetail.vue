@@ -84,6 +84,52 @@ const selectedImage = computed(
     () => galleryImages.value[selectedImageIndex.value] ?? null,
 );
 
+// ── Swipe (mobile) ──
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+const touchActive = ref(false);
+
+function onTouchStart(e: TouchEvent): void {
+    touchStartX.value = e.touches[0].clientX;
+    touchActive.value = true;
+}
+
+function onTouchEnd(e: TouchEvent): void {
+    if (!touchActive.value) return;
+    touchEndX.value = e.changedTouches[0].clientX;
+    const diff = touchStartX.value - touchEndX.value;
+
+    if (Math.abs(diff) > 50) {
+        if (diff > 0 && selectedImageIndex.value < galleryImages.value.length - 1) {
+            selectedImageIndex.value++;
+        } else if (diff < 0 && selectedImageIndex.value > 0) {
+            selectedImageIndex.value--;
+        }
+    }
+    touchActive.value = false;
+}
+
+// ── Zoom (desktop) ──
+const isZoomed = ref(false);
+const zoomOrigin = ref({ x: 50, y: 50 });
+
+function toggleZoom(): void {
+    isZoomed.value = !isZoomed.value;
+}
+
+function onMouseMove(e: MouseEvent): void {
+    if (!isZoomed.value) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    zoomOrigin.value = {
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+}
+
+function onMouseLeave(): void {
+    isZoomed.value = false;
+}
+
 // Cetakan terpilih — default: cetakan aktif (atau yang pertama).
 const editions = computed<BookEdition[]>(() => props.book.editions ?? []);
 const selectedEdition = ref<BookEdition | null>(
@@ -202,13 +248,21 @@ const specs = computed(() =>
         <div class="grid gap-8 md:grid-cols-2">
             <div class="mx-auto flex w-full max-w-[360px] flex-col gap-3">
                 <div
-                    class="flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-xl border bg-muted"
+                    class="relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-xl border bg-muted"
+                    :class="isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'"
+                    @click="toggleZoom"
+                    @mousemove="onMouseMove"
+                    @mouseleave="onMouseLeave"
+                    @touchstart="onTouchStart"
+                    @touchend="onTouchEnd"
                 >
                     <img
                         v-if="selectedImage"
                         :src="selectedImage.image_url"
                         :alt="book.judul"
-                        class="h-full w-full object-contain"
+                        class="h-full w-full object-contain transition-transform duration-200"
+                        :class="isZoomed ? 'scale-150' : 'scale-100'"
+                        :style="isZoomed ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` } : undefined"
                     />
                     <BookCoverPlaceholder
                         v-else
