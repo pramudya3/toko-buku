@@ -162,7 +162,6 @@ function submit() {
 </script>
 
 <template>
-
     <Head title="Catat Barang Masuk" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
@@ -184,7 +183,9 @@ function submit() {
 
         <Card>
             <CardHeader>
-                <CardTitle class="text-base font-medium">Informasi Pembelian</CardTitle>
+                <CardTitle class="text-base font-medium"
+                    >Informasi Pembelian</CardTitle
+                >
             </CardHeader>
             <CardContent class="grid gap-4 md:grid-cols-3">
                 <div class="grid gap-2">
@@ -194,7 +195,11 @@ function submit() {
                             <SelectValue placeholder="Pilih supplier" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="supplier in suppliers" :key="supplier.id" :value="String(supplier.id)">
+                            <SelectItem
+                                v-for="supplier in suppliers"
+                                :key="supplier.id"
+                                :value="String(supplier.id)"
+                            >
                                 {{ supplier.nama }}
                             </SelectItem>
                         </SelectContent>
@@ -202,11 +207,21 @@ function submit() {
                 </div>
                 <div class="grid gap-2">
                     <Label for="purchase_date">Tanggal *</Label>
-                    <Input id="purchase_date" v-model="form.purchase_date" type="date" required />
+                    <Input
+                        id="purchase_date"
+                        v-model="form.purchase_date"
+                        type="date"
+                        required
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label for="ref_code">Ref Code *</Label>
-                    <Input id="ref_code" v-model="form.ref_code" placeholder="mis. PO-20260810-001" required />
+                    <Input
+                        id="ref_code"
+                        v-model="form.ref_code"
+                        placeholder="mis. PO-20260810-001"
+                        required
+                    />
                 </div>
                 <div class="grid gap-2">
                     <Label>Gudang Tujuan *</Label>
@@ -215,29 +230,48 @@ function submit() {
                             <SelectValue placeholder="Pilih gudang" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="warehouse in warehouses" :key="warehouse.kode" :value="warehouse.kode">
+                            <SelectItem
+                                v-for="warehouse in warehouses"
+                                :key="warehouse.kode"
+                                :value="warehouse.kode"
+                            >
                                 {{ warehouse.nama }}
                             </SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div class="grid gap-2">
-                    <Label for="paid_amount" class="inline-flex w-fit items-center gap-1">
+                    <Label
+                        for="paid_amount"
+                        class="inline-flex w-fit items-center gap-1"
+                    >
                         Bayar Saat Ini (Rp)
-                        <FieldHint text="Kosongkan untuk mencatat sebagai hutang." />
+                        <FieldHint
+                            text="Kosongkan untuk mencatat sebagai hutang."
+                        />
                     </Label>
-                    <CurrencyInput id="paid_amount" v-model="form.paid_amount" placeholder="Kosongkan bila hutang" />
+                    <CurrencyInput
+                        id="paid_amount"
+                        v-model="form.paid_amount"
+                        placeholder="Kosongkan bila hutang"
+                    />
                 </div>
                 <div class="grid gap-2 md:col-span-2">
                     <Label for="notes">Catatan</Label>
-                    <Input id="notes" v-model="form.notes" placeholder="Catatan pembelian (opsional)" />
+                    <Input
+                        id="notes"
+                        v-model="form.notes"
+                        placeholder="Catatan pembelian (opsional)"
+                    />
                 </div>
             </CardContent>
         </Card>
 
         <Card>
             <CardHeader>
-                <CardTitle class="text-base font-medium">Item Barang *</CardTitle>
+                <CardTitle class="text-base font-medium"
+                    >Item Barang *</CardTitle
+                >
             </CardHeader>
             <CardContent class="grid gap-4">
                 <BookPicker
@@ -253,29 +287,46 @@ function submit() {
                             <TableHead class="w-80">Buku</TableHead>
                             <TableHead class="w-28">Qty</TableHead>
                             <TableHead class="w-32">Harga Beli</TableHead>
-                            <TableHead class="w-32 text-right">Subtotal</TableHead>
+                            <TableHead class="w-32 text-right"
+                                >Subtotal</TableHead
+                            >
                             <TableHead class="w-12 text-right">
                                 <span class="sr-only">Aksi</span>
                             </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="(item, index) in form.items" :key="item.book_id">
+                        <TableRow
+                            v-for="(item, index) in form.items"
+                            :key="item.book_id"
+                        >
                             <TableCell class="font-medium">
                                 {{ item.judul }}
                             </TableCell>
                             <TableCell>
-                                <Input v-model.number="item.qty" type="number" min="1" />
+                                <Input
+                                    v-model.number="item.qty"
+                                    type="number"
+                                    min="1"
+                                />
                             </TableCell>
                             <TableCell>
-                                <CurrencyInput v-model="item.price" input-class="h-8 w-32" placeholder="Harga beli" />
+                                <CurrencyInput
+                                    v-model="item.price"
+                                    input-class="h-8 w-32"
+                                    placeholder="Harga beli"
+                                />
                             </TableCell>
                             <TableCell class="text-right">
                                 <Money :value="item.qty * item.price" />
                             </TableCell>
                             <TableCell class="text-right">
-                                <Button variant="ghost" size="icon" class="size-7 text-muted-foreground"
-                                    @click="removeItem(index)">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-7 text-muted-foreground"
+                                    @click="removeItem(index)"
+                                >
                                     <Trash2 class="size-3.5" />
                                 </Button>
                             </TableCell>

@@ -17,6 +17,8 @@ const logoUrl = computed(() => page.props.storeLogoUrl ?? '');
     />
     <AppLogoIcon v-else class="size-5 fill-current" />
     <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-semibold">{{ name }}</span>
+        <span class="mb-0.5 truncate leading-tight font-semibold">{{
+            name
+        }}</span>
     </div>
 </template>

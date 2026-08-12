@@ -18,7 +18,6 @@ import type { BookOption } from '@/components/BookPicker.vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -144,7 +143,6 @@ function onFormError() {
 </script>
 
 <template>
-
     <Head title="Stok Adjustment" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
@@ -164,9 +162,12 @@ function onFormError() {
             </Button>
         </div>
 
-
-        <DataTable :data="adjustments" :columns="historyColumns" empty-title="Belum ada adjustment"
-            empty-description="Koreksi stok yang dicatat akan tampil di sini.">
+        <DataTable
+            :data="adjustments"
+            :columns="historyColumns"
+            empty-title="Belum ada adjustment"
+            empty-description="Koreksi stok yang dicatat akan tampil di sini."
+        >
             <template #cell-created_at="{ row }">
                 {{ formatDate(row.created_at) }}
             </template>
@@ -185,17 +186,16 @@ function onFormError() {
                 <span v-else class="text-muted-foreground">—</span>
             </template>
             <template #cell-gudang="{ row }">
-                {{
-                    row.from_warehouse?.nama ??
-                    row.to_warehouse?.nama ??
-                    '—'
-                }}
+                {{ row.from_warehouse?.nama ?? row.to_warehouse?.nama ?? '—' }}
             </template>
             <template #cell-qty="{ row }">
-                <span :class="row.qty > 0
-                    ? 'font-medium text-green-600'
-                    : 'font-medium text-destructive'
-                    ">
+                <span
+                    :class="
+                        row.qty > 0
+                            ? 'font-medium text-green-600'
+                            : 'font-medium text-destructive'
+                    "
+                >
                     {{ row.qty > 0 ? `+${row.qty}` : row.qty }}
                 </span>
             </template>
@@ -206,7 +206,6 @@ function onFormError() {
                 {{ row.user?.name ?? '—' }}
             </template>
         </DataTable>
-
     </div>
 
     <Dialog v-model:open="dialogOpen">
@@ -219,14 +218,22 @@ function onFormError() {
                 </DialogDescription>
             </DialogHeader>
 
-            <Form v-bind="InventoryAdjustmentController.store.form()" class="grid gap-4" v-slot="{ errors, processing }"
-                @error="onFormError" @success="dialogOpen = false">
-                <p v-if="
-                    errors.book_id ||
-                    errors.warehouse_id ||
-                    errors.qty ||
-                    errors.notes
-                " class="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <Form
+                v-bind="InventoryAdjustmentController.store.form()"
+                class="grid gap-4"
+                v-slot="{ errors, processing }"
+                @error="onFormError"
+                @success="dialogOpen = false"
+            >
+                <p
+                    v-if="
+                        errors.book_id ||
+                        errors.warehouse_id ||
+                        errors.qty ||
+                        errors.notes
+                    "
+                    class="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                >
                     Periksa kembali isian formulir.
                 </p>
 
@@ -242,14 +249,26 @@ function onFormError() {
                                 {{ selectedBook.kode_sku }}
                             </p>
                         </div>
-                        <Button type="button" variant="ghost" size="sm" @click="clearBook">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            @click="clearBook"
+                        >
                             Ganti
                         </Button>
-                        <input type="hidden" name="book_id" :value="String(selectedBook.id)" />
+                        <input
+                            type="hidden"
+                            name="book_id"
+                            :value="String(selectedBook.id)"
+                        />
                     </div>
                     <div v-else>
-                        <BookPicker :base-url="bookOptions().url" placeholder="Cari judul / SKU buku..."
-                            @select="onBookSelect" />
+                        <BookPicker
+                            :base-url="bookOptions().url"
+                            placeholder="Cari judul / SKU buku..."
+                            @select="onBookSelect"
+                        />
                     </div>
                 </div>
 
@@ -261,8 +280,11 @@ function onFormError() {
                             <SelectValue placeholder="Pilih cetakan" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="edition in selectedBook.editions" :key="edition.id"
-                                :value="String(edition.id)">
+                            <SelectItem
+                                v-for="edition in selectedBook.editions"
+                                :key="edition.id"
+                                :value="String(edition.id)"
+                            >
                                 Cetakan ke-{{ edition.cetakan_ke }}
                                 <template v-if="edition.is_active">
                                     (default)
@@ -271,7 +293,10 @@ function onFormError() {
                         </SelectContent>
                     </Select>
                 </div>
-                <p v-else-if="selectedBook" class="text-sm text-muted-foreground">
+                <p
+                    v-else-if="selectedBook"
+                    class="text-sm text-muted-foreground"
+                >
                     Buku tanpa cetakan — penyesuaian di level buku.
                 </p>
 
@@ -283,8 +308,11 @@ function onFormError() {
                             <SelectValue placeholder="Pilih gudang" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem v-for="warehouse in warehouses" :key="warehouse.id"
-                                :value="String(warehouse.id)">
+                            <SelectItem
+                                v-for="warehouse in warehouses"
+                                :key="warehouse.id"
+                                :value="String(warehouse.id)"
+                            >
                                 {{ warehouse.nama
                                 }}{{ warehouse.is_defect ? ' (defect)' : '' }}
                             </SelectItem>
@@ -295,16 +323,29 @@ function onFormError() {
                 <!-- Selisih -->
                 <div class="grid gap-2">
                     <Label for="qty">Selisih Stok *</Label>
-                    <Input id="qty" name="qty" v-model="qty" type="number"
-                        placeholder="Contoh: 5 (lebih) atau -3 (kurang)" />
-                    <p v-if="selectedBook && qtyNumber !== 0" class="text-sm" :class="qtyNumber > 0
-                        ? 'text-green-600'
-                        : 'text-destructive'
-                        ">
+                    <Input
+                        id="qty"
+                        name="qty"
+                        v-model="qty"
+                        type="number"
+                        placeholder="Contoh: 5 (lebih) atau -3 (kurang)"
+                    />
+                    <p
+                        v-if="selectedBook && qtyNumber !== 0"
+                        class="text-sm"
+                        :class="
+                            qtyNumber > 0
+                                ? 'text-green-600'
+                                : 'text-destructive'
+                        "
+                    >
                         Stok saat ini (total normal): {{ currentStock }} →
                         setelah: {{ afterStock }}
                     </p>
-                    <p v-else-if="selectedBook" class="text-sm text-muted-foreground">
+                    <p
+                        v-else-if="selectedBook"
+                        class="text-sm text-muted-foreground"
+                    >
                         Stok saat ini (total normal): {{ currentStock }}
                     </p>
                     <p class="text-xs text-muted-foreground">
@@ -315,8 +356,13 @@ function onFormError() {
                 <!-- Alasan -->
                 <div class="grid gap-2">
                     <Label for="notes">Alasan *</Label>
-                    <Textarea id="notes" name="notes" v-model="notes" rows="2"
-                        placeholder="Contoh: selisih hasil opname 31 Januari" />
+                    <Textarea
+                        id="notes"
+                        name="notes"
+                        v-model="notes"
+                        rows="2"
+                        placeholder="Contoh: selisih hasil opname 31 Januari"
+                    />
                 </div>
 
                 <DialogFooter>

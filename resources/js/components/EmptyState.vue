@@ -19,15 +19,8 @@ withDefaults(
     <div
         class="flex flex-col items-center justify-center gap-2 py-12 text-center"
     >
-        <div
-            v-if="icon"
-            class="mb-2 flex items-center justify-center"
-        >
-            <img
-                :src="icon"
-                alt=""
-                class="h-32 w-auto opacity-70"
-            />
+        <div v-if="icon" class="mb-2 flex items-center justify-center">
+            <img :src="icon" alt="" class="h-32 w-auto opacity-70" />
         </div>
         <div
             v-else

@@ -140,10 +140,7 @@ function onFormError() {
                         </Label>
 
                         <Label class="flex items-center gap-2">
-                            <Checkbox
-                                name="is_active"
-                                v-model="isActive"
-                            />
+                            <Checkbox name="is_active" v-model="isActive" />
                             <span
                                 >Aktif (bisa dipakai mutasi & pengiriman)</span
                             >

@@ -284,7 +284,9 @@ function onVillageChange(value: string) {
         villageCode.value = village.code;
 
         // Prioritas kode pos kelurahan/desa; fallback ke kode pos kecamatan.
-        const district = districts.value.find((d) => d.name === districtName.value);
+        const district = districts.value.find(
+            (d) => d.name === districtName.value,
+        );
         kodePos.value = village.kode_pos ?? district?.kode_pos ?? '';
     }
 

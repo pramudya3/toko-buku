@@ -84,10 +84,7 @@ const monthNames = [
 
 const currentYear = new Date().getFullYear();
 // 7 opsi: tahun berjalan ± (terbaru dulu).
-const yearOptions = Array.from(
-    { length: 7 },
-    (_, i) => currentYear + 1 - i,
-);
+const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i);
 
 const bulan = ref('01');
 const tahun = ref(String(currentYear));

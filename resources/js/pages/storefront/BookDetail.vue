@@ -95,17 +95,24 @@ function onTouchStart(e: TouchEvent): void {
 }
 
 function onTouchEnd(e: TouchEvent): void {
-    if (!touchActive.value) return;
+    if (!touchActive.value) {
+        return;
+    }
+
     touchEndX.value = e.changedTouches[0].clientX;
     const diff = touchStartX.value - touchEndX.value;
 
     if (Math.abs(diff) > 50) {
-        if (diff > 0 && selectedImageIndex.value < galleryImages.value.length - 1) {
+        if (
+            diff > 0 &&
+            selectedImageIndex.value < galleryImages.value.length - 1
+        ) {
             selectedImageIndex.value++;
         } else if (diff < 0 && selectedImageIndex.value > 0) {
             selectedImageIndex.value--;
         }
     }
+
     touchActive.value = false;
 }
 
@@ -118,7 +125,10 @@ function toggleZoom(): void {
 }
 
 function onMouseMove(e: MouseEvent): void {
-    if (!isZoomed.value) return;
+    if (!isZoomed.value) {
+        return;
+    }
+
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     zoomOrigin.value = {
         x: ((e.clientX - rect.left) / rect.width) * 100,
@@ -262,7 +272,13 @@ const specs = computed(() =>
                         :alt="book.judul"
                         class="h-full w-full object-contain transition-transform duration-200"
                         :class="isZoomed ? 'scale-150' : 'scale-100'"
-                        :style="isZoomed ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` } : undefined"
+                        :style="
+                            isZoomed
+                                ? {
+                                      transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+                                  }
+                                : undefined
+                        "
                     />
                     <BookCoverPlaceholder
                         v-else

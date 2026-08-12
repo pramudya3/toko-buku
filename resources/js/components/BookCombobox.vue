@@ -201,16 +201,14 @@ function onOpenChange(value: boolean) {
             </div>
 
             <!-- Daftar opsi -->
-            <div
-                class="max-h-64 overflow-y-auto p-1"
-                @scroll="onScroll"
-            >
+            <div class="max-h-64 overflow-y-auto p-1" @scroll="onScroll">
                 <p
                     v-if="showEmpty"
                     class="px-3 py-6 text-center text-xs text-muted-foreground"
                 >
                     Tidak ada buku ditemukan
-                    <template v-if="query.trim()"> untuk "{{ query }}"</template>.
+                    <template v-if="query.trim()"> untuk "{{ query }}"</template
+                    >.
                 </p>
                 <template v-else>
                     <button

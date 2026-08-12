@@ -355,11 +355,7 @@ const typeLabel: Record<string, string> = {
             <template #cell-qty="{ row }">
                 <span
                     v-if="row.type === 'adjustment'"
-                    :class="
-                        row.qty > 0
-                            ? 'text-green-600'
-                            : 'text-destructive'
-                    "
+                    :class="row.qty > 0 ? 'text-green-600' : 'text-destructive'"
                 >
                     {{ row.qty > 0 ? `+${row.qty}` : row.qty }}
                 </span>

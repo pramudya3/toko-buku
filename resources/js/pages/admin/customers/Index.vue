@@ -105,7 +105,6 @@ const importOpen = ref(false);
 </script>
 
 <template>
-
     <Head title="Pelanggan" />
 
     <div class="flex flex-col gap-4 p-4 md:p-6">
@@ -131,42 +130,64 @@ const importOpen = ref(false);
         </div>
 
         <div
-            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0">
+            class="flex w-full flex-col divide-y divide-border overflow-hidden rounded-md border bg-card md:w-fit md:flex-row md:items-stretch md:divide-x md:divide-y-0"
+        >
             <div class="relative flex items-center">
                 <Search
-                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input v-model="search"
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                    v-model="search"
                     class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 md:h-9 md:w-56"
-                    placeholder="Cari nama, email, WhatsApp..." />
+                    placeholder="Cari nama, email, WhatsApp..."
+                />
             </div>
-            <button v-if="hasActiveFilters" type="button"
+            <button
+                v-if="hasActiveFilters"
+                type="button"
                 class="flex h-11 w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-destructive md:h-9 md:w-9"
-                title="Hapus filter" aria-label="Hapus filter" @click="resetFilters">
+                title="Hapus filter"
+                aria-label="Hapus filter"
+                @click="resetFilters"
+            >
                 <X class="size-4" />
                 <span class="md:hidden">Hapus filter</span>
             </button>
         </div>
 
-        <DataTable :data="customers.data" :columns="columns" :paginator="customers" empty-title="Tidak ada pelanggan"
-            empty-description="Pelanggan storefront akan muncul di sini.">
+        <DataTable
+            :data="customers.data"
+            :columns="columns"
+            :paginator="customers"
+            empty-title="Tidak ada pelanggan"
+            empty-description="Pelanggan storefront akan muncul di sini."
+        >
             <template #cell-whatsapp_number="{ row }">
                 {{ row.whatsapp_number ?? '—' }}
             </template>
             <template #cell-status_pelanggan="{ row }">
-                <StatusBadge :variant="tierVariant[row.status_pelanggan] ?? 'neutral'" :label="tierLabel[row.status_pelanggan] ?? row.status_pelanggan
-                    " />
+                <StatusBadge
+                    :variant="tierVariant[row.status_pelanggan] ?? 'neutral'"
+                    :label="
+                        tierLabel[row.status_pelanggan] ?? row.status_pelanggan
+                    "
+                />
             </template>
             <template #cell-is_active="{ row }">
-                <StatusBadge :variant="row.is_active ? 'success' : 'danger'"
-                    :label="row.is_active ? 'Aktif' : 'Nonaktif'" />
+                <StatusBadge
+                    :variant="row.is_active ? 'success' : 'danger'"
+                    :label="row.is_active ? 'Aktif' : 'Nonaktif'"
+                />
             </template>
             <template #cell-aksi="{ row }">
-                <DataTableActions :actions="[
-                    {
-                        label: 'Edit',
-                        href: edit(row.id).url,
-                    },
-                ]" />
+                <DataTableActions
+                    :actions="[
+                        {
+                            label: 'Edit',
+                            href: edit(row.id).url,
+                        },
+                    ]"
+                />
             </template>
         </DataTable>
     </div>

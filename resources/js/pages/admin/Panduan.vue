@@ -13,8 +13,8 @@ import {
     Settings,
     ShoppingCart,
 } from '@lucide/vue';
-import { ref } from 'vue';
 import type { LucideIcon } from '@lucide/vue';
+import { ref } from 'vue';
 
 defineOptions({
     layout: {

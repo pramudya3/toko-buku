@@ -80,10 +80,6 @@ const props = defineProps<{
     payments: Payment[];
 }>();
 
-const totalHutang = computed(() =>
-    props.suppliers.reduce((sum, s) => sum + s.saldo_hutang, 0),
-);
-
 // ── Dialog pembayaran ─────────────────────────────────────────────
 const paymentOpen = ref(false);
 const paymentForm = reactive<{

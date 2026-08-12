@@ -164,13 +164,8 @@ function select(book: BookOption) {
             >
                 {{ emptyHint }}
             </p>
-            <div
-                v-if="loading"
-                class="flex justify-center py-1.5"
-            >
-                <Loader2
-                    class="size-3.5 animate-spin text-muted-foreground"
-                />
+            <div v-if="loading" class="flex justify-center py-1.5">
+                <Loader2 class="size-3.5 animate-spin text-muted-foreground" />
             </div>
         </div>
     </div>

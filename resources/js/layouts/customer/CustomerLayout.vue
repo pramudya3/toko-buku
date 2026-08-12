@@ -247,9 +247,7 @@ function isBottomNavActive(href: string): boolean {
         </header>
 
         <!-- ── Main content ── -->
-        <main
-            class="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-20 md:pb-8"
-        >
+        <main class="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-20 md:pb-8">
             <slot />
         </main>
 

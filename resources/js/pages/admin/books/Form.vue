@@ -652,11 +652,7 @@ function onFormError() {
                     <CardTitle class="text-base font-medium"
                         >Daftar Cetakan</CardTitle
                     >
-                    <Button
-                        type="button"
-                        size="sm"
-                        @click="addEdition"
-                    >
+                    <Button type="button" size="sm" @click="addEdition">
                         <Plus class="size-4" />
                         Tambah Cetakan
                     </Button>
