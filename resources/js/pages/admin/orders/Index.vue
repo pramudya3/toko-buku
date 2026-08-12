@@ -63,6 +63,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const columns: DataTableColumn[] = [
+    { key: 'tanggal', header: 'Tanggal', cellClass: 'text-muted-foreground' },
     { key: 'no_order', header: 'No. Order', cellClass: 'font-medium' },
     { key: 'nama_pembeli', header: 'Pembeli' },
     { key: 'sumber', header: 'Sumber' },
@@ -73,7 +74,6 @@ const columns: DataTableColumn[] = [
     },
     { key: 'total', header: 'Total', cellClass: 'text-right tabular-nums' },
     { key: 'status', header: 'Status' },
-    { key: 'tanggal', header: 'Tanggal', cellClass: 'text-muted-foreground' },
     { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
 ];
 
