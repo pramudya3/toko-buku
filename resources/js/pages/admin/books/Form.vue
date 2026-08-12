@@ -122,7 +122,20 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  * Kompres gambar: resize maks 1600px + JPEG 82% + latar putih (PNG transparan).
  * Mengembalikan file asli bila hasilnya tidak lebih kecil.
  */
+// Deteksi file GIF — dipakai untuk skip kompresi & batas ukuran khusus.
+function isGif(file: File): boolean {
+    return (
+        file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif')
+    );
+}
+
 async function compressImage(file: File): Promise<File> {
+    // GIF (animasi): lewati kompresi — canvas/toBlob hanya mengambil frame
+    // pertama dan mengubahnya jadi JPEG statis (animasi hilang).
+    if (isGif(file)) {
+        return file;
+    }
+
     try {
         const img = await loadImage(file);
         const scale = Math.min(
@@ -184,8 +197,15 @@ async function onGalleryFiles(event: Event) {
     for (const file of accepted) {
         const compressed = await compressImage(file);
 
-        if (compressed.size > MAX_IMAGE_SIZE) {
-            toast.error('Ukuran gambar galeri maksimal 2 MB per gambar.');
+        // GIF tidak dikompres — batasnya pakai ukuran raw (15MB).
+        const limit = isGif(file) ? MAX_UPLOAD_RAW_SIZE : MAX_IMAGE_SIZE;
+
+        if (compressed.size > limit) {
+            toast.error(
+                isGif(file)
+                    ? 'Ukuran GIF galeri maksimal 15 MB.'
+                    : 'Ukuran gambar galeri maksimal 2 MB per gambar.',
+            );
             continue;
         }
 
@@ -240,9 +260,16 @@ async function onCoverFile(event: Event) {
 
     const compressed = await compressImage(file);
 
-    if (compressed.size > MAX_IMAGE_SIZE) {
+    // GIF tidak dikompres — batasnya pakai ukuran raw (15MB).
+    const limit = isGif(file) ? MAX_UPLOAD_RAW_SIZE : MAX_IMAGE_SIZE;
+
+    if (compressed.size > limit) {
         input.value = '';
-        toast.error('Ukuran cover maksimal 2 MB.');
+        toast.error(
+            isGif(file)
+                ? 'Ukuran GIF cover maksimal 15 MB.'
+                : 'Ukuran cover maksimal 2 MB.',
+        );
         coverPreview.value = null;
 
         return;

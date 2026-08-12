@@ -42,7 +42,7 @@ function csvUpload(string $content): UploadedFile
 }
 
 it('imports customers from csv with wilayah resolution', function (): void {
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Ustadzah Mia Nur Amalia,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n"
         ."\"Kusyaeni, M.Pd.\",Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n";
 
@@ -69,7 +69,7 @@ it('imports customers from csv with wilayah resolution', function (): void {
 });
 
 it('normalizes province and city names to canonical wilayah data', function (): void {
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Yuni Koerniawati,Dki Jakarta, Kota Jakarta Selatan, Jagakarsa, Jagakarsa\n"
         ."Indah Naili,Jawa Timur, Kab. Kediri, Pare, Pare\n";
 
@@ -99,7 +99,7 @@ it('updates address when customer with same name exists (Opsi A)', function (): 
         'kabupaten_kota' => 'KOTA LAMA',
     ]);
 
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Bazaf Bogor,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n";
 
     $this->actingAs($this->admin)
@@ -117,7 +117,7 @@ it('updates address when customer with same name exists (Opsi A)', function (): 
 });
 
 it('skips duplicate rows with identical name and address', function (): void {
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Bazaf Gresik,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n"
         ."Bazaf Gresik,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n";
 
@@ -137,7 +137,7 @@ it('skips duplicate rows with identical name and address', function (): void {
 });
 
 it('imports rows with unknown wilayah using raw normalized names', function (): void {
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Toko Batam,Kepulauan Riau, Kota Batam, Sekupang, Tanjung Riau\n";
 
     $this->actingAs($this->admin)
@@ -156,7 +156,7 @@ it('imports rows with unknown wilayah using raw normalized names', function (): 
 });
 
 it('reports rows with empty names as errors and imports the rest', function (): void {
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         .",Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n"
         ."Maulana,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n";
 
@@ -197,7 +197,7 @@ it('requires admin to import', function (): void {
 it('allows many customers without email', function (): void {
     User::factory()->create(['email' => null]);
 
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Satu,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n"
         ."Dua,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n";
 
@@ -221,7 +221,7 @@ it('stores a customer without email via the form', function (): void {
 });
 
 it('logs a single import activity without per-user observer logs', function (): void {
-    $csv = "PENERIMA,TUJUAN,,Kecamatan,Kelurahan\n"
+    $csv = "PENERIMA,TUJUAN,Kota/Kabupaten,Kecamatan,Kelurahan\n"
         ."Satu,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n"
         ."Dua,Jawa Barat, Kota Bandung, Panyileukan, Cipadung Kidul\n";
 

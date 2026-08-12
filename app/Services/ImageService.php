@@ -21,6 +21,11 @@ class ImageService
      */
     public function normalize(UploadedFile $file, int $maxDimension = 1600, int $quality = 82): UploadedFile
     {
+        // GIF (animasi): lewati konversi — encode ke JPEG menghilangkan animasi.
+        if (strtolower($file->getClientOriginalExtension()) === 'gif') {
+            return $file;
+        }
+
         try {
             $image = $this->images->decodeSplFileInfo($file);
             $image->scaleDown(width: $maxDimension, height: $maxDimension);
