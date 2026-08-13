@@ -2,15 +2,20 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     BookOpen,
+    Home,
+    Info,
     LayoutGrid,
     LogIn,
     LogOut,
     MapPin,
     Package,
+    Search,
     ShoppingCart,
+    Tag,
     UserPen,
 } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import type { Component } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -22,10 +27,20 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Toaster } from '@/components/ui/sonner';
 import { about, home, logout } from '@/routes';
 import { edit as editAddress } from '@/routes/address';
 import { dashboard as adminDashboard } from '@/routes/admin';
+import { catalog as catalogUrl } from '@/routes/books';
+import { promo as promoRoute } from '@/routes/books';
 import { edit as editProfile } from '@/routes/profile';
 import type { User } from '@/types';
 
@@ -35,6 +50,73 @@ const storeLogoUrl = computed(() => page.props.storeLogoUrl ?? '');
 const user = computed<User | null>(() => page.props.auth?.user ?? null);
 const isAdmin = computed(() => user.value?.is_admin === true);
 const cartCount = computed<number>(() => Number(page.props.cartCount ?? 0));
+
+// Filter katalog (search & kategori) hidup di header — hanya di halaman katalog
+// & promo (promo: search saja).
+const isCatalogPage = computed(() => page.component === 'storefront/Catalog');
+const isPromoPage = computed(() => page.component === 'storefront/Promo');
+const categories = computed<Array<{ id: string; nama: string }>>(
+    () => (page.props.categories ?? []) as Array<{ id: string; nama: string }>,
+);
+const catalogFilters = computed<{ search?: string; category_id?: string }>(
+    () =>
+        (page.props.filters ?? {}) as { search?: string; category_id?: string },
+);
+
+const allCategories = '__all__';
+const headerSearch = ref('');
+const headerCategoryId = ref(allCategories);
+
+// Sinkron dari server (navigasi balik/maju, submit filter) tanpa memicu request.
+watch(
+    () => [page.component, page.props.filters],
+    () => {
+        if (!isCatalogPage.value && !isPromoPage.value) {
+            return;
+        }
+
+        headerSearch.value = catalogFilters.value.search ?? '';
+
+        if (isCatalogPage.value) {
+            headerCategoryId.value =
+                catalogFilters.value.category_id ?? allCategories;
+        } else {
+            headerCategoryId.value = allCategories;
+        }
+    },
+    { immediate: true },
+);
+
+// Perubahan input → request Inertia debounce (filter tetap terlihat saat scroll).
+// Target route mengikuti halaman aktif: katalog (search+kategori) atau promo (search).
+let headerTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch([headerSearch, headerCategoryId], () => {
+    clearTimeout(headerTimer);
+    headerTimer = setTimeout(() => {
+        if (isPromoPage.value) {
+            router.get(
+                promoRoute().url,
+                { search: headerSearch.value || undefined },
+                { preserveState: true, replace: true },
+            );
+
+            return;
+        }
+
+        router.get(
+            catalogUrl().url,
+            {
+                search: headerSearch.value || undefined,
+                category_id:
+                    headerCategoryId.value === allCategories
+                        ? undefined
+                        : headerCategoryId.value,
+            },
+            { preserveState: true, replace: true },
+        );
+    }, 350);
+});
 
 const initials = computed(() => {
     const name = user.value?.name ?? '';
@@ -50,10 +132,17 @@ const initials = computed(() => {
     );
 });
 
-// ── Desktop nav (header, hidden md:flex) ──
-const desktopNavItems = computed(() => {
-    const items: { label: string; href: string; badge?: number }[] = [
-        { label: 'Beranda', href: home().url },
+// ── Desktop nav (header, hidden md:flex) — Beranda & Dashboard pindah
+// ke dropdown avatar; Promo mengarah ke halaman /promo. ──
+type DesktopNavItem = {
+    label: string;
+    href?: string;
+    badge?: number;
+};
+
+const desktopNavItems = computed<DesktopNavItem[]>(() => {
+    const items: DesktopNavItem[] = [
+        { label: 'Promo', href: promoRoute().url },
     ];
 
     if (user.value && !isAdmin.value) {
@@ -65,14 +154,7 @@ const desktopNavItems = computed(() => {
         items.push({ label: 'Pesanan Saya', href: '/pesanan-saya' });
     }
 
-    if (isAdmin.value) {
-        items.push({
-            label: 'Dashboard',
-            href: adminDashboard().url,
-        });
-    }
-
-    // Guest: hanya Keranjang setelah Beranda
+    // Guest: hanya Keranjang setelah Promo
     if (!user.value) {
         items.push({
             label: 'Keranjang',
@@ -85,186 +167,305 @@ const desktopNavItems = computed(() => {
 });
 
 // ── Bottom nav (mobile only) ──
-const bottomNavItems = computed(() => {
+// Catatan: item "Profil" sengaja TIDAK masuk daftar ini — dropdown-nya
+// (teleport ke <body>) dirender di luar v-for ber-key di template. Dropdown
+// di dalam keyed fragment bisa memicu crash Vue "Cannot read properties of
+// null (reading 'type')" saat nav di-render ulang.
+type BottomNavItem = {
+    key: string;
+    label?: string;
+    href?: string;
+    icon: Component;
+    badge?: number;
+    iconOnly?: boolean;
+};
+
+const bottomNavItems = computed<BottomNavItem[]>(() => {
+    const promo: BottomNavItem = {
+        key: 'promo',
+        label: 'Promo',
+        href: promoRoute().url,
+        icon: Tag,
+    };
+    const cart: BottomNavItem = {
+        key: 'keranjang',
+        label: 'Keranjang',
+        href: '/checkout',
+        icon: ShoppingCart,
+        badge: cartCount.value,
+        iconOnly: true,
+    };
+
     if (user.value && !isAdmin.value) {
         return [
-            { label: 'Beranda', href: home().url, icon: BookOpen },
             {
-                label: 'Keranjang',
-                href: '/checkout',
-                icon: ShoppingCart,
-                badge: cartCount.value,
+                key: 'beranda',
+                label: 'Beranda',
+                href: home().url,
+                icon: BookOpen,
             },
-            { label: 'Pesanan', href: '/pesanan-saya', icon: Package },
-            { label: 'Profil', href: '/settings/alamat', icon: UserPen },
+            promo,
+            cart,
+            {
+                key: 'pesanan',
+                label: 'Pesanan',
+                href: '/pesanan-saya',
+                icon: Package,
+            },
         ];
     }
 
     if (isAdmin.value) {
         return [
-            { label: 'Beranda', href: home().url, icon: BookOpen },
             {
+                key: 'beranda',
+                label: 'Beranda',
+                href: home().url,
+                icon: BookOpen,
+            },
+            promo,
+            {
+                key: 'dashboard',
                 label: 'Dashboard',
                 href: adminDashboard().url,
                 icon: LayoutGrid,
             },
-            { label: 'Profil', href: '/settings/alamat', icon: UserPen },
         ];
     }
 
     // Guest
     return [
-        { label: 'Beranda', href: home().url, icon: BookOpen },
-        {
-            label: 'Keranjang',
-            href: '/checkout',
-            icon: ShoppingCart,
-            badge: cartCount.value,
-        },
-        { label: 'Masuk', href: '/login', icon: LogIn },
-        { label: 'Daftar', href: '/register', icon: UserPen },
+        { key: 'beranda', label: 'Beranda', href: home().url, icon: BookOpen },
+        promo,
+        cart,
     ];
 });
 
-function isBottomNavActive(href: string): boolean {
-    if (href === home().url) {
+function isBottomNavActive(item: BottomNavItem): boolean {
+    if (!item.href) {
+        return false;
+    }
+
+    if (item.href === home().url) {
         return page.url === '/';
     }
 
-    return page.url.startsWith(href);
+    return page.url.startsWith(item.href);
 }
 </script>
 
 <template>
     <div class="flex min-h-svh flex-col bg-background">
-        <!-- ── Top bar ── -->
+        <!-- ── Top bar (sticky: filter katalog selalu terlihat) ── -->
         <header
             class="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
         >
-            <div
-                class="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4"
-            >
-                <!-- Logo → Tentang Kami -->
-                <Link
-                    :href="about().url"
-                    class="flex items-center gap-2"
-                    title="Tentang Kami"
-                >
-                    <img
-                        v-if="storeLogoUrl"
-                        :src="storeLogoUrl"
-                        :alt="storeName"
-                        class="h-8 w-auto object-contain"
-                    />
-                    <AppLogoIcon v-else class="size-5 fill-current" />
-                    <span class="text-sm font-semibold">{{ storeName }}</span>
-                </Link>
-
-                <!-- Nav desktop -->
-                <nav class="ml-4 hidden items-center gap-1 text-sm md:flex">
+            <div class="mx-auto flex w-full max-w-6xl flex-col px-4">
+                <!-- Baris 1: logo + filter (desktop) + nav + avatar — disembunyikan di mobile -->
+                <div class="hidden h-14 items-center gap-2 md:flex">
+                    <!-- Logo → Beranda -->
                     <Link
-                        v-for="item in desktopNavItems"
-                        :key="item.label"
-                        :href="item.href"
-                        class="relative rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        :href="home().url"
+                        class="flex shrink-0 items-center gap-2"
+                        title="Beranda"
                     >
-                        {{ item.label }}
-                        <span
-                            v-if="item.badge && item.badge > 0"
-                            class="ml-1.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground"
-                        >
-                            {{ item.badge }}
+                        <img
+                            v-if="storeLogoUrl"
+                            :src="storeLogoUrl"
+                            :alt="storeName"
+                            class="h-8 w-auto object-contain"
+                        />
+                        <AppLogoIcon v-else class="size-5 fill-current" />
+                        <span class="hidden text-sm font-semibold md:inline">
+                            {{ storeName }}
                         </span>
                     </Link>
-                </nav>
 
-                <div class="ml-auto flex items-center gap-1">
-                    <!-- Avatar dropdown (customer & admin) -->
-                    <DropdownMenu v-if="user">
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                class="size-9 rounded-full p-0"
-                                title="Menu akun"
+                    <!-- Search (desktop) -->
+                    <div
+                        v-if="isCatalogPage || isPromoPage"
+                        class="relative ml-2 hidden flex-1 md:block"
+                    >
+                        <Search
+                            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            v-model="headerSearch"
+                            class="pl-9"
+                            :placeholder="
+                                isPromoPage
+                                    ? 'Cari promo / judul buku...'
+                                    : 'Cari judul / penulis...'
+                            "
+                        />
+                    </div>
+                    <!-- Kategori (desktop) -->
+                    <div v-if="isCatalogPage" class="hidden md:block">
+                        <Select v-model="headerCategoryId">
+                            <SelectTrigger class="w-44">
+                                <SelectValue placeholder="Semua kategori" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem :value="allCategories"
+                                    >Semua kategori</SelectItem
+                                >
+                                <SelectItem
+                                    v-for="category in categories"
+                                    :key="category.id"
+                                    :value="String(category.id)"
+                                >
+                                    {{ category.nama }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <!-- Nav desktop -->
+                    <nav class="ml-2 hidden items-center gap-1 text-sm md:flex">
+                        <Link
+                            v-for="item in desktopNavItems"
+                            :key="item.label"
+                            :href="item.href"
+                            class="relative rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            {{ item.label }}
+                            <span
+                                v-if="item.badge && item.badge > 0"
+                                class="ml-1.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground"
                             >
-                                <Avatar class="size-8">
-                                    <AvatarFallback
-                                        class="bg-primary text-primary-foreground"
+                                {{ item.badge }}
+                            </span>
+                        </Link>
+                    </nav>
+
+                    <div class="ml-auto flex items-center gap-1">
+                        <!-- Avatar dropdown (customer & admin) -->
+                        <DropdownMenu v-if="user">
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    variant="ghost"
+                                    class="size-9 rounded-full p-0"
+                                    title="Menu akun"
+                                >
+                                    <Avatar class="size-8">
+                                        <AvatarFallback
+                                            class="bg-primary text-primary-foreground"
+                                        >
+                                            {{ initials }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="min-w-44">
+                                <DropdownMenuLabel class="font-normal">
+                                    <p class="truncate text-sm font-medium">
+                                        {{ user.name }}
+                                    </p>
+                                    <p
+                                        class="truncate text-xs text-muted-foreground"
                                     >
-                                        {{ initials }}
-                                    </AvatarFallback>
-                                </Avatar>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" class="min-w-40">
-                            <DropdownMenuLabel class="font-normal">
-                                <p class="truncate text-sm font-medium">
-                                    {{ user.name }}
-                                </p>
-                                <p
-                                    class="truncate text-xs text-muted-foreground"
-                                >
-                                    {{ user.email }}
-                                </p>
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <div class="hidden md:block">
-                                <DropdownMenuLabel
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    Pengaturan
+                                        {{ user.email }}
+                                    </p>
                                 </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem as-child>
-                                    <Link :href="editProfile()">
-                                        <UserPen class="size-4" />
-                                        Akun
+                                    <Link :href="home()">
+                                        <Home class="size-4" />
+                                        Beranda
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem v-if="isAdmin" as-child>
+                                    <Link :href="adminDashboard()">
+                                        <LayoutGrid class="size-4" />
+                                        Dashboard
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem as-child>
-                                    <Link :href="editAddress()">
-                                        <MapPin class="size-4" />
-                                        Alamat
+                                    <Link :href="about()">
+                                        <Info class="size-4" />
+                                        Tentang Kami
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                            </div>
-                            <DropdownMenuItem
-                                class="text-destructive focus:text-destructive"
+                                <div class="hidden md:block">
+                                    <DropdownMenuLabel
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        Pengaturan
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem as-child>
+                                        <Link :href="editProfile()">
+                                            <UserPen class="size-4" />
+                                            Akun
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem as-child>
+                                        <Link :href="editAddress()">
+                                            <MapPin class="size-4" />
+                                            Alamat
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                </div>
+                                <DropdownMenuItem
+                                    class="text-destructive focus:text-destructive"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="logout()"
+                                        @click="router.flushAll()"
+                                        as="button"
+                                    >
+                                        <LogOut class="size-4" />
+                                        Logout
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <!-- Guest: login/register (desktop only) -->
+                        <template v-if="!user">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="hidden md:inline-flex"
                                 as-child
                             >
-                                <Link
-                                    :href="logout()"
-                                    @click="router.flushAll()"
-                                    as="button"
-                                >
-                                    <LogOut class="size-4" />
-                                    Logout
+                                <Link :href="'/login'">Masuk</Link>
+                            </Button>
+                            <Button
+                                size="sm"
+                                class="hidden md:inline-flex"
+                                as-child
+                            >
+                                <Link :href="'/register'">
+                                    <UserPen class="size-4" />
+                                    Daftar
                                 </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                            </Button>
+                        </template>
+                    </div>
+                </div>
 
-                    <!-- Guest: login/register (desktop only) -->
-                    <template v-if="!user">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            class="hidden md:inline-flex"
-                            as-child
-                        >
-                            <Link :href="'/login'">Masuk</Link>
-                        </Button>
-                        <Button
-                            size="sm"
-                            class="hidden md:inline-flex"
-                            as-child
-                        >
-                            <Link :href="'/register'">
-                                <UserPen class="size-4" />
-                                Daftar
-                            </Link>
-                        </Button>
-                    </template>
+                <!-- Baris 2: search (mobile saja) — sticky mengikuti header -->
+                <div
+                    v-if="isCatalogPage || isPromoPage"
+                    class="flex items-center py-2 md:hidden"
+                >
+                    <div class="relative flex-1">
+                        <Search
+                            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            v-model="headerSearch"
+                            class="h-9 pl-9"
+                            :placeholder="
+                                isPromoPage
+                                    ? 'Cari promo / judul buku...'
+                                    : 'Cari judul / penulis...'
+                            "
+                        />
+                    </div>
                 </div>
             </div>
         </header>
@@ -288,26 +489,122 @@ function isBottomNavActive(href: string): boolean {
             <div
                 class="mx-auto flex h-16 max-w-6xl items-center justify-around px-2"
             >
-                <Link
-                    v-for="item in bottomNavItems"
-                    :key="item.label"
-                    :href="item.href"
-                    class="relative flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors"
-                    :class="
-                        isBottomNavActive(item.href)
-                            ? 'text-primary'
-                            : 'text-muted-foreground'
-                    "
-                >
-                    <component :is="item.icon" class="size-5" />
-                    <span>{{ item.label }}</span>
-                    <span
-                        v-if="item.badge && item.badge > 0"
-                        class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
+                <template v-for="item in bottomNavItems" :key="item.key">
+                    <!-- Link biasa (Keranjang tengah: ikon saja) -->
+                    <Link
+                        :href="item.href ?? '/'"
+                        class="relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors"
+                        :class="
+                            isBottomNavActive(item)
+                                ? 'text-primary'
+                                : 'text-muted-foreground'
+                        "
                     >
-                        {{ item.badge }}
-                    </span>
-                </Link>
+                        <template v-if="item.iconOnly">
+                            <span
+                                class="relative flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md"
+                            >
+                                <component :is="item.icon" class="size-5" />
+                                <span
+                                    v-if="item.badge && item.badge > 0"
+                                    class="absolute -top-0.5 -right-0.5 inline-flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
+                                >
+                                    {{ item.badge }}
+                                </span>
+                            </span>
+                        </template>
+                        <template v-else>
+                            <component :is="item.icon" class="size-5" />
+                            <span>{{ item.label }}</span>
+                            <span
+                                v-if="item.badge && item.badge > 0"
+                                class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
+                            >
+                                {{ item.badge }}
+                            </span>
+                        </template>
+                    </Link>
+                </template>
+
+                <!-- Profil → menu dropdown — di luar v-for ber-key (stabil) -->
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <button
+                            type="button"
+                            class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors"
+                        >
+                            <UserPen class="size-5" />
+                            <span>Profil</span>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        side="top"
+                        :side-offset="8"
+                        class="min-w-44"
+                    >
+                        <DropdownMenuItem as-child>
+                            <Link :href="home()">
+                                <Home class="size-4" />
+                                Beranda
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem as-child>
+                            <Link :href="about()">
+                                <Info class="size-4" />
+                                Tentang Kami
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem v-if="isAdmin" as-child>
+                            <Link :href="adminDashboard()">
+                                <LayoutGrid class="size-4" />
+                                Dashboard
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <template v-if="user">
+                            <DropdownMenuItem as-child>
+                                <Link :href="editProfile()">
+                                    <UserPen class="size-4" />
+                                    Akun
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem as-child>
+                                <Link :href="editAddress()">
+                                    <MapPin class="size-4" />
+                                    Alamat
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                class="text-destructive focus:text-destructive"
+                                as-child
+                            >
+                                <Link
+                                    :href="logout()"
+                                    @click="router.flushAll()"
+                                    as="button"
+                                >
+                                    <LogOut class="size-4" />
+                                    Logout
+                                </Link>
+                            </DropdownMenuItem>
+                        </template>
+                        <template v-else>
+                            <DropdownMenuItem as-child>
+                                <Link :href="'/login'">
+                                    <LogIn class="size-4" />
+                                    Masuk
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem as-child>
+                                <Link :href="'/register'">
+                                    <UserPen class="size-4" />
+                                    Daftar
+                                </Link>
+                            </DropdownMenuItem>
+                        </template>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </nav>
 

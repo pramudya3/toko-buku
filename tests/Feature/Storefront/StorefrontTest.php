@@ -57,6 +57,38 @@ it('filters catalog by search and category', function (): void {
         ->assertDontSee('Buku Masak');
 });
 
+it('lists in-stock books before out-of-stock books by default', function (): void {
+    Book::factory()->create(['judul' => 'Buku Habis', 'stok' => 0, 'aktif' => true]);
+    Book::factory()->create(['judul' => 'Buku Tersedia', 'stok' => 5, 'aktif' => true]);
+
+    $props = inertiaProps($this->get(route('books.catalog')));
+
+    $juduls = collect($props['books']['data'])->pluck('judul')->all();
+
+    expect(array_search('Buku Tersedia', $juduls, true))
+        ->toBeLessThan(array_search('Buku Habis', $juduls, true));
+});
+
+it('filters catalog to in-stock books only', function (): void {
+    Book::factory()->create(['judul' => 'Buku Habis', 'stok' => 0, 'aktif' => true]);
+    Book::factory()->create(['judul' => 'Buku Tersedia', 'stok' => 5, 'aktif' => true]);
+
+    $props = inertiaProps($this->get(route('books.catalog', ['stok' => 'ready'])));
+
+    expect(collect($props['books']['data'])->pluck('judul'))->toContain('Buku Tersedia')
+        ->not->toContain('Buku Habis');
+});
+
+it('filters catalog to out-of-stock books only', function (): void {
+    Book::factory()->create(['judul' => 'Buku Habis', 'stok' => 0, 'aktif' => true]);
+    Book::factory()->create(['judul' => 'Buku Tersedia', 'stok' => 5, 'aktif' => true]);
+
+    $props = inertiaProps($this->get(route('books.catalog', ['stok' => 'empty'])));
+
+    expect(collect($props['books']['data'])->pluck('judul'))->toContain('Buku Habis')
+        ->not->toContain('Buku Tersedia');
+});
+
 it('shows active bundle promotions in the catalog (Paket Hemat)', function (): void {
     $bookA = Book::factory()->create(['judul' => 'Buku Paket A', 'harga' => 100000, 'aktif' => true]);
     $bookB = Book::factory()->create(['judul' => 'Buku Paket B', 'harga' => 50000, 'aktif' => true]);
@@ -74,6 +106,67 @@ it('shows active bundle promotions in the catalog (Paket Hemat)', function (): v
         ->and($props['bundles'][0]['books'])->toHaveCount(2)
         ->and($props['bundles'][0]['books'][0]['unit_final'])->toBe(85000)
         ->and($props['bundles'][0]['books'][1]['unit_final'])->toBe(42500);
+});
+
+it('lists active unit promotions in the catalog (Promo section)', function (): void {
+    $book = Book::factory()->create(['judul' => 'Buku Promo A', 'harga' => 100000, 'aktif' => true]);
+    $promo = Promotion::factory()->percentage(percent: 20)->create(['promo_name' => 'Diskon Akhir Tahun']);
+    $promo->books()->attach($book);
+
+    $props = inertiaProps($this->get(route('books.catalog')));
+
+    expect($props['promos'])->toHaveCount(1)
+        ->and($props['promos'][0]['promo_name'])->toBe('Diskon Akhir Tahun')
+        ->and($props['promos'][0]['promo_type'])->toBe('percentage')
+        ->and($props['promos'][0]['discount_percentage'])->toBe(20)
+        ->and($props['promos'][0]['is_global'])->toBeFalse()
+        ->and($props['promos'][0]['books'])->toHaveCount(1)
+        ->and($props['promos'][0]['books'][0]['judul'])->toBe('Buku Promo A');
+});
+
+it('excludes inactive and expired unit promotions from the catalog', function (): void {
+    Promotion::factory()->percentage()->inactive()->create(['promo_name' => 'Promo Nonaktif']);
+    Promotion::factory()->percentage()->expired()->create(['promo_name' => 'Promo Kadaluarsa']);
+    Promotion::factory()->percentage()->upcoming()->create(['promo_name' => 'Promo Belum Mulai']);
+
+    $props = inertiaProps($this->get(route('books.catalog')));
+
+    expect(collect($props['promos'])->pluck('promo_name'))->not->toContain('Promo Nonaktif')
+        ->not->toContain('Promo Kadaluarsa')
+        ->not->toContain('Promo Belum Mulai');
+});
+
+it('flags global unit promotions in the catalog', function (): void {
+    Promotion::factory()->fixed(value: 99000)->create(['promo_name' => 'Promo Global']);
+
+    $props = inertiaProps($this->get(route('books.catalog')));
+
+    expect($props['promos'])->toHaveCount(1)
+        ->and($props['promos'][0]['is_global'])->toBeTrue()
+        ->and($props['promos'][0]['promo_type'])->toBe('fixed')
+        ->and($props['promos'][0]['promo_value'])->toBe(99000);
+});
+
+it('renders the promo page with bundles, unit promos and final prices', function (): void {
+    $bookA = Book::factory()->create(['judul' => 'Buku Promo A', 'harga' => 100000, 'aktif' => true]);
+    $bookB = Book::factory()->create(['judul' => 'Buku Promo B', 'harga' => 50000, 'aktif' => true]);
+
+    $bundle = Promotion::factory()->bundle(percent: 15)->create(['promo_name' => 'Paket Hemat Page']);
+    $bundle->books()->sync([$bookA->id, $bookB->id]);
+
+    $unit = Promotion::factory()->percentage(percent: 20)->create(['promo_name' => 'Diskon 20 Persen']);
+    $unit->books()->attach($bookA);
+
+    $props = inertiaProps($this->get(route('books.promo', ['search' => 'paket'])));
+
+    expect($props['bundles'])->toHaveCount(1)
+        ->and($props['bundles'][0]['promo_name'])->toBe('Paket Hemat Page')
+        ->and($props['promos'])->toHaveCount(1)
+        ->and($props['promos'][0]['promo_name'])->toBe('Diskon 20 Persen')
+        ->and($props['promos'][0]['books'][0]['price_breakdown']['original_price'])->toBe(100000)
+        ->and($props['promos'][0]['books'][0]['price_breakdown']['final_price'])->toBe(80000)
+        ->and($props['promos'][0]['books'][0]['harga'])->toBe(100000)
+        ->and($props['filters']['search'])->toBe('paket');
 });
 
 it('shows the book detail via id+judul URL', function (): void {

@@ -46,7 +46,8 @@ class StorefrontController extends Controller
             ),
             'categories' => Category::orderBy('nama')->get(['id', 'nama']),
             'bundles' => $this->activeBundlesForStorefront(),
-            'filters' => $request->only(['search', 'category_id']),
+            'promos' => $this->activeUnitPromosForStorefront(),
+            'filters' => $request->only(['search', 'category_id', 'stok']),
         ]);
     }
 
@@ -67,6 +68,19 @@ class StorefrontController extends Controller
     }
 
     /**
+     * Halaman Promo — semua promo aktif (paket hemat + per item) lengkap
+     * dengan harga final per buku. Menu "Promo" mengarah ke sini.
+     */
+    public function promo(Request $request): Response
+    {
+        return Inertia::render('storefront/Promo', [
+            'bundles' => $this->activeBundlesForStorefront(),
+            'promos' => $this->activeUnitPromosForStorefront(bookLimit: 50, withPricing: true),
+            'filters' => $request->only(['search']),
+        ]);
+    }
+
+    /**
      * @return Builder<Book>
      */
     private function filteredBooks(Request $request)
@@ -84,6 +98,11 @@ class StorefrontController extends Controller
                 });
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->string('category_id')->toString()))
+            ->when($request->string('stok')->toString() === 'ready', fn ($query) => $query->where('stok', '>', 0))
+            ->when($request->string('stok')->toString() === 'empty', fn ($query) => $query->where('stok', '<=', 0))
+            // Stok tersedia tampil lebih dulu, stok habis di akhir — di kedua
+            // grup, urut abjad agar konsisten antar halaman load-more.
+            ->orderByRaw('stok <= 0')
             ->orderBy('judul');
     }
 
@@ -190,6 +209,74 @@ class StorefrontController extends Controller
                 'total_final' => $breakdown['total_final'],
             ];
         })->values()->all();
+    }
+
+    /**
+     * Promo per item (persentase/harga tetap) yang sedang aktif untuk
+     * section "Promo" di katalog. Buku global (tanpa terlampir) diflag.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function activeUnitPromosForStorefront(int $bookLimit = 4, bool $withPricing = false): array
+    {
+        $today = now()->toDateString();
+
+        $promos = Promotion::query()
+            ->where('promo_type', '!=', PromotionType::Bundle->value)
+            ->where('is_active', true)
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->with('books:id,judul,cover_url,harga')
+            ->orderByDesc('end_date')
+            ->orderByDesc('id')
+            ->get();
+
+        return $promos->map(function (Promotion $promo) use ($bookLimit, $withPricing): array {
+            return [
+                'id' => $promo->id,
+                'promo_name' => $promo->promo_name,
+                'promo_type' => $promo->promo_type->value,
+                'discount_percentage' => $promo->discount_percentage,
+                'promo_value' => $promo->promo_value,
+                'start_date' => $promo->start_date->toDateString(),
+                'end_date' => $promo->end_date->toDateString(),
+                'is_global' => $promo->is_global,
+                'books' => $promo->books
+                    ->take($bookLimit)
+                    ->map(fn (Book $book): array => $withPricing
+                        ? $this->promoBookWithPricing($book, $promo)
+                        : [
+                            'id' => $book->id,
+                            'judul' => $book->judul,
+                            'cover_url' => $book->cover_url,
+                        ])
+                    ->values()
+                    ->all(),
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * Buku promo dengan harga final (untuk halaman Promo).
+     *
+     * @return array<string, mixed>
+     */
+    private function promoBookWithPricing(Book $book, Promotion $promo): array
+    {
+        $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1);
+
+        return [
+            'id' => $book->id,
+            'judul' => $book->judul,
+            'cover_url' => $book->cover_url,
+            'harga' => $book->harga,
+            'price_breakdown' => $breakdown->promoDiscount > 0 ? [
+                'original_price' => $breakdown->originalPrice,
+                'promo_discount' => $breakdown->promoDiscount,
+                'final_price' => $breakdown->finalPrice,
+                'promo_name' => $breakdown->promoName,
+            ] : null,
+        ];
     }
 
     /**
