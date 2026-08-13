@@ -5,7 +5,6 @@ import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileCo
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
-import SettingsTabs from '@/components/SettingsTabs.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,8 +31,6 @@ const user = computed(() => page.props.auth.user);
     <h1 class="sr-only">Pengaturan Akun</h1>
 
     <div class="flex flex-col space-y-6">
-        <SettingsTabs />
-
         <Heading
             variant="small"
             title="Akun"

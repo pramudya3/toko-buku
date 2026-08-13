@@ -5,7 +5,6 @@ import AddressController from '@/actions/App/Http/Controllers/Settings/AddressCo
 import AddressFields from '@/components/AddressFields.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
-import SettingsTabs from '@/components/SettingsTabs.vue';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/address';
 
@@ -30,8 +29,6 @@ const user = computed(() => page.props.auth.user);
     <h1 class="sr-only">Pengaturan Alamat</h1>
 
     <div class="flex flex-col space-y-6">
-        <SettingsTabs />
-
         <Heading
             variant="small"
             title="Alamat"

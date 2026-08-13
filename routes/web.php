@@ -45,6 +45,7 @@ Route::get('wilayah/districts', [PublicAddressController::class, 'districts'])->
 Route::get('wilayah/villages', [PublicAddressController::class, 'villages'])->name('wilayah.villages');
 
 Route::get('tentang-kami', [StorefrontController::class, 'about'])->name('about');
+Route::get('promo', [StorefrontController::class, 'promo'])->name('books.promo');
 Route::get('buku', [StorefrontController::class, 'catalog'])->name('books.catalog');
 Route::get('buku/lainnya', [StorefrontController::class, 'loadMore'])->name('books.load-more');
 // URL publik: /buku/{uuid}-{judul} — lookup tetap pakai uuid (36 char pertama),
