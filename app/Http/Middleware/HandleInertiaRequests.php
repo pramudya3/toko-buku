@@ -88,6 +88,18 @@ class HandleInertiaRequests extends Middleware
             'pendingOrdersCount' => fn (): int => $request->user()?->is_admin
                 ? (int) Order::query()->where('status', OrderStatus::MenungguKonfirmasi)->count()
                 : 0,
+            // Jumlah order aktif customer (badge menu "Pesanan Saya") —
+            // status belum selesai: menunggu konfirmasi / diproses / dikirim.
+            'activeOrdersCount' => fn (): int => $request->user()
+                ? (int) Order::query()
+                    ->where('user_id', $request->user()->id)
+                    ->whereIn('status', [
+                        OrderStatus::MenungguKonfirmasi->value,
+                        OrderStatus::Diproses->value,
+                        OrderStatus::Dikirim->value,
+                    ])
+                    ->count()
+                : 0,
         ];
     }
 }

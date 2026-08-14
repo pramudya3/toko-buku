@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Courier;
 use App\Services\ShippingCostService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -101,5 +102,32 @@ it('sends multiple items correctly', function (): void {
         return count($body['items']) === 2
             && $body['items'][0]['weight_grams'] === 500
             && $body['items'][1]['quantity'] === 2;
+    });
+});
+
+it('only returns rates for enabled couriers and requests only them from the API', function (): void {
+    Courier::create(['code' => 'wahana', 'name' => 'Wahana', 'is_active' => true, 'sort_order' => 0]);
+    Courier::create(['code' => 'jne', 'name' => 'JNE', 'is_active' => false, 'sort_order' => 0]);
+    Courier::create(['code' => 'cod', 'name' => 'COD / Ambil Sendiri', 'is_active' => true, 'sort_order' => 0]);
+
+    Http::fake([
+        'api.biteship.com/*' => Http::response([
+            'success' => true,
+            'pricing' => [
+                ['courier_code' => 'jne', 'courier_name' => 'JNE', 'courier_service_code' => 'reg', 'courier_service_name' => 'Reguler', 'price' => 12000, 'duration' => '1 - 2 days'],
+                ['courier_code' => 'wahana', 'courier_name' => 'Wahana', 'courier_service_code' => 'reg', 'courier_service_name' => 'Reguler', 'price' => 14000, 'duration' => '2 - 3 days'],
+            ],
+        ]),
+    ]);
+
+    $costs = app(ShippingCostService::class)->costs('65144', biteshipItems());
+
+    expect($costs)->toHaveCount(1)
+        ->and($costs[0]['courier_code'])->toBe('wahana')
+        ->and($costs[0]['price'])->toBe(14000);
+
+    // Pseudo-kurir 'cod' tidak boleh ikut dikirim ke Biteship (ditolak 400).
+    Http::assertSent(function ($request): bool {
+        return $request['couriers'] === 'wahana';
     });
 });

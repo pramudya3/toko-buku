@@ -13,6 +13,7 @@ import {
     ShoppingCart,
     Tag,
     UserPen,
+    X,
 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import type { Component } from 'vue';
@@ -50,6 +51,9 @@ const storeLogoUrl = computed(() => page.props.storeLogoUrl ?? '');
 const user = computed<User | null>(() => page.props.auth?.user ?? null);
 const isAdmin = computed(() => user.value?.is_admin === true);
 const cartCount = computed<number>(() => Number(page.props.cartCount ?? 0));
+const activeOrdersCount = computed<number>(() =>
+    Number(page.props.activeOrdersCount ?? 0),
+);
 
 // Filter katalog (search & kategori) hidup di header — hanya di halaman katalog
 // & promo (promo: search saja).
@@ -132,7 +136,7 @@ const initials = computed(() => {
     );
 });
 
-// ── Desktop nav (header, hidden md:flex) — Beranda & Dashboard pindah
+// ── Desktop nav (header, hidden lg:flex) — Beranda & Dashboard pindah
 // ke dropdown avatar; Promo mengarah ke halaman /promo. ──
 type DesktopNavItem = {
     label: string;
@@ -151,7 +155,11 @@ const desktopNavItems = computed<DesktopNavItem[]>(() => {
             href: '/checkout',
             badge: cartCount.value,
         });
-        items.push({ label: 'Pesanan Saya', href: '/pesanan-saya' });
+        items.push({
+            label: 'Pesanan Saya',
+            href: '/pesanan-saya',
+            badge: activeOrdersCount.value,
+        });
     }
 
     // Guest: hanya Keranjang setelah Promo
@@ -177,7 +185,6 @@ type BottomNavItem = {
     href?: string;
     icon: Component;
     badge?: number;
-    iconOnly?: boolean;
 };
 
 const bottomNavItems = computed<BottomNavItem[]>(() => {
@@ -193,7 +200,6 @@ const bottomNavItems = computed<BottomNavItem[]>(() => {
         href: '/checkout',
         icon: ShoppingCart,
         badge: cartCount.value,
-        iconOnly: true,
     };
 
     if (user.value && !isAdmin.value) {
@@ -211,6 +217,7 @@ const bottomNavItems = computed<BottomNavItem[]>(() => {
                 label: 'Pesanan',
                 href: '/pesanan-saya',
                 icon: Package,
+                badge: activeOrdersCount.value,
             },
         ];
     }
@@ -247,11 +254,19 @@ function isBottomNavActive(item: BottomNavItem): boolean {
     }
 
     if (item.href === home().url) {
-        return page.url === '/';
+        // Beranda = halaman utama; katalog (/buku) adalah halaman yang sama.
+        return page.url === '/' || page.url === catalogUrl().url;
     }
 
     return page.url.startsWith(item.href);
 }
+
+// Profil aktif saat berada di halaman Akun / Alamat (settings customer).
+const isProfilActive = computed(
+    () =>
+        page.url.startsWith(editProfile().url) ||
+        page.url.startsWith(editAddress().url),
+);
 </script>
 
 <template>
@@ -262,7 +277,7 @@ function isBottomNavActive(item: BottomNavItem): boolean {
         >
             <div class="mx-auto flex w-full max-w-6xl flex-col px-4">
                 <!-- Baris 1: logo + filter (desktop) + nav + avatar — disembunyikan di mobile -->
-                <div class="hidden h-14 items-center gap-2 md:flex">
+                <div class="hidden h-14 items-center gap-2 lg:flex">
                     <!-- Logo → Beranda -->
                     <Link
                         :href="home().url"
@@ -276,7 +291,7 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                             class="h-8 w-auto object-contain"
                         />
                         <AppLogoIcon v-else class="size-5 fill-current" />
-                        <span class="hidden text-sm font-semibold md:inline">
+                        <span class="hidden text-sm font-semibold lg:inline">
                             {{ storeName }}
                         </span>
                     </Link>
@@ -284,23 +299,33 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                     <!-- Search (desktop) -->
                     <div
                         v-if="isCatalogPage || isPromoPage"
-                        class="relative ml-2 hidden flex-1 md:block"
+                        class="relative ml-2 hidden flex-1 lg:block"
                     >
                         <Search
                             class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         />
                         <Input
                             v-model="headerSearch"
-                            class="pl-9"
+                            class="pr-9 pl-9"
                             :placeholder="
                                 isPromoPage
                                     ? 'Cari promo / judul buku...'
                                     : 'Cari judul / penulis...'
                             "
                         />
+                        <button
+                            v-if="headerSearch"
+                            type="button"
+                            class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                            title="Hapus pencarian"
+                            aria-label="Hapus pencarian"
+                            @click="headerSearch = ''"
+                        >
+                            <X class="size-4" />
+                        </button>
                     </div>
                     <!-- Kategori (desktop) -->
-                    <div v-if="isCatalogPage" class="hidden md:block">
+                    <div v-if="isCatalogPage" class="hidden lg:block">
                         <Select v-model="headerCategoryId">
                             <SelectTrigger class="w-44">
                                 <SelectValue placeholder="Semua kategori" />
@@ -321,7 +346,7 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                     </div>
 
                     <!-- Nav desktop -->
-                    <nav class="ml-2 hidden items-center gap-1 text-sm md:flex">
+                    <nav class="ml-2 hidden items-center gap-1 text-sm lg:flex">
                         <Link
                             v-for="item in desktopNavItems"
                             :key="item.label"
@@ -387,7 +412,7 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <div class="hidden md:block">
+                                <div class="hidden lg:block">
                                     <DropdownMenuLabel
                                         class="text-xs text-muted-foreground"
                                     >
@@ -428,14 +453,14 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                class="hidden md:inline-flex"
+                                class="hidden lg:inline-flex"
                                 as-child
                             >
                                 <Link :href="'/login'">Masuk</Link>
                             </Button>
                             <Button
                                 size="sm"
-                                class="hidden md:inline-flex"
+                                class="hidden lg:inline-flex"
                                 as-child
                             >
                                 <Link :href="'/register'">
@@ -450,7 +475,7 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                 <!-- Baris 2: search (mobile saja) — sticky mengikuti header -->
                 <div
                     v-if="isCatalogPage || isPromoPage"
-                    class="flex items-center py-2 md:hidden"
+                    class="flex items-center py-2 lg:hidden"
                 >
                     <div class="relative flex-1">
                         <Search
@@ -458,25 +483,35 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                         />
                         <Input
                             v-model="headerSearch"
-                            class="h-9 pl-9"
+                            class="h-9 pr-9 pl-9"
                             :placeholder="
                                 isPromoPage
                                     ? 'Cari promo / judul buku...'
                                     : 'Cari judul / penulis...'
                             "
                         />
+                        <button
+                            v-if="headerSearch"
+                            type="button"
+                            class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                            title="Hapus pencarian"
+                            aria-label="Hapus pencarian"
+                            @click="headerSearch = ''"
+                        >
+                            <X class="size-4" />
+                        </button>
                     </div>
                 </div>
             </div>
         </header>
 
         <!-- ── Main content ── -->
-        <main class="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-20 md:pb-8">
+        <main class="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-20 lg:pb-8">
             <slot />
         </main>
 
         <!-- ── Footer ── -->
-        <footer class="border-t py-6 pb-20 md:pb-6">
+        <footer class="border-t py-6 pb-20 lg:pb-6">
             <p class="text-center text-sm text-muted-foreground">
                 © {{ new Date().getFullYear() }} {{ storeName }}
             </p>
@@ -484,45 +519,31 @@ function isBottomNavActive(item: BottomNavItem): boolean {
 
         <!-- ── Bottom nav (mobile only) ── -->
         <nav
-            class="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden"
+            class="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur lg:hidden"
         >
             <div
                 class="mx-auto flex h-16 max-w-6xl items-center justify-around px-2"
             >
                 <template v-for="item in bottomNavItems" :key="item.key">
-                    <!-- Link biasa (Keranjang tengah: ikon saja) -->
                     <Link
                         :href="item.href ?? '/'"
                         class="relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors"
-                        :class="
+                        :class="[
+                            isBottomNavActive(item) &&
+                                'rounded-lg bg-primary/10',
                             isBottomNavActive(item)
                                 ? 'text-primary'
-                                : 'text-muted-foreground'
-                        "
+                                : 'text-muted-foreground',
+                        ]"
                     >
-                        <template v-if="item.iconOnly">
-                            <span
-                                class="relative flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md"
-                            >
-                                <component :is="item.icon" class="size-5" />
-                                <span
-                                    v-if="item.badge && item.badge > 0"
-                                    class="absolute -top-0.5 -right-0.5 inline-flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
-                                >
-                                    {{ item.badge }}
-                                </span>
-                            </span>
-                        </template>
-                        <template v-else>
-                            <component :is="item.icon" class="size-5" />
-                            <span>{{ item.label }}</span>
-                            <span
-                                v-if="item.badge && item.badge > 0"
-                                class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
-                            >
-                                {{ item.badge }}
-                            </span>
-                        </template>
+                        <component :is="item.icon" class="size-5" />
+                        <span>{{ item.label }}</span>
+                        <span
+                            v-if="item.badge && item.badge > 0"
+                            class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
+                        >
+                            {{ item.badge }}
+                        </span>
                     </Link>
                 </template>
 
@@ -531,7 +552,12 @@ function isBottomNavActive(item: BottomNavItem): boolean {
                     <DropdownMenuTrigger as-child>
                         <button
                             type="button"
-                            class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors"
+                            class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors"
+                            :class="
+                                isProfilActive
+                                    ? 'rounded-lg bg-primary/10 text-primary'
+                                    : 'text-muted-foreground'
+                            "
                         >
                             <UserPen class="size-5" />
                             <span>Profil</span>

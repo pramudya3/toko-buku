@@ -49,6 +49,8 @@ type Customer = {
     provinsi: string | null;
     kabupaten_kota: string | null;
     kecamatan: string | null;
+    kelurahan: string | null;
+    village_code: string | null;
     kode_pos: string | null;
 };
 
@@ -274,8 +276,8 @@ function selectCustomer(customer: Customer) {
         provinsi: customer.provinsi ?? '',
         kabupaten_kota: customer.kabupaten_kota ?? '',
         kecamatan: customer.kecamatan ?? '',
-        kelurahan: '',
-        village_code: '',
+        kelurahan: customer.kelurahan ?? '',
+        village_code: customer.village_code ?? '',
         kode_pos: customer.kode_pos ?? '',
         alamat: customer.alamat ?? '',
     };

@@ -18,4 +18,10 @@ return [
     'origin_postal_code' => env('BITESHIP_ORIGIN_POSTAL_CODE', '65144'),
     'base_url' => env('BITESHIP_BASE_URL', 'https://api.biteship.com'),
     'couriers' => env('BITESHIP_COURIERS', 'jne,sicepat,jnt,anteraja,idexpress,lion,ninja,paxel,sap,wahana'),
+    /*
+    | Secret verifikasi webhook (X-Signature = HMAC-SHA256 dari raw body).
+    | Diatur di dashboard Biteship > Integration > Webhook, lalu disalin ke sini
+    | atau ke Admin > Pengaturan (biteship_webhook_secret).
+    */
+    'webhook_secret' => env('BITESHIP_WEBHOOK_SECRET'),
 ];

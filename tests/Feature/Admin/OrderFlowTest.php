@@ -1,16 +1,43 @@
 <?php
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Book;
 use App\Models\CashFlow;
+use App\Models\Courier;
 use App\Models\InventoryMovement;
 use App\Models\Order;
+use App\Models\Setting;
 use App\Models\User;
+use App\Models\Warehouse;
+use App\Services\BiteshipShippingService;
 use App\Services\OrderStatusService;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
+});
+
+it('returns full address (incl. kelurahan) in customer options', function (): void {
+    $customer = User::factory()->create([
+        'name' => 'Pembeli Lengkap',
+        'alamat' => 'Jl. Bareng Raya 12',
+        'provinsi' => 'JAWA TIMUR',
+        'kabupaten_kota' => 'KOTA MALANG',
+        'kecamatan' => 'KLOJEN',
+        'kelurahan' => 'BARENG',
+        'village_code' => '3573010001',
+        'kode_pos' => '65116',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->getJson(route('admin.orders.options.customers', ['search' => 'Pembeli']))
+        ->assertOk()
+        ->assertJsonPath('0.id', $customer->id)
+        ->assertJsonPath('0.kelurahan', 'BARENG')
+        ->assertJsonPath('0.village_code', '3573010001')
+        ->assertJsonPath('0.kode_pos', '65116');
 });
 
 it('creates a manual order and calculates prices via PricingService (ORD-03, ORD-08)', function (): void {
@@ -163,7 +190,7 @@ it('validates order items', function (): void {
 
 it('processes an order: fills shipping cost, courier and warehouse origin (ORD-05)', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -213,7 +240,7 @@ it('rejects processing an order from an invalid state', function (): void {
 });
 
 it('does not allow the generic status endpoint to bypass order processing', function (): void {
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
 
     $this->actingAs($this->admin)
         ->patch(route('admin.orders.status', $order), [
@@ -226,7 +253,7 @@ it('does not allow the generic status endpoint to bypass order processing', func
 
 it('completes an order: stock was reserved at processing, selesai records 2 cash flows (ORD-06, BR-06, CF-03)', function (): void {
     $book = Book::factory()->withStock(malang: 10, sidoarjo: 0)->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -267,7 +294,7 @@ it('completes an order: stock was reserved at processing, selesai records 2 cash
 
 it('is idempotent: completing twice does not double deduct or duplicate entries (ORD-07)', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -339,7 +366,7 @@ it('does not duplicate completion side effects from a stale order model', functi
 
 it('restores reserved stock when cancelling a processed order', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -375,7 +402,7 @@ it('restores reserved stock when cancelling a processed order', function (): voi
 
 it('rejects cancelling an order that has been shipped', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -428,7 +455,7 @@ it('confirms payment for an order (menunggu → lunas)', function (): void {
 
 it('cancels an order without side effects (CF-04)', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -451,7 +478,7 @@ it('cancels an order without side effects (CF-04)', function (): void {
 
 it('shows order detail with items and pricing breakdown (ORD-02)', function (): void {
     $book = Book::factory()->withStock()->create(['harga' => 50000]);
-    $order = Order::factory()->create();
+    $order = Order::factory()->lunas()->create();
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -506,4 +533,370 @@ it('captures HPP (harga beli cetakan) snapshot on order items for profit trackin
         ->and($item2->price_final - $item2->harga_beli_snapshot)->toBe(43000 - 33000)
         // Harga jual ikut cetakan
         ->and($item2->harga_snapshot)->toBe(43000);
+});
+
+// ── Alur gabungan "Proses & Kirim" ──
+
+function flowOrder(string $status, array $overrides = []): Order
+{
+    return Order::factory()->create(array_merge([
+        'status' => $status,
+        'payment_status' => PaymentStatus::Lunas,
+        'sumber_pembelian' => 'website',
+        'user_id' => null,
+        'shipping_cost' => 12000,
+        'total' => 62000,
+        'ekspedisi' => 'jne',
+        'courier_service_code' => 'reg',
+    ], $overrides));
+}
+
+function flowOrderItem(Order $order, Book $book): void
+{
+    $order->items()->create([
+        'book_id' => $book->id,
+        'judul_snapshot' => $book->judul,
+        'harga_snapshot' => $book->harga,
+        'harga_beli_snapshot' => 30000,
+        'qty' => 1,
+        'price_original' => $book->harga,
+        'price_final' => $book->harga,
+    ]);
+}
+
+function fakeBiteshipBooking(): void
+{
+    Http::fake([
+        'api.biteship.com/v1/orders' => Http::response([
+            'success' => true,
+            'id' => 'bsh-101',
+            'waybill_id' => 'AWB-101',
+            'label_url' => 'https://label.test/awb-101.pdf',
+            'status' => 'confirmed',
+        ]),
+        'api.biteship.com/v1/pickups' => Http::response(['success' => true]),
+    ]);
+}
+
+it('processes, confirms payment, books and schedules pickup in one action', function (): void {
+    fakeBiteshipBooking();
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, ['payment_status' => PaymentStatus::Menunggu]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'konfirmasi_lunas' => '1',
+        'shipping_cost' => 12000,
+        'ekspedisi' => 'jne',
+        'courier_service_code' => 'reg',
+        'warehouse_origin' => 'malang',
+        'collection_method' => 'pickup',
+        'pickup_date' => now()->addDay()->toDateString(),
+    ])->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->payment_status)->toBe(PaymentStatus::Lunas)
+        ->and($order->status)->toBe(OrderStatus::Diproses)
+        ->and($order->biteship_order_id)->toBe('bsh-101')
+        ->and($order->awb)->toBe('AWB-101')
+        ->and($order->shipping_collection_method)->toBe('pickup')
+        ->and($book->fresh()->stok)->toBe(4);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/orders')
+        && $request['origin_collection_method'] === 'pickup');
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/pickups'));
+});
+
+it('blocks process-and-ship without confirming payment', function (): void {
+    fakeBiteshipBooking();
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, ['payment_status' => PaymentStatus::Menunggu]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'shipping_cost' => 12000,
+        'ekspedisi' => 'jne',
+        'courier_service_code' => 'reg',
+        'warehouse_origin' => 'malang',
+        'collection_method' => 'pickup',
+    ])->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->payment_status)->toBe(PaymentStatus::Menunggu)
+        ->and($order->status)->toBe(OrderStatus::MenungguKonfirmasi)
+        ->and($order->awb)->toBeNull();
+
+    Http::assertNothingSent();
+});
+
+it('retries booking for an already processed order without re-processing', function (): void {
+    fakeBiteshipBooking();
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'collection_method' => 'pickup',
+    ])->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->status)->toBe(OrderStatus::Diproses)
+        ->and($order->awb)->toBe('AWB-101')
+        ->and($book->fresh()->stok)->toBe(5);
+});
+
+it('keeps the order processed when booking fails so it can be retried', function (): void {
+    Http::fake([
+        'api.biteship.com/v1/orders' => Http::response(['success' => false], 500),
+    ]);
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'shipping_cost' => 12000,
+        'ekspedisi' => 'jne',
+        'courier_service_code' => 'reg',
+        'warehouse_origin' => 'malang',
+        'collection_method' => 'pickup',
+    ])->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->status)->toBe(OrderStatus::Diproses)
+        ->and($order->awb)->toBeNull()
+        ->and(session('inertia.flash_data.toast.message'))->toContain('diproses');
+});
+
+it('books with drop_off method without scheduling a pickup', function (): void {
+    fakeBiteshipBooking();
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'collection_method' => 'drop_off',
+    ])->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->awb)->toBe('AWB-101')
+        ->and($order->shipping_collection_method)->toBe('drop_off');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/orders')
+        && $request['origin_collection_method'] === 'drop_off');
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v1/pickups'));
+});
+
+// ── Channel non-website: proses → selesai langsung ──
+
+it('processes a marketplace order without payment, booking, then completes directly', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, [
+        'payment_status' => PaymentStatus::Menunggu,
+        'sumber_pembelian' => 'shopee',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'shipping_cost' => 0,
+        'warehouse_origin' => 'malang',
+    ])->assertRedirect();
+
+    Http::assertNothingSent();
+
+    $order->refresh();
+
+    expect($order->payment_status)->toBe(PaymentStatus::Menunggu)
+        ->and($order->status)->toBe(OrderStatus::Diproses)
+        ->and($order->awb)->toBeNull()
+        ->and($order->ekspedisi)->toBeNull()
+        ->and($book->fresh()->stok)->toBe(4);
+
+    // Non-website: selesai langsung dari diproses (tanpa status dikirim).
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Selesai->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Selesai)
+        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(2);
+});
+
+it('processes a toko order without Biteship booking', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, [
+        'payment_status' => PaymentStatus::Menunggu,
+        'sumber_pembelian' => 'toko',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'shipping_cost' => 0,
+        'warehouse_origin' => 'malang',
+    ])->assertRedirect();
+
+    Http::assertNothingSent();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Diproses)
+        ->and($book->fresh()->stok)->toBe(4);
+});
+
+it('rejects Biteship booking for non-website orders', function (): void {
+    fakeBiteshipBooking();
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, ['sumber_pembelian' => 'shopee']);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.shipping', $order), ['courier' => 'jne'])
+        ->assertRedirect();
+
+    expect($order->fresh()->awb)->toBeNull();
+});
+
+// ── Resi wajib sebelum dikirim (website) ──
+
+it('blocks marking a website order as shipped without an AWB', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, ['sumber_pembelian' => 'website']);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Dikirim->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Diproses)
+        ->and(session('inertia.flash_data.toast.message'))->toContain('AWB');
+});
+
+it('allows marking a website order as shipped once the AWB exists', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'sumber_pembelian' => 'website',
+        'awb' => 'AWB-987',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Dikirim->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Dikirim);
+});
+
+// ── Retry booking & AWB asinkron ──
+
+it('does not duplicate booking when retrying a booked order without AWB', function (): void {
+    Http::fake([
+        // retrieveOrder: GET /v1/orders/{id} → waybill sudah terbit di Biteship.
+        'api.biteship.com/v1/orders/*' => Http::response([
+            'success' => true,
+            'id' => 'bsh-777',
+            'status' => 'allocated',
+            'waybill_id' => 'AWB-RETRIEVE',
+        ]),
+        'api.biteship.com/v1/orders' => Http::response([
+            'success' => true,
+            'id' => 'bsh-777',
+            'waybill_id' => null,
+            'status' => 'confirmed',
+        ]),
+        'api.biteship.com/v1/pickups' => Http::response(['success' => true]),
+    ]);
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'biteship_order_id' => 'bsh-777',
+        'awb' => null,
+        'shipping_collection_method' => 'pickup',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)->post(route('admin.orders.process-ship', $order), [
+        'collection_method' => 'pickup',
+    ])->assertRedirect();
+
+    // Tidak boleh ada booking baru (duplikat reference_id) — hanya retrieve + pickup.
+    Http::assertNotSent(fn ($request) => $request->method() === 'POST'
+        && str_contains($request->url(), '/v1/orders'));
+    Http::assertSent(fn ($request) => $request->method() === 'GET'
+        && str_contains($request->url(), '/v1/orders/bsh-777'));
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/pickups'));
+
+    expect($order->fresh()->awb)->toBe('AWB-RETRIEVE');
+});
+
+it('stores the courier waybill id from the status webhook when AWB is missing', function (): void {
+    config(['biteship.webhook_secret' => 'webhook-secret-test']);
+
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'biteship_order_id' => 'bsh-888',
+        'awb' => null,
+    ]);
+
+    $payload = [
+        'event' => 'order.status',
+        'order_id' => 'bsh-888',
+        'status' => 'picked',
+        'courier_waybill_id' => 'AWB-ASYNC',
+    ];
+
+    $this->postJson(route('webhooks.biteship'), $payload, [
+        'X-Signature' => hash_hmac('sha256', json_encode($payload), config('biteship.webhook_secret')),
+    ])->assertOk();
+
+    $order->refresh();
+
+    expect($order->awb)->toBe('AWB-ASYNC')
+        ->and($order->biteship_status)->toBe('picked')
+        ->and($order->status)->toBe(OrderStatus::Dikirim);
+});
+
+it('offers only enabled couriers in the booking dropdown', function (): void {
+    Courier::create(['code' => 'wahana', 'name' => 'Wahana', 'is_active' => true, 'sort_order' => 0]);
+    Courier::create(['code' => 'jne', 'name' => 'JNE', 'is_active' => false, 'sort_order' => 0]);
+
+    Http::fake([
+        'api.biteship.com/v1/couriers' => Http::response([
+            'success' => true,
+            'couriers' => [
+                ['courier_code' => 'jne', 'courier_name' => 'JNE', 'courier_service_code' => 'reg', 'courier_service_name' => 'Reguler'],
+                ['courier_code' => 'wahana', 'courier_name' => 'Wahana', 'courier_service_code' => 'reg', 'courier_service_name' => 'Reguler'],
+            ],
+        ]),
+    ]);
+
+    $services = app(BiteshipShippingService::class)->courierServices();
+
+    expect(collect($services)->pluck('courier_code')->all())->toBe(['wahana']);
 });

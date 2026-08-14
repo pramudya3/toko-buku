@@ -10,6 +10,7 @@ import {
     CalendarDays,
     ChartColumn,
     ChartPie,
+    ClipboardList,
     Factory,
     FileSpreadsheet,
     FolderTree,
@@ -68,6 +69,7 @@ import { lembaga as lembagaRoute } from '@/routes/admin/settings';
 import { pembayaran as pembayaranRoute } from '@/routes/admin/settings';
 import { rekening as rekeningRoute } from '@/routes/admin/settings';
 import { sumberPenjualan as sumberPenjualanRoute } from '@/routes/admin/settings';
+import { index as stockRequestsIndex } from '@/routes/admin/stock-requests';
 import { index as supplierDebtsIndex } from '@/routes/admin/supplier-debts';
 import { index as supplierReportsIndex } from '@/routes/admin/supplier-reports';
 import { index as supplierReturnsIndex } from '@/routes/admin/supplier-returns';
@@ -133,6 +135,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Tier Discount',
                 href: tierDiscountsIndex(),
                 icon: BadgePercent,
+            },
+            {
+                title: 'Pengajuan Stok',
+                href: stockRequestsIndex(),
+                icon: ClipboardList,
             },
         ],
     },

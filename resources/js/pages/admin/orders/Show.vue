@@ -11,21 +11,26 @@ defineOptions({
 
 import { Form, Head, Link } from '@inertiajs/vue3';
 import {
+    AlertTriangle,
     ArrowRight,
     Ban,
     CheckCircle2,
     CircleCheck,
+    FileImage,
     PackageCheck,
     Printer,
+    RefreshCw,
     Truck,
+    XCircle,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import OrderController from '@/actions/App/Http/Controllers/Admin/OrderController';
 import CurrencyInput from '@/components/CurrencyInput.vue';
 import Money from '@/components/Money.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -34,6 +39,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -50,7 +56,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { index as indexRoute } from '@/routes/admin/orders';
 
 type OrderItem = {
     id: string;
@@ -84,6 +89,14 @@ type Order = {
     payment_status: string;
     ekspedisi: string | null;
     ongkir_estimasi: number | null;
+    courier_service_code: string | null;
+    biteship_order_id: string | null;
+    shipping_collection_method: string | null;
+    awb: string | null;
+    biteship_status: string | null;
+    biteship_label_url: string | null;
+    bukti_transfer_path: string | null;
+    bukti_transfer_at: string | null;
     created_at: string;
     user: {
         id: string;
@@ -107,18 +120,115 @@ type Order = {
     }>;
 };
 
+type ShippingCourier = {
+    courier_code: string;
+    courier_name: string;
+    service_code: string;
+    service_name: string;
+};
+
 type Props = {
     order: Order;
     statusOptions: Record<string, string>;
     couriers: Record<string, string>;
+    shippingCouriers: ShippingCourier[];
     paymentMethods: Record<string, string>;
     salesChannels: Record<string, string>;
     warehouseOptions: Record<string, string>;
+    storeTelepon: string;
+    storeAlamat: string;
 };
 
 const props = defineProps<Props>();
 
-const processOpen = ref(false);
+// Origin toko belum lengkap → booking Biteship akan ditolak.
+const originIncomplete = computed(
+    () => !props.storeTelepon.trim() || !props.storeAlamat.trim(),
+);
+
+// ── Pengiriman Biteship ──
+const processShipOpen = ref(false);
+const pickupDate = ref('');
+const pickupTime = ref('');
+const collectionMethod = ref(
+    props.order.shipping_collection_method ?? 'pickup',
+);
+
+// Channel website = alur penuh (transfer → ongkir → booking → pickup).
+const isWebsite = computed(() => props.order.sumber_pembelian === 'website');
+
+// Order website + lunas + diproses → boleh booking kurir / sinkronisasi.
+// Basis "belum lengkap" adalah biteship_order_id (AWB bisa terbit asinkron).
+const canBookShipping = computed(
+    () =>
+        isWebsite.value &&
+        props.order.status === 'diproses' &&
+        props.order.payment_status === 'lunas' &&
+        (!props.order.biteship_order_id || !props.order.awb),
+);
+
+const buktiUrl = computed(() =>
+    props.order.bukti_transfer_path
+        ? `/storage/${props.order.bukti_transfer_path}`
+        : null,
+);
+
+// Dialog "Proses & Kirim" — website: proses + booking + pickup;
+// non-website: proses saja. Sudah booked tapi AWB kosong → sinkronisasi.
+const dialogTitle = computed(() => {
+    if (!isWebsite.value) {
+        return `Proses Order ${props.order.no_order}`;
+    }
+
+    if (props.order.status !== 'menunggu_konfirmasi') {
+        return props.order.biteship_order_id
+            ? `Sinkronisasi & Jadwalkan ${props.order.no_order}`
+            : `Buat Pengiriman ${props.order.no_order}`;
+    }
+
+    return `Proses & Kirim ${props.order.no_order}`;
+});
+
+// ── Dialog Proses Order ──
+const processCourier = ref(props.order.ekspedisi ?? '');
+const processService = ref(props.order.courier_service_code ?? '');
+
+const processServices = computed(() =>
+    props.shippingCouriers.filter(
+        (courier) => courier.courier_code === processCourier.value,
+    ),
+);
+
+watch(
+    processCourier,
+    () => {
+        const available = processServices.value;
+        const current = processService.value;
+
+        if (available.some((service) => service.service_code === current)) {
+            return;
+        }
+
+        // Kode layanan kadang berbeda case antar API Biteship — coba match
+        // case-insensitive dulu sebelum menyerah ke placeholder.
+        const caseInsensitive = available.find(
+            (service) =>
+                service.service_code.toLowerCase() === current.toLowerCase(),
+        );
+
+        if (caseInsensitive) {
+            processService.value = caseInsensitive.service_code;
+
+            return;
+        }
+
+        // Hanya satu layanan tersedia → pilih otomatis; banyak layanan tanpa
+        // kecocokan → biarkan placeholder agar admin sadar memilih.
+        processService.value =
+            available.length === 1 ? (available[0].service_code ?? '') : '';
+    },
+    { immediate: true },
+);
 
 const statusVariant: Record<
     string,
@@ -167,9 +277,6 @@ const flowTypeVariant: Record<
     <div class="flex flex-col gap-4 p-4 md:p-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <Button variant="ghost" size="sm" as-child>
-                    <Link :href="indexRoute().url">← Pesanan</Link>
-                </Button>
                 <h1 class="text-xl font-semibold tracking-tight">
                     {{ order.no_order }}
                 </h1>
@@ -193,9 +300,6 @@ const flowTypeVariant: Record<
                     label="Dropship"
                 />
             </div>
-            <p class="text-sm text-muted-foreground">
-                Detail pesanan, pembayaran, dan proses pengiriman
-            </p>
             <div class="flex flex-wrap items-center gap-2">
                 <!-- Cetak nota/invoice penjualan -->
                 <Button variant="outline" size="sm" as-child>
@@ -208,9 +312,9 @@ const flowTypeVariant: Record<
                         Cetak Nota
                     </a>
                 </Button>
-                <!-- Konfirmasi pembayaran: menunggu → lunas -->
+                <!-- Konfirmasi pembayaran hanya untuk order website -->
                 <Form
-                    v-if="order.payment_status === 'menunggu'"
+                    v-if="order.payment_status === 'menunggu' && isWebsite"
                     v-bind="OrderController.confirmPayment.form(order.id)"
                     v-slot="{ processing }"
                 >
@@ -223,16 +327,38 @@ const flowTypeVariant: Record<
                         Konfirmasi Pembayaran
                     </Button>
                 </Form>
-                <!-- Konfirmasi: isi ongkir + ekspedisi + gudang asal -->
+                <!-- Website: konfirmasi lunas + proses + booking + pickup -->
                 <Button
-                    v-if="order.status === 'menunggu_konfirmasi'"
-                    @click="processOpen = true"
+                    v-if="order.status === 'menunggu_konfirmasi' && isWebsite"
+                    @click="processShipOpen = true"
+                >
+                    <PackageCheck class="size-4" />
+                    Proses & Kirim
+                </Button>
+                <!-- Non-website (toko/marketplace): proses saja -->
+                <Button
+                    v-if="order.status === 'menunggu_konfirmasi' && !isWebsite"
+                    @click="processShipOpen = true"
                 >
                     <PackageCheck class="size-4" />
                     Proses Order
                 </Button>
+                <!-- Booking / sinkronisasi untuk order website diproses -->
+                <Button
+                    v-if="canBookShipping"
+                    variant="outline"
+                    @click="processShipOpen = true"
+                >
+                    <PackageCheck class="size-4" />
+                    {{
+                        order.biteship_order_id && !order.awb
+                            ? 'Sinkronisasi & Jadwalkan'
+                            : 'Buat Pengiriman'
+                    }}
+                </Button>
+                <!-- Website: tandai dikirim (wajib AWB sudah terbit) -->
                 <Form
-                    v-if="order.status === 'diproses'"
+                    v-if="order.status === 'diproses' && isWebsite && order.awb"
                     v-bind="OrderController.updateStatus.form(order.id)"
                     v-slot="{ processing }"
                 >
@@ -244,6 +370,18 @@ const flowTypeVariant: Record<
                     >
                         <Truck class="size-4" />
                         Tandai Dikirim
+                    </Button>
+                </Form>
+                <!-- Non-website: langsung selesai dari diproses -->
+                <Form
+                    v-if="order.status === 'diproses' && !isWebsite"
+                    v-bind="OrderController.updateStatus.form(order.id)"
+                    v-slot="{ processing }"
+                >
+                    <input type="hidden" name="status" value="selesai" />
+                    <Button type="submit" :disabled="processing">
+                        <CheckCircle2 class="size-4" />
+                        Selesaikan Pesanan
                     </Button>
                 </Form>
                 <Form
@@ -539,6 +677,203 @@ const flowTypeVariant: Record<
                     </CardContent>
                 </Card>
 
+                <!-- Bukti transfer dari customer -->
+                <Card v-if="buktiUrl">
+                    <CardHeader>
+                        <CardTitle class="text-base font-medium"
+                            >Bukti Transfer</CardTitle
+                        >
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-3">
+                        <img
+                            :src="buktiUrl"
+                            :alt="`Bukti transfer ${order.no_order}`"
+                            class="max-h-48 w-full rounded-lg border bg-muted object-contain"
+                        />
+                        <Button variant="outline" size="sm" as-child>
+                            <a :href="buktiUrl" target="_blank" rel="noopener">
+                                <FileImage class="size-4" />
+                                Buka Bukti
+                            </a>
+                        </Button>
+                        <p
+                            v-if="order.bukti_transfer_at"
+                            class="text-xs text-muted-foreground"
+                        >
+                            Diunggah
+                            {{
+                                new Date(
+                                    order.bukti_transfer_at,
+                                ).toLocaleString('id-ID', {
+                                    timeZone: 'Asia/Jakarta',
+                                })
+                            }}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <!-- Pengiriman Biteship -->
+                <Card v-if="order.sumber_pembelian !== 'toko'">
+                    <CardHeader>
+                        <CardTitle
+                            class="flex items-center gap-2 text-base font-medium"
+                        >
+                            <Truck class="size-4" />
+                            Pengiriman Biteship
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-3 text-sm">
+                        <!-- Origin toko belum lengkap → Biteship menolak booking -->
+                        <div
+                            v-if="originIncomplete && !order.biteship_order_id"
+                            class="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/5 px-3 py-2.5 text-xs text-destructive"
+                        >
+                            <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+                            <div>
+                                <p class="font-medium">
+                                    Data alamat pengirim belum lengkap.
+                                </p>
+                                <p>
+                                    Lengkapi nomor telepon & alamat toko di
+                                    <Link
+                                        :href="'/admin/settings/lembaga'"
+                                        class="font-semibold underline underline-offset-2"
+                                    >
+                                        Pengaturan → Lembaga
+                                    </Link>
+                                    sebelum membuat pengiriman.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Belum booking (biteship_order_id kosong) -->
+                        <template v-if="!order.biteship_order_id">
+                            <p
+                                v-if="canBookShipping"
+                                class="text-muted-foreground"
+                            >
+                                Buat pengiriman untuk menerbitkan AWB & label
+                                (saldo Biteship terpotong).
+                            </p>
+                            <p v-else class="text-xs text-muted-foreground">
+                                {{
+                                    order.status === 'diproses' &&
+                                    order.payment_status === 'menunggu'
+                                        ? 'Konfirmasi pembayaran terlebih dahulu untuk membuat pengiriman.'
+                                        : 'Pengiriman dapat dibuat saat order berstatus Diproses.'
+                                }}
+                            </p>
+                            <Button
+                                v-if="canBookShipping"
+                                size="sm"
+                                @click="processShipOpen = true"
+                            >
+                                <PackageCheck class="size-4" />
+                                Buat Pengiriman
+                            </Button>
+                        </template>
+
+                        <!-- Sudah booking -->
+                        <template v-else>
+                            <div
+                                class="flex items-center justify-between gap-3"
+                            >
+                                <div>
+                                    <p class="text-xs text-muted-foreground">
+                                        AWB
+                                    </p>
+                                    <p
+                                        class="font-mono text-base font-semibold"
+                                    >
+                                        {{
+                                            order.awb ??
+                                            'Menunggu AWB dari kurir…'
+                                        }}
+                                    </p>
+                                </div>
+                                <StatusBadge
+                                    v-if="order.biteship_status"
+                                    variant="info"
+                                    :label="order.biteship_status"
+                                />
+                            </div>
+                            <Button
+                                v-if="!order.awb && canBookShipping"
+                                size="sm"
+                                variant="outline"
+                                @click="processShipOpen = true"
+                            >
+                                <RefreshCw class="size-4" />
+                                Sinkronisasi & Jadwalkan
+                            </Button>
+                            <p class="text-xs text-muted-foreground">
+                                Metode penyerahan:
+                                {{
+                                    order.shipping_collection_method ===
+                                    'drop_off'
+                                        ? 'Antar ke agen ekspedisi'
+                                        : 'Dijemput kurir'
+                                }}
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <Button
+                                    v-if="order.biteship_label_url"
+                                    variant="outline"
+                                    size="sm"
+                                    as-child
+                                >
+                                    <a
+                                        :href="
+                                            OrderController.shippingLabel(
+                                                order.id,
+                                            ).url
+                                        "
+                                        target="_blank"
+                                        rel="noopener"
+                                    >
+                                        <Printer class="size-4" />
+                                        Print Label
+                                    </a>
+                                </Button>
+                                <Form
+                                    v-bind="
+                                        OrderController.refreshShipping.form(
+                                            order.id,
+                                        )
+                                    "
+                                >
+                                    <Button
+                                        type="submit"
+                                        variant="outline"
+                                        size="sm"
+                                    >
+                                        <RefreshCw class="size-4" />
+                                        Refresh Status
+                                    </Button>
+                                </Form>
+                                <Form
+                                    v-bind="
+                                        OrderController.cancelShipping.form(
+                                            order.id,
+                                        )
+                                    "
+                                    v-slot="{ processing }"
+                                >
+                                    <Button
+                                        type="submit"
+                                        variant="destructive"
+                                        size="sm"
+                                        :disabled="processing"
+                                    >
+                                        <XCircle class="size-4" />
+                                        Batalkan Pengiriman
+                                    </Button>
+                                </Form>
+                            </div>
+                        </template>
+                    </CardContent>
+                </Card>
+
                 <Card v-if="order.cash_flows.length">
                     <CardHeader>
                         <CardTitle class="text-base font-medium"
@@ -572,88 +907,259 @@ const flowTypeVariant: Record<
             </div>
         </div>
 
-        <!-- Dialog proses order -->
-        <Dialog v-model:open="processOpen">
+        <!-- Dialog Proses & Kirim (konfirmasi lunas + proses + booking + pickup) -->
+        <Dialog v-model:open="processShipOpen">
             <DialogContent class="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Proses Order {{ order.no_order }}</DialogTitle>
+                    <DialogTitle>{{ dialogTitle }}</DialogTitle>
                     <DialogDescription>
-                        Isi ongkir final, pilih ekspedisi, dan tentukan gudang
-                        asal. Status berubah menjadi <b>Diproses</b>.
+                        <template
+                            v-if="
+                                order.status === 'menunggu_konfirmasi' &&
+                                isWebsite
+                            "
+                        >
+                            Konfirmasi lunas, isi ongkir & ekspedisi, lalu
+                            terbitkan pengiriman — semua dalam satu langkah.
+                        </template>
+                        <template
+                            v-else-if="
+                                order.status === 'menunggu_konfirmasi' &&
+                                !isWebsite
+                            "
+                        >
+                            Isi ongkir & tentukan gudang asal. Status berubah
+                            menjadi <b>Diproses</b>.
+                        </template>
+                        <template v-else>
+                            Terbitkan AWB & label; saldo Biteship terpotong
+                            sesuai tarif.
+                        </template>
                     </DialogDescription>
                 </DialogHeader>
 
                 <Form
-                    v-bind="OrderController.process.form(order.id)"
+                    v-bind="OrderController.processAndShip.form(order.id)"
                     class="grid gap-4"
                     v-slot="{ errors, processing }"
-                    @success="processOpen = false"
+                    @success="processShipOpen = false"
                 >
-                    <div class="grid gap-2">
-                        <Label for="shipping_cost">Ongkir Final (Rp) *</Label>
-                        <CurrencyInput
-                            id="shipping_cost"
-                            name="shipping_cost"
-                            :default-value="order.shipping_cost || undefined"
-                            required
+                    <!-- Konfirmasi lunas (hanya website saat pembayaran menunggu) -->
+                    <div
+                        v-if="order.payment_status === 'menunggu' && isWebsite"
+                        class="flex items-center gap-2"
+                    >
+                        <Checkbox
+                            id="konfirmasi_lunas"
+                            name="konfirmasi_lunas"
+                            value="1"
                         />
-                        <span
-                            v-if="errors.shipping_cost"
-                            class="text-sm text-destructive"
-                            >{{ errors.shipping_cost }}</span
+                        <Label
+                            for="konfirmasi_lunas"
+                            class="leading-tight font-normal"
                         >
+                            Tandai pembayaran <b>lunas</b>
+                        </Label>
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="ekspedisi">Ekspedisi *</Label>
-                        <Select
-                            name="ekspedisi"
-                            :default-value="order.ekspedisi ?? undefined"
+
+                    <template v-if="order.status === 'menunggu_konfirmasi'">
+                        <div class="grid gap-2">
+                            <Label for="shipping_cost"
+                                >Ongkir Final (Rp) *</Label
+                            >
+                            <CurrencyInput
+                                id="shipping_cost"
+                                name="shipping_cost"
+                                :default-value="
+                                    order.shipping_cost || undefined
+                                "
+                                required
+                            />
+                            <span
+                                v-if="errors.shipping_cost"
+                                class="text-sm text-destructive"
+                                >{{ errors.shipping_cost }}</span
+                            >
+                        </div>
+                        <div v-if="isWebsite" class="grid gap-2">
+                            <Label for="ekspedisi">Ekspedisi</Label>
+                            <Select v-model="processCourier">
+                                <SelectTrigger id="ekspedisi">
+                                    <SelectValue
+                                        placeholder="Pilih ekspedisi"
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="(label, value) in couriers"
+                                        :key="value"
+                                        :value="value"
+                                    >
+                                        {{ label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <input
+                                type="hidden"
+                                name="ekspedisi"
+                                :value="processCourier"
+                            />
+                            <span
+                                v-if="errors.ekspedisi"
+                                class="text-sm text-destructive"
+                                >{{ errors.ekspedisi }}</span
+                            >
+                        </div>
+                        <div
+                            v-if="isWebsite && processServices.length"
+                            class="grid gap-2"
                         >
-                            <SelectTrigger id="ekspedisi">
-                                <SelectValue placeholder="Pilih ekspedisi" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="(label, value) in couriers"
-                                    :key="value"
-                                    :value="value"
+                            <Label for="courier_service_code">Layanan</Label>
+                            <Select v-model="processService">
+                                <SelectTrigger id="courier_service_code">
+                                    <SelectValue placeholder="Pilih layanan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="service in processServices"
+                                        :key="service.service_code"
+                                        :value="service.service_code"
+                                    >
+                                        {{ service.service_name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <input
+                                type="hidden"
+                                name="courier_service_code"
+                                :value="processService"
+                            />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="warehouse_origin">Gudang Asal *</Label>
+                            <Select name="warehouse_origin">
+                                <SelectTrigger id="warehouse_origin">
+                                    <SelectValue placeholder="Pilih gudang" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="(
+                                            label, value
+                                        ) in warehouseOptions"
+                                        :key="value"
+                                        :value="value"
+                                    >
+                                        {{ label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <span
+                                v-if="errors.warehouse_origin"
+                                class="text-sm text-destructive"
+                                >{{ errors.warehouse_origin }}</span
+                            >
+                        </div>
+                    </template>
+
+                    <!-- Metode penyerahan (hanya website) -->
+                    <template v-if="isWebsite">
+                        <div class="grid gap-2">
+                            <Label>Metode Penyerahan</Label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label
+                                    class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition-colors"
+                                    :class="
+                                        collectionMethod === 'pickup'
+                                            ? 'border-primary bg-primary/5'
+                                            : ''
+                                    "
                                 >
-                                    {{ label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <span
-                            v-if="errors.ekspedisi"
-                            class="text-sm text-destructive"
-                            >{{ errors.ekspedisi }}</span
-                        >
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="warehouse_origin">Gudang Asal *</Label>
-                        <Select name="warehouse_origin">
-                            <SelectTrigger id="warehouse_origin">
-                                <SelectValue placeholder="Pilih gudang" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="(label, value) in warehouseOptions"
-                                    :key="value"
-                                    :value="value"
+                                    <input
+                                        type="radio"
+                                        name="collection_method"
+                                        value="pickup"
+                                        v-model="collectionMethod"
+                                        class="mt-0.5 accent-primary"
+                                    />
+                                    <span>
+                                        <span class="block font-medium">
+                                            Dijemput Kurir
+                                        </span>
+                                        <span
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Kurir mengambil di alamat toko
+                                        </span>
+                                    </span>
+                                </label>
+                                <label
+                                    class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition-colors"
+                                    :class="
+                                        collectionMethod === 'drop_off'
+                                            ? 'border-primary bg-primary/5'
+                                            : ''
+                                    "
                                 >
-                                    {{ label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <span
-                            v-if="errors.warehouse_origin"
-                            class="text-sm text-destructive"
-                            >{{ errors.warehouse_origin }}</span
+                                    <input
+                                        type="radio"
+                                        name="collection_method"
+                                        value="drop_off"
+                                        v-model="collectionMethod"
+                                        class="mt-0.5 accent-primary"
+                                    />
+                                    <span>
+                                        <span class="block font-medium">
+                                            Antar ke Agen
+                                        </span>
+                                        <span
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Kirim sendiri ke ekspedisi
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="collectionMethod === 'pickup'"
+                            class="grid grid-cols-2 gap-3"
                         >
-                    </div>
+                            <div class="grid gap-2">
+                                <Label for="pickup_date">Tanggal Jemput</Label>
+                                <Input
+                                    id="pickup_date"
+                                    name="pickup_date"
+                                    type="date"
+                                    v-model="pickupDate"
+                                />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="pickup_time">Jam</Label>
+                                <Input
+                                    id="pickup_time"
+                                    name="pickup_time"
+                                    type="time"
+                                    v-model="pickupTime"
+                                />
+                            </div>
+                        </div>
+                    </template>
+
                     <DialogFooter>
                         <Button type="submit" :disabled="processing">
                             <ArrowRight class="size-4" />
-                            {{ processing ? 'Memproses...' : 'Proses Order' }}
+                            {{
+                                processing
+                                    ? 'Memproses...'
+                                    : !isWebsite
+                                      ? 'Proses Order'
+                                      : order.status === 'menunggu_konfirmasi'
+                                        ? 'Proses & Kirim'
+                                        : order.biteship_order_id && !order.awb
+                                          ? 'Sinkronisasi & Jadwalkan'
+                                          : 'Buat Pengiriman'
+                            }}
                         </Button>
                     </DialogFooter>
                 </Form>

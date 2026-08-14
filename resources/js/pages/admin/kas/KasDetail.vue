@@ -9,8 +9,8 @@ defineOptions({
     },
 });
 
-import { Head, Link } from '@inertiajs/vue3';
-import { ArrowDownCircle, ArrowUpCircle, Plus, Undo2 } from '@lucide/vue';
+import { Head } from '@inertiajs/vue3';
+import { ArrowDownCircle, ArrowUpCircle, Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
@@ -18,7 +18,6 @@ import KasEntryDialog from '@/components/KasEntryDialog.vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { index as indexRoute } from '@/routes/admin/kas';
 
 type FlowRow = {
     id: string;
@@ -63,12 +62,6 @@ function formatDate(date: string): string {
     <div class="flex flex-col gap-4 p-4 md:p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <Button variant="ghost" size="sm" class="mb-1 -ml-2" as-child>
-                    <Link :href="indexRoute().url">
-                        <Undo2 class="size-4" />
-                        Kembali
-                    </Link>
-                </Button>
                 <h1 class="text-xl font-semibold tracking-tight">
                     Pencatatan Kas — {{ bulan_label }}
                 </h1>

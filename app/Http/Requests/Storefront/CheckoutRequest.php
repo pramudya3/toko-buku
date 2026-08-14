@@ -34,7 +34,14 @@ class CheckoutRequest extends FormRequest
             'kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'metode_bayar' => ['required', Rule::in(StoreSettings::enabledPaymentMethodValues() ?: ['__tidak_ada__'])],
-            'ekspedisi' => ['nullable', 'string', 'max:50'],
+            // Ekspedisi wajib salah satu kurir aktif (Settings → Ekspedisi).
+            'ekspedisi' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::in(StoreSettings::enabledCourierCodes() ?: ['__tidak_ada__']),
+            ],
+            'courier_service_code' => ['nullable', 'string', 'max:50'],
             'selected_groups' => ['nullable', 'array'],
             'selected_groups.*' => ['string', 'max:50'],
         ];

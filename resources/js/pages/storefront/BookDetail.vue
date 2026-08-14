@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import { Minus, Plus, ShoppingCart } from '@lucide/vue';
+import { Form, Head, usePage } from '@inertiajs/vue3';
+import { BellRing, Minus, Plus, ShoppingCart } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
+import StockRequestController from '@/actions/App/Http/Controllers/StockRequestController';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
@@ -64,11 +65,17 @@ type Book = {
 
 const props = defineProps<{
     book: Book;
+    /** Apakah user login sudah mengajukan stok buku ini. */
+    requested?: boolean;
 }>();
 
 defineOptions({
     layout: CustomerLayout,
 });
+
+// User login — tombol "Ajukan Stok" hanya untuk yang sudah login.
+const page = usePage();
+const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
 
 const qty = ref(1);
 
@@ -361,11 +368,43 @@ const specs = computed(() =>
                 </div>
 
                 <p v-if="book.stok === 0" class="text-sm text-destructive">
-                    Stok habis — silakan hubungi kami.
+                    Stok habis
+                    <template v-if="isLoggedIn">
+                        — ajukan pemberitahuan, kami kabari saat tersedia.
+                    </template>
+                    <template v-else> — silakan hubungi kami. </template>
                 </p>
 
+                <!-- Stok habis + login → ajukan pemberitahuan stok -->
+                <Form
+                    v-if="book.stok === 0 && isLoggedIn"
+                    :action="StockRequestController.store(book.id).url"
+                    method="post"
+                    class="flex flex-col gap-2"
+                >
+                    <Button
+                        type="submit"
+                        size="lg"
+                        :disabled="requested"
+                        class="w-full"
+                    >
+                        <BellRing class="size-4" />
+                        {{ requested ? 'Sudah Diajukan' : 'Ajukan Stok' }}
+                    </Button>
+                    <p class="text-xs text-muted-foreground">
+                        {{
+                            requested
+                                ? 'Anda sudah mengajukan pemberitahuan untuk buku ini.'
+                                : 'Kami kirim pemberitahuan saat stok kembali tersedia.'
+                        }}
+                    </p>
+                </Form>
+
                 <!-- Pilih cetakan: tiap cetakan punya harga sendiri -->
-                <div v-if="editions.length > 1" class="grid gap-2">
+                <div
+                    v-if="book.stok > 0 && editions.length > 1"
+                    class="grid gap-2"
+                >
                     <label class="text-sm font-medium" for="edition-select">
                         Pilih Cetakan
                     </label>
@@ -413,6 +452,7 @@ const specs = computed(() =>
                 </div>
 
                 <Form
+                    v-if="book.stok > 0"
                     :action="CartController.add().url"
                     method="post"
                     class="flex flex-col gap-3"

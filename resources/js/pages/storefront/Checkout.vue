@@ -80,6 +80,7 @@ type UserInfo = {
 type ShippingOption = {
     courier_code: string;
     courier_name: string;
+    service_code: string;
     price: number;
     weight: number;
     estimation: string | null;
@@ -249,11 +250,33 @@ const ongkirRequest = useHttp<{
 }>();
 let ongkirTimer: ReturnType<typeof setTimeout> | undefined;
 
-const selectedShippingOption = computed(
-    () =>
+// Value Select berbentuk "courier_code:service_code" — layanan tersimpan
+// lewat hidden input, bukan hilang seperti sebelumnya.
+const selectedShippingValue = ref('');
+
+// Opsi yang benar-benar dipilih user (courier:service) — bukan asumsi
+// layanan pertama dari kurir (bug lama: semua order tersimpan NULL).
+const selectedShippingOption = computed(() => {
+    if (selectedShippingValue.value !== '') {
+        return (
+            shippingCosts.value.find(
+                (option) =>
+                    `${option.courier_code}:${option.service_code}` ===
+                    selectedShippingValue.value,
+            ) ?? null
+        );
+    }
+
+    // Fallback: belum pilih layanan → opsi pertama kurir terpilih.
+    return (
         shippingCosts.value.find(
-            (c) => c.courier_code === selectedCourier.value,
-        ) ?? null,
+            (option) => option.courier_code === selectedCourier.value,
+        ) ?? null
+    );
+});
+
+const selectedServiceCode = computed(
+    () => selectedShippingOption.value?.service_code ?? '',
 );
 
 const shippingCost = computed(() => selectedShippingOption.value?.price ?? 0);
@@ -269,6 +292,7 @@ watch(
     ],
     () => {
         selectedCourier.value = '';
+        selectedShippingValue.value = '';
         shippingCosts.value = [];
         shippingWeight.value = null;
         ongkirError.value = '';
@@ -322,6 +346,7 @@ function checkOngkir(): void {
                     )
                 ) {
                     selectedCourier.value = '';
+                    selectedShippingValue.value = '';
                 }
 
                 ongkirError.value =
@@ -433,7 +458,10 @@ function onFormError() {
             v-slot="{ errors, processing }"
             @error="onFormError"
         >
-            <div v-if="groups.length" class="grid gap-6 lg:grid-cols-2">
+            <div
+                v-if="groups.length"
+                class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+            >
                 <div class="flex flex-col gap-6">
                     <Card>
                         <CardContent class="flex flex-col gap-6">
@@ -441,7 +469,9 @@ function onFormError() {
                                 <h2 class="text-sm font-semibold">
                                     Data Pembeli
                                 </h2>
-                                <div class="mt-3 grid gap-4 md:grid-cols-2">
+                                <div
+                                    class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
+                                >
                                     <div class="grid gap-2">
                                         <Label for="nama_pembeli"
                                             >Nama Lengkap *</Label
@@ -504,7 +534,9 @@ function onFormError() {
                                 <h2 class="text-sm font-semibold">
                                     Pembayaran & Pengiriman
                                 </h2>
-                                <div class="mt-3 grid gap-4 md:grid-cols-2">
+                                <div
+                                    class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
+                                >
                                     <div class="grid gap-2">
                                         <Label for="metode_bayar"
                                             >Metode Bayar *</Label
@@ -547,12 +579,14 @@ function onFormError() {
                                             <p
                                                 v-for="account in bankAccounts"
                                                 :key="account.id"
-                                                class="flex items-center gap-2"
+                                                class="flex flex-wrap items-center gap-2"
                                             >
                                                 <span class="font-medium">
                                                     {{ account.bank_name }}
                                                 </span>
-                                                <span class="font-mono">
+                                                <span
+                                                    class="font-mono break-all"
+                                                >
                                                     {{ account.account_number }}
                                                 </span>
                                                 <span
@@ -569,14 +603,33 @@ function onFormError() {
                                             >Ekspedisi & Ongkir</Label
                                         >
                                         <div class="flex items-end gap-2">
-                                            <div class="grid flex-1 gap-2">
+                                            <div
+                                                class="grid min-w-0 flex-1 gap-2"
+                                            >
                                                 <Select
-                                                    v-model="selectedCourier"
-                                                    name="ekspedisi"
+                                                    v-model="
+                                                        selectedShippingValue
+                                                    "
                                                     :disabled="
                                                         ongkirLoading ||
                                                         shippingCosts.length ===
                                                             0
+                                                    "
+                                                    @update:model-value="
+                                                        (val) => {
+                                                            const value =
+                                                                String(
+                                                                    val ?? '',
+                                                                );
+                                                            const [courier] =
+                                                                value.split(
+                                                                    ':',
+                                                                );
+                                                            selectedShippingValue =
+                                                                value;
+                                                            selectedCourier =
+                                                                courier ?? '';
+                                                        }
                                                     "
                                                 >
                                                     <SelectTrigger
@@ -597,12 +650,8 @@ function onFormError() {
                                                     >
                                                         <SelectItem
                                                             v-for="option in shippingCosts"
-                                                            :key="
-                                                                option.courier_code
-                                                            "
-                                                            :value="
-                                                                option.courier_code
-                                                            "
+                                                            :key="`${option.courier_code}:${option.service_code}`"
+                                                            :value="`${option.courier_code}:${option.service_code}`"
                                                         >
                                                             {{
                                                                 option.courier_name
@@ -626,6 +675,16 @@ function onFormError() {
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                                <input
+                                                    type="hidden"
+                                                    name="ekspedisi"
+                                                    :value="selectedCourier"
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    name="courier_service_code"
+                                                    :value="selectedServiceCode"
+                                                />
                                             </div>
                                             <Button
                                                 type="button"
@@ -701,7 +760,7 @@ function onFormError() {
                             >
                                 <div class="flex items-center gap-2">
                                     <label
-                                        class="flex cursor-pointer items-center gap-2"
+                                        class="flex min-w-0 cursor-pointer items-center gap-2"
                                     >
                                         <Checkbox
                                             :model-value="
@@ -721,7 +780,9 @@ function onFormError() {
                                                     )
                                             "
                                         />
-                                        <span class="text-sm font-semibold">
+                                        <span
+                                            class="min-w-0 text-sm font-semibold"
+                                        >
                                             {{ group.name }}
                                         </span>
                                     </label>
@@ -787,7 +848,7 @@ function onFormError() {
                                                     "
                                                 >
                                                     <SelectTrigger
-                                                        class="h-7 w-auto gap-1 rounded-md border px-1.5 text-xs"
+                                                        class="h-7 w-auto max-w-44 min-w-0 gap-1 rounded-md border px-1.5 text-xs"
                                                     >
                                                         <SelectValue
                                                             placeholder="Cetakan"

@@ -366,8 +366,16 @@ class CheckoutController extends Controller
 
             try {
                 $items = $this->cartToBiteshipItems($cart);
+                $serviceCode = $data['courier_service_code'] ?? null;
                 $matched = collect($this->shippingCost->costs($kodePos, $items))
-                    ->firstWhere('courier_code', $courierCode);
+                    ->first(function (array $rate) use ($courierCode, $serviceCode): bool {
+                        if ($rate['courier_code'] !== $courierCode) {
+                            return false;
+                        }
+
+                        return $serviceCode === null || $serviceCode === ''
+                            || ($rate['service_code'] ?? '') === $serviceCode;
+                    });
 
                 if ($matched === null) {
                     return back()->withErrors(['ekspedisi' => 'Ekspedisi tidak valid — pilih ulang dari daftar ongkir.']);
@@ -445,6 +453,7 @@ class CheckoutController extends Controller
                         'sumber_pembelian' => 'website',
                         'total' => 0,
                         'ekspedisi' => $courierCode,
+                        'courier_service_code' => $data['courier_service_code'] ?? null,
                         'shipping_cost' => $shippingCost,
                         'ongkir_estimasi' => $shippingEstimation,
                         'is_dropship' => false,

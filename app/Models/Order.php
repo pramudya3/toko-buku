@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -39,12 +40,25 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property PaymentStatus $payment_status
  * @property string|null $ekspedisi
  * @property string|null $ongkir_estimasi
+ * @property string|null $courier_service_code
+ * @property string|null $shipping_collection_method
+ * @property string|null $bukti_transfer_path
+ * @property Carbon|null $bukti_transfer_at
+ * @property string|null $biteship_order_id
+ * @property string|null $awb
+ * @property string|null $biteship_label_url
+ * @property string|null $biteship_status
+ * @property string|null $biteship_courier_link
  */
 #[Fillable([
     'no_order', 'user_id', 'nama_pembeli', 'no_hp', 'email_pembeli', 'alamat',
     'provinsi', 'kabupaten_kota', 'kecamatan', 'kode_pos', 'nama_penerima',
     'metode_bayar', 'sumber_pembelian', 'total', 'shipping_cost', 'is_dropship', 'warehouse_origin',
-    'status', 'payment_status', 'ekspedisi', 'ongkir_estimasi',
+    'status', 'payment_status', 'ekspedisi', 'ongkir_estimasi', 'courier_service_code',
+    'shipping_collection_method',
+    'bukti_transfer_path', 'bukti_transfer_at',
+    'biteship_order_id', 'awb', 'biteship_label_url', 'biteship_status',
+    'biteship_courier_link',
 ])]
 #[ObservedBy([OrderObserver::class])]
 class Order extends Model
@@ -95,6 +109,7 @@ class Order extends Model
             'is_dropship' => 'boolean',
             'status' => OrderStatus::class,
             'payment_status' => PaymentStatus::class,
+            'bukti_transfer_at' => 'datetime',
         ];
     }
 

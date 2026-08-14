@@ -12,6 +12,10 @@ use App\Models\Promotion;
 use App\Models\Setting;
 use App\Models\User;
 
+beforeEach(function (): void {
+    $this->customer = User::factory()->create();
+});
+
 it('lists only active books in the catalog', function (): void {
     Book::factory()->create(['judul' => 'Buku Aktif', 'aktif' => true]);
     Book::factory()->create(['judul' => 'Buku Nonaktif', 'aktif' => false]);
@@ -314,7 +318,7 @@ it('keeps separate cart lines per edition and prices checkout by edition', funct
     ]);
 
     // Checkout dengan kedua cetakan: harga per baris mengikuti cetakan.
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Budi',
         'whatsapp_pembeli' => '08123456789',
         'metode_bayar' => 'transfer',
@@ -391,7 +395,7 @@ it('groups checkout items by bundle promo with per-group pricing', function (): 
     // Paket A+B + buku bebas C (bukan bundle).
     session(['cart' => [$bookA->id => 1, $bookB->id => 1, $bookC->id => 1]]);
 
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
 
     expect($props['groups'])->toHaveCount(2)
         ->and($props['selectedGroups'])->toBe(['bundle-'.$promo->id, 'regular'])
@@ -419,7 +423,7 @@ it('only processes selected groups when placing the order', function (): void {
     session(['cart' => [$bookA->id => 1, $bookB->id => 1, $bookC->id => 1]]);
 
     // Hanya grup bundle yang diproses — buku bebas C tidak ikut.
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli Grup',
         'metode_bayar' => 'transfer',
         'selected_groups' => ['bundle-'.$promo->id],
@@ -436,7 +440,7 @@ it('rejects checkout when no group is selected', function (): void {
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true]);
     session(['cart' => [$book->id => 1]]);
 
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli',
         'metode_bayar' => 'transfer',
         'selected_groups' => [],
@@ -452,7 +456,7 @@ it('includes the per-unit promo name on checkout items', function (): void {
 
     session(['cart' => [$book->id => 1]]);
 
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
 
     expect($props['groups'][0]['items'][0]['promo_name'])->toBe('Promo Tes')
         ->and($props['groups'][0]['items'][0]['promo_discount'])->toBe(10000);
@@ -470,7 +474,7 @@ it('gives bundle books only the bundle discount in checkout', function (): void 
 
     session(['cart' => [$bookA->id => 1, $bookB->id => 1]]);
 
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
     $items = $props['groups'][0]['items'];
 
     // Hanya diskon bundle 15% dari harga dasar — promo 20% diabaikan.
@@ -492,7 +496,7 @@ it('caps bundle discount at one set in checkout', function (): void {
     // bookA qty 2 → hanya 1 eksemplar mendapat diskon, sisanya harga normal.
     session(['cart' => [$bookA->id => 2, $bookB->id => 1]]);
 
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
     $itemA = collect($props['groups'][0]['items'])->firstWhere('book.id', $bookA->id);
     $itemB = collect($props['groups'][0]['items'])->firstWhere('book.id', $bookB->id);
 
@@ -516,7 +520,7 @@ it('moves incomplete bundle books to regular group with normal price', function 
     // Buku paket A dihapus — tersisa B (bundle tidak lengkap) + C.
     session(['cart' => [$bookB->id => 1, $bookC->id => 1]]);
 
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
 
     // Hanya 1 grup "Item Lainnya" — nama promo tidak muncul, harga normal.
     expect($props['groups'])->toHaveCount(1)
@@ -535,7 +539,7 @@ it('returns shipping costs for the cart destination', function (): void {
     $book = Book::factory()->withStock(malang: 3)->create(['aktif' => true, 'berat_gr' => 500]);
     session(['cart' => [$book->id => 2]]);
 
-    $this->post(route('checkout.shipping-cost'), [
+    $this->actingAs($this->customer)->post(route('checkout.shipping-cost'), [
         'postal_code' => '65144',
     ])
         ->assertOk()
@@ -559,12 +563,12 @@ it('calculates shipping costs only for the selected groups', function (): void {
     session(['cart' => [$bookA->id => 1, $bookB->id => 1, $bookC->id => 1]]);
 
     // Tanpa filter: berat semua item (3 kg).
-    $this->post(route('checkout.shipping-cost'), [
+    $this->actingAs($this->customer)->post(route('checkout.shipping-cost'), [
         'postal_code' => '65144',
     ])->assertJsonPath('weight_kg', 3);
 
     // Hanya grup bundle yang dipilih: buku bebas C tidak ikut dihitung.
-    $this->post(route('checkout.shipping-cost'), [
+    $this->actingAs($this->customer)->post(route('checkout.shipping-cost'), [
         'postal_code' => '65144',
         'selected_groups' => ['bundle-'.$promo->id],
     ])
@@ -573,7 +577,7 @@ it('calculates shipping costs only for the selected groups', function (): void {
         ->assertJsonPath('costs.0.courier_code', 'jne');
 
     // Tidak ada grup dipilih: tidak ada ongkir yang dihitung.
-    $this->post(route('checkout.shipping-cost'), [
+    $this->actingAs($this->customer)->post(route('checkout.shipping-cost'), [
         'postal_code' => '65144',
         'selected_groups' => [],
     ])
@@ -622,7 +626,7 @@ it('saves shipping cost and courier when placing the order', function (): void {
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 50000]);
     session(['cart' => [$book->id => 1]]);
 
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli Ongkir',
         'metode_bayar' => 'transfer',
         'kode_pos' => '65144',
@@ -645,7 +649,7 @@ it('rejects invalid courier when placing the order', function (): void {
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'berat_gr' => 500]);
     session(['cart' => [$book->id => 1]]);
 
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli',
         'metode_bayar' => 'transfer',
         'kelurahan' => 'Merjosari',
@@ -661,19 +665,19 @@ it('keeps the group selection empty when the user unchecks all groups', function
     session(['cart' => [$book->id => 1]]);
     session(['checkout_selected_groups' => []]);
 
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
 
     // User boleh uncheck semua grup — pilihan kosong tetap dihormati
     // (submit dinonaktifkan, bukan dipaksa centang ulang).
     expect($props['selectedGroups'])->toBe([]);
 });
 
-it('creates a guest checkout order with waiting status', function (): void {
+it('creates a checkout order linked to the logged-in user', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'harga' => 50000]);
 
     session(['cart' => [$book->id => 2]]);
 
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli Baru',
         'whatsapp_pembeli' => '08123456789',
         'alamat' => 'Jl. Merdeka 1',
@@ -687,7 +691,7 @@ it('creates a guest checkout order with waiting status', function (): void {
 
     $order = Order::firstOrFail();
 
-    expect($order->user_id)->toBeNull()
+    expect($order->user_id)->toBe($this->customer->id)
         ->and($order->status)->toBe(OrderStatus::MenungguKonfirmasi)
         ->and($order->nama_pembeli)->toBe('Pembeli Baru')
         ->and($order->provinsi)->toBe('JAWA TIMUR')
@@ -714,7 +718,7 @@ it('rejects checkout when stock is insufficient', function (): void {
 
     session(['cart' => [$book->id => 5]]);
 
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli',
         'metode_bayar' => 'transfer',
     ])->assertSessionHasErrors('items');
@@ -733,19 +737,31 @@ it('exposes wilayah endpoints publicly', function (): void {
 });
 
 it('shows checkout success page for the order owner', function (): void {
-    $order = Order::factory()->create(['no_order' => 'SF-123', 'nama_pembeli' => 'Budi']);
+    $order = Order::factory()->create([
+        'no_order' => 'SF-123',
+        'nama_pembeli' => 'Budi',
+        'user_id' => $this->customer->id,
+    ]);
 
     session(['checkout_orders' => ['SF-123']]);
 
-    $this->get(route('checkout.success', ['no_order' => 'SF-123']))
+    $this->actingAs($this->customer)
+        ->get(route('checkout.success', ['no_order' => 'SF-123']))
         ->assertOk()
         ->assertSee('SF-123');
 });
 
 it('hides checkout success page from strangers', function (): void {
-    $order = Order::factory()->create(['no_order' => 'SF-RAHASIA', 'nama_pembeli' => 'Budi']);
+    Order::factory()->create([
+        'no_order' => 'SF-RAHASIA',
+        'nama_pembeli' => 'Budi',
+        'user_id' => $this->customer->id,
+    ]);
 
-    $this->get(route('checkout.success', ['no_order' => 'SF-RAHASIA']))
+    $stranger = User::factory()->create();
+
+    $this->actingAs($stranger)
+        ->get(route('checkout.success', ['no_order' => 'SF-RAHASIA']))
         ->assertNotFound();
 });
 
@@ -771,13 +787,13 @@ it('rate limits checkout submissions', function (): void {
     session(['cart' => [$book->id => 1]]);
 
     for ($i = 0; $i < 5; $i++) {
-        $this->post(route('checkout.store'), [
+        $this->actingAs($this->customer)->post(route('checkout.store'), [
             'nama_pembeli' => 'Pembeli',
             'metode_bayar' => 'transfer',
         ]);
     }
 
-    $this->post(route('checkout.store'), [
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli',
         'metode_bayar' => 'transfer',
     ])->assertStatus(429);
@@ -871,7 +887,7 @@ it('changes the edition of a cart item from checkout', function (): void {
     expect($entry['edition_id'])->toBe($edition2->id);
 
     // Checkout menampilkan cetakan 2 dengan harga baru.
-    $props = inertiaProps($this->get(route('checkout.index')));
+    $props = inertiaProps($this->actingAs($this->customer)->get(route('checkout.index')));
     $item = $props['groups'][0]['items'][0];
 
     expect($item['edition_label'])->toBe('Cetakan ke-2')

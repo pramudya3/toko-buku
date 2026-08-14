@@ -60,9 +60,6 @@ const action = isEdit
                     }}
                 </p>
             </div>
-            <Button variant="outline" size="sm" as-child>
-                <Link :href="indexRoute().url">← Kembali</Link>
-            </Button>
         </div>
 
         <Form

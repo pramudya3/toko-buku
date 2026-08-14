@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Webhook Biteship tanpa CSRF — keamanan via verifikasi X-Signature.
+        $middleware->validateCsrfTokens(except: ['webhooks/biteship']);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

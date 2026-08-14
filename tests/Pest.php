@@ -62,9 +62,18 @@ function fakeBiteshipApi(): void
                 [
                     'courier_code' => 'jne',
                     'courier_name' => 'JNE',
+                    'courier_service_code' => 'reg',
                     'courier_service_name' => 'Reguler',
                     'price' => 12000,
                     'duration' => '1 - 2 days',
+                ],
+                [
+                    'courier_code' => 'jne',
+                    'courier_name' => 'JNE',
+                    'courier_service_code' => 'yes',
+                    'courier_service_name' => 'YES',
+                    'price' => 25000,
+                    'duration' => '1 day',
                 ],
             ],
         ]),

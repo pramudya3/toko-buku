@@ -10,6 +10,7 @@ use App\Models\BookEditionStock;
 use App\Models\Category;
 use App\Models\Promotion;
 use App\Models\Setting;
+use App\Models\StockRequest;
 use App\Services\PricingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -112,7 +113,7 @@ class StorefrontController extends Controller
      * Param {bookUrl} = {uuid}-{judul-bersih}; 36 karakter pertama adalah
      * uuid (identitas), sisanya judul yang dibersihkan — hanya hiasan URL.
      */
-    public function show(string $bookUrl): Response
+    public function show(Request $request, string $bookUrl): Response
     {
         $book = Book::findOrFail(Str::substr($bookUrl, 0, 36));
 
@@ -137,6 +138,12 @@ class StorefrontController extends Controller
 
         return Inertia::render('storefront/BookDetail', [
             'book' => $this->bookWithPricing($book, $this->pricing->activePromotion($book)),
+            // Apakah user login sudah mengajukan stok untuk buku ini.
+            'requested' => $request->user()
+                ? StockRequest::where('book_id', $book->id)
+                    ->where('user_id', $request->user()->id)
+                    ->exists()
+                : false,
         ]);
     }
 

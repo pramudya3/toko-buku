@@ -8,12 +8,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OrderProcessRequest;
 use App\Http\Requests\Admin\OrderStatusRequest;
 use App\Http\Requests\Admin\OrderStoreRequest;
+use App\Http\Requests\Admin\ProcessAndShipRequest;
 use App\Models\Book;
 use App\Models\Order;
 use App\Models\Setting;
 use App\Models\TierDiscount;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\BiteshipShippingService;
 use App\Services\InventoryService;
 use App\Services\OrderStatusService;
 use App\Services\PricingService;
@@ -35,6 +37,7 @@ class OrderController extends Controller
         private readonly OrderStatusService $statusService,
         private readonly InventoryService $inventoryService,
         private readonly ShippingCostService $shippingCost,
+        private readonly BiteshipShippingService $biteship,
     ) {}
 
     /**
@@ -133,7 +136,7 @@ class OrderController extends Controller
                 })
                 ->orderBy('name')
                 ->limit(50)
-                ->get(['id', 'name', 'whatsapp_number', 'status_pelanggan', 'alamat', 'provinsi', 'kabupaten_kota', 'kecamatan', 'kode_pos']),
+                ->get(['id', 'name', 'whatsapp_number', 'status_pelanggan', 'alamat', 'provinsi', 'kabupaten_kota', 'kecamatan', 'kelurahan', 'village_code', 'kode_pos']),
         );
     }
 
@@ -276,6 +279,7 @@ class OrderController extends Controller
             'order' => $order,
             'statusOptions' => OrderStatus::options(),
             'couriers' => StoreSettings::enabledCouriers(),
+            'shippingCouriers' => $this->biteship->courierServices(),
             'paymentMethods' => StoreSettings::allPaymentMethods(),
             'salesChannels' => StoreSettings::allSalesChannels(),
             'warehouseOptions' => Warehouse::query()
@@ -283,7 +287,114 @@ class OrderController extends Controller
                 ->orderBy('nama')
                 ->pluck('nama', 'kode')
                 ->all(),
+            // Data origin toko untuk booking Biteship (cek kelengkapan di UI).
+            'storeTelepon' => Setting::get('store_telepon', ''),
+            'storeAlamat' => Setting::get('store_alamat', ''),
         ]);
+    }
+
+    /**
+     * Booking pengiriman Biteship → AWB + label terbit (saldo terpotong).
+     */
+    public function createShipping(Request $request, Order $order): RedirectResponse
+    {
+        try {
+            $result = $this->biteship->createOrder(
+                $order,
+                $request->string('courier')->toString(),
+                $request->string('service')->toString() ?: null,
+            );
+
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => "Pengiriman {$order->no_order} dibuat — AWB: ".($result['waybill_id'] ?? '').'.',
+            ]);
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Batalkan pengiriman di Biteship (prasyarat sebelum order boleh batal).
+     */
+    public function cancelShipping(Order $order): RedirectResponse
+    {
+        try {
+            $this->biteship->cancelOrder($order);
+
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => "Pengiriman {$order->no_order} dibatalkan.",
+            ]);
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Jadwalkan penjemputan kurir (tanggal/jam opsional, default langsung).
+     */
+    public function requestPickup(Request $request, Order $order): RedirectResponse
+    {
+        try {
+            $this->biteship->requestPickup(
+                $order,
+                $request->string('pickup_date')->toString() ?: null,
+                $request->string('pickup_time')->toString() ?: null,
+            );
+
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => "Penjemputan {$order->no_order} dijadwalkan.",
+            ]);
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Sinkronkan status pengiriman terbaru dari Biteship.
+     */
+    public function refreshShipping(Order $order): RedirectResponse
+    {
+        try {
+            $data = $this->biteship->retrieveOrder($order);
+
+            $status = is_string($data['status'] ?? null) ? $data['status'] : null;
+            $transitioned = $status !== null
+                ? $this->statusService->applyBiteshipStatus($order, $status)
+                : false;
+
+            $message = 'Status pengiriman: '.($status ?? '-').'.';
+
+            if ($transitioned) {
+                $message .= ' Status order diperbarui ke '.$order->fresh()->status->label().'.';
+            }
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Buka label pengiriman (PDF dari Biteship) di tab baru.
+     */
+    public function shippingLabel(Order $order): RedirectResponse
+    {
+        if (! $order->biteship_label_url) {
+            abort(404);
+        }
+
+        return redirect()->away($order->biteship_label_url);
     }
 
     /**
@@ -315,47 +426,7 @@ class OrderController extends Controller
     public function process(OrderProcessRequest $request, Order $order): RedirectResponse
     {
         try {
-            DB::transaction(function () use ($request, $order): void {
-                $lockedOrder = Order::query()
-                    ->lockForUpdate()
-                    ->with('items.book', 'items.edition', 'user')
-                    ->findOrFail($order->getKey());
-
-                if (! $this->statusService->canTransition($lockedOrder, OrderStatus::Diproses)) {
-                    throw new RuntimeException(
-                        "Transisi status tidak valid: {$lockedOrder->status->value} → ".OrderStatus::Diproses->value.'.',
-                    );
-                }
-
-                $lockedOrder->update([
-                    'shipping_cost' => $request->integer('shipping_cost'),
-                    'ekspedisi' => $request->string('ekspedisi')->toString(),
-                    'warehouse_origin' => $request->string('warehouse_origin')->toString(),
-                ]);
-
-                $warehouseOrigin = Warehouse::query()
-                    ->sellable()
-                    ->where('kode', $request->string('warehouse_origin')->toString())
-                    ->firstOrFail();
-
-                foreach ($lockedOrder->items as $item) {
-                    $this->inventoryService->assertSufficientStock(
-                        $item->book,
-                        $warehouseOrigin,
-                        $item->qty,
-                        $item->edition,
-                    );
-                }
-
-                // Reserve stok saat diproses — bukan menunggu sampai selesai,
-                // supaya order lain tidak mengambil stok yang sama (BR-05).
-                $this->inventoryService->deductForOrder($lockedOrder, $request->user()->id);
-
-                // Total dihitung ulang: subtotal + ongkir final.
-                $this->pricing->applyToOrder($lockedOrder);
-
-                $this->statusService->transition($lockedOrder, OrderStatus::Diproses, $request->user()->id);
-            });
+            DB::transaction(fn () => $this->processOrder($order, $request->user()->id, $request->validated()));
 
             Inertia::flash('toast', ['type' => 'success', 'message' => "Order {$order->no_order} diproses."]);
         } catch (RuntimeException $exception) {
@@ -366,11 +437,230 @@ class OrderController extends Controller
     }
 
     /**
+     * Alur gabungan "Proses & Kirim": konfirmasi lunas (opsional) + proses +
+     * booking Biteship + penjadwalan pickup — satu klik admin.
+     *
+     * Bila booking gagal, order tetap diproses sehingga dialog bisa dibuka
+     * lagi sebagai retry booking.
+     */
+    public function processAndShip(ProcessAndShipRequest $request, Order $order): RedirectResponse
+    {
+        try {
+            $order = DB::transaction(function () use ($request, $order): Order {
+                $lockedOrder = Order::query()
+                    ->lockForUpdate()
+                    ->findOrFail($order->getKey());
+
+                // Konfirmasi pembayaran bila dicentang (gabung 1 langkah).
+                if ($lockedOrder->payment_status !== PaymentStatus::Lunas
+                    && $request->boolean('konfirmasi_lunas')) {
+                    $lockedOrder->update(['payment_status' => PaymentStatus::Lunas]);
+                }
+
+                // Proses bila masih menunggu konfirmasi.
+                if ($lockedOrder->status === OrderStatus::MenungguKonfirmasi) {
+                    $this->processOrder($lockedOrder, $request->user()->id, $request->validated());
+                }
+
+                return $lockedOrder->fresh();
+            });
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
+
+        $collectionMethod = $request->string('collection_method')->toString() ?: 'pickup';
+        $courier = $request->string('ekspedisi')->toString() ?: $order->ekspedisi ?? '';
+        $service = $request->string('courier_service_code')->toString() ?: $order->courier_service_code;
+
+        // Order non-website (toko/marketplace) tanpa pengiriman kurir —
+        // cukup proses, tanpa booking Biteship.
+        if ($order->sumber_pembelian !== 'website') {
+            return back();
+        }
+
+        // Booking hanya bila belum pernah dibuat (biteship_order_id, bukan awb —
+        // AWB bisa terbit asinkron). Sudah booked → sinkron status/waybill.
+        if ($order->biteship_order_id === null) {
+            try {
+                $result = $this->biteship->createOrder(
+                    $order,
+                    $courier,
+                    $service ?: null,
+                    $collectionMethod,
+                );
+
+                $order->update(['shipping_collection_method' => $collectionMethod]);
+
+                $waybill = $result['waybill_id'] ?? null;
+
+                Inertia::flash('toast', [
+                    'type' => 'success',
+                    'message' => $waybill !== null && $waybill !== ''
+                        ? "Pengiriman {$order->no_order} dibuat — AWB: {$waybill}."
+                        : "Pengiriman {$order->no_order} dibuat — AWB akan terbit sebentar lagi, klik Refresh Status untuk memeriksa.",
+                ]);
+            } catch (RuntimeException $exception) {
+                $message = $exception->getMessage();
+
+                // Biteship menolak rute yang tidak didukung kurir — beri tahu
+                // admin solusinya, bukan sekadar error mentah.
+                if (str_contains(strtolower($message), 'route not found')) {
+                    $message .= ' Rute tidak didukung kurir ini — coba kurir lain.';
+                }
+
+                Inertia::flash('toast', [
+                    'type' => 'error',
+                    'message' => $message.' Order sudah diproses — buka dialog lagi untuk mencoba ulang pengiriman.',
+                ]);
+
+                return back();
+            }
+        } elseif ($order->awb === null) {
+            // Sudah dibooking tapi AWB belum terbit (asinkron) — tarik data
+            // terbaru dari Biteship supaya retry tidak membuat duplikat.
+            try {
+                $data = $this->biteship->retrieveOrder($order);
+                $this->statusService->applyBiteshipStatus($order, (string) ($data['status'] ?? ''));
+
+                Inertia::flash('toast', [
+                    'type' => 'success',
+                    'message' => "Pengiriman {$order->no_order} disinkronkan — status: ".($data['status'] ?? '-').'.',
+                ]);
+            } catch (RuntimeException $exception) {
+                Inertia::flash('toast', [
+                    'type' => 'error',
+                    'message' => $exception->getMessage().' Pengiriman sudah dibuat — coba Refresh Status.',
+                ]);
+
+                return back();
+            }
+        }
+
+        // Jadwalkan penjemputan hanya untuk metode pickup.
+        if (($order->shipping_collection_method ?? 'pickup') === 'pickup') {
+            try {
+                $this->biteship->requestPickup(
+                    $order,
+                    $request->string('pickup_date')->toString() ?: null,
+                    $request->string('pickup_time')->toString() ?: null,
+                );
+
+                Inertia::flash('toast', [
+                    'type' => 'success',
+                    'message' => "Penjemputan {$order->no_order} dijadwalkan.",
+                ]);
+            } catch (RuntimeException $exception) {
+                $message = $exception->getMessage();
+
+                if (str_contains(strtolower($message), 'route not found')) {
+                    $message .= ' Kurir ini tidak mendukung penjemputan — gunakan metode Antar ke Agen (batalkan & buat ulang) atau hubungi kurir langsung.';
+                }
+
+                Inertia::flash('toast', [
+                    'type' => 'error',
+                    'message' => "Pengiriman {$order->no_order} sudah dibuat, tetapi penjadwalan penjemputan gagal: {$message}",
+                ]);
+            }
+        }
+
+        return back();
+    }
+
+    /**
+     * Proses order (shared oleh process & processAndShip): verifikasi,
+     * reserve stok, transisi → diproses, total final.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function processOrder(Order $order, string $userId, array $data): void
+    {
+        $lockedOrder = Order::query()
+            ->lockForUpdate()
+            ->with('items.book', 'items.edition', 'user')
+            ->findOrFail($order->getKey());
+
+        if (! $this->statusService->canTransition($lockedOrder, OrderStatus::Diproses)) {
+            throw new RuntimeException(
+                "Transisi status tidak valid: {$lockedOrder->status->value} → ".OrderStatus::Diproses->value.'.',
+            );
+        }
+
+        // Order website harus lunas sebelum diproses (stok terpotong);
+        // channel lain (toko/marketplace) tidak perlu konfirmasi transfer.
+        if ($lockedOrder->sumber_pembelian === 'website'
+            && $lockedOrder->payment_status !== PaymentStatus::Lunas) {
+            throw new RuntimeException('Pembayaran belum dikonfirmasi lunas — konfirmasi pembayaran terlebih dahulu.');
+        }
+
+        $lockedOrder->update([
+            'shipping_cost' => (int) $data['shipping_cost'],
+            'ekspedisi' => isset($data['ekspedisi']) && $data['ekspedisi'] !== ''
+                ? (string) $data['ekspedisi']
+                : null,
+            'courier_service_code' => isset($data['courier_service_code']) && $data['courier_service_code'] !== ''
+                ? (string) $data['courier_service_code']
+                : null,
+            'warehouse_origin' => (string) $data['warehouse_origin'],
+        ]);
+
+        $warehouseOrigin = Warehouse::query()
+            ->sellable()
+            ->where('kode', (string) $data['warehouse_origin'])
+            ->firstOrFail();
+
+        foreach ($lockedOrder->items as $item) {
+            $this->inventoryService->assertSufficientStock(
+                $item->book,
+                $warehouseOrigin,
+                $item->qty,
+                $item->edition,
+            );
+        }
+
+        // Reserve stok saat diproses — bukan menunggu sampai selesai,
+        // supaya order lain tidak mengambil stok yang sama (BR-05).
+        $this->inventoryService->deductForOrder($lockedOrder, $userId);
+
+        // Total dihitung ulang: subtotal + ongkir final.
+        $this->pricing->applyToOrder($lockedOrder);
+
+        $this->statusService->transition($lockedOrder, OrderStatus::Diproses, $userId);
+    }
+
+    /**
      * Transisi status umum: dikirim / selesai / batal (ORD-04, BR-05).
      */
     public function updateStatus(OrderStatusRequest $request, Order $order): RedirectResponse
     {
         $target = OrderStatus::from($request->string('status')->toString());
+
+        // Order yang sudah dibooking di Biteship wajib dibatalkan pengirimannya
+        // dulu — kalau tidak, kurir tetap datang & saldo terpotong.
+        if ($target === OrderStatus::Batal
+            && $order->biteship_order_id !== null
+            && $order->biteship_status !== 'cancelled') {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Batalkan pengiriman Biteship terlebih dahulu.',
+            ]);
+
+            return back();
+        }
+
+        // Resi wajib ada sebelum order website ditandai dikirim — booking
+        // Biteship dulu (AWB terbit), supaya customer bisa melacak di Pesanan Saya.
+        if ($target === OrderStatus::Dikirim
+            && $order->sumber_pembelian === 'website'
+            && $order->awb === null) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Buat pengiriman Biteship terlebih dahulu — AWB diperlukan sebelum menandai dikirim.',
+            ]);
+
+            return back();
+        }
 
         try {
             $this->statusService->transition($order, $target, $request->user()->id);
