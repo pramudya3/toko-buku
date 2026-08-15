@@ -242,7 +242,13 @@ final class BiteshipShippingService
 
     private function originPostalCode(): string
     {
-        return Setting::get('origin_postal_code') ?: config('biteship.origin_postal_code');
+        $postal = Setting::get('origin_postal_code');
+
+        if (! is_string($postal) || trim($postal) === '') {
+            throw new RuntimeException('Kode pos asal toko belum diatur — isi di Pengaturan → Lembaga.');
+        }
+
+        return trim($postal);
     }
 
     /**

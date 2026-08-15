@@ -15,6 +15,7 @@ type Order = {
     total: number;
     status: string;
     payment_status: string;
+    metode_pengambilan: string | null;
     awb: string | null;
     biteship_courier_link: string | null;
     created_at: string;
@@ -104,6 +105,11 @@ function formatDate(createdAt: string): string {
                     <StatusBadge
                         :variant="statusVariant(order.status)"
                         :label="statusOptions[order.status] ?? order.status"
+                    />
+                    <StatusBadge
+                        v-if="order.metode_pengambilan === 'ambil'"
+                        variant="neutral"
+                        label="Ambil Sendiri"
                     />
                 </div>
 

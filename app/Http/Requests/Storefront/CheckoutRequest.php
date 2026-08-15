@@ -34,12 +34,19 @@ class CheckoutRequest extends FormRequest
             'kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'metode_bayar' => ['required', Rule::in(StoreSettings::enabledPaymentMethodValues() ?: ['__tidak_ada__'])],
-            // Ekspedisi wajib salah satu kurir aktif (Settings → Ekspedisi).
+            // Ekspedisi wajib salah satu kurir aktif (Settings → Ekspedisi);
+            // wajib saat dikirim — ambil sendiri tanpa ongkir.
             'ekspedisi' => [
                 'nullable',
                 'string',
                 'max:50',
+                Rule::requiredIf(($this->input('metode_pengambilan') ?? 'kirim') !== 'ambil'),
                 Rule::in(StoreSettings::enabledCourierCodes() ?: ['__tidak_ada__']),
+            ],
+            // Metode pengambilan: kirim / ambil sendiri (default kirim).
+            'metode_pengambilan' => [
+                'nullable',
+                Rule::in(['kirim', 'ambil']),
             ],
             'courier_service_code' => ['nullable', 'string', 'max:50'],
             'selected_groups' => ['nullable', 'array'],

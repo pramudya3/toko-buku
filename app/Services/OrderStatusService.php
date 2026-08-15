@@ -31,12 +31,12 @@ final class OrderStatusService
 
     public function canTransition(Order $order, OrderStatus $to): bool
     {
-        // Channel non-website (toko/marketplace) boleh langsung selesai dari
-        // diproses — stok sudah di-reserve saat diproses, akuntansi dicatat
-        // saat transisi ke selesai (idempotent).
+        // Ambil sendiri (channel utama) & marketplace (pencatatan) boleh
+        // langsung selesai dari diproses; channel utama mode kirim wajib
+        // lewat dikirim (resi).
         if ($order->status === OrderStatus::Diproses
             && $to === OrderStatus::Selesai
-            && $order->sumber_pembelian !== 'website') {
+            && (! $order->isMainChannel() || ($order->metode_pengambilan ?? 'kirim') === 'ambil')) {
             return true;
         }
 

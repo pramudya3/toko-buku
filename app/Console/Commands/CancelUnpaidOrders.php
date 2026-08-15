@@ -35,6 +35,11 @@ class CancelUnpaidOrders extends Command
             ->where('status', OrderStatus::MenungguKonfirmasi->value)
             ->where('payment_status', PaymentStatus::Menunggu->value)
             ->where('sumber_pembelian', '!=', SalesChannel::Toko->value)
+            // Ambil sendiri tidak ter-auto-batal (barang diambil di toko).
+            ->where(function ($query): void {
+                $query->whereNull('metode_pengambilan')
+                    ->orWhere('metode_pengambilan', '!=', 'ambil');
+            })
             ->whereNull('bukti_transfer_path')
             ->where('created_at', '<=', $cutoff)
             ->get();

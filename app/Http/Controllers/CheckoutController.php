@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\PromotionType;
 use App\Http\Requests\Storefront\CheckoutRequest;
@@ -11,7 +12,7 @@ use App\Models\BookEdition;
 use App\Models\Order;
 use App\Models\Promotion;
 use App\Services\PricingService;
-use App\Services\ShippingCostService;
+use App\Services\RajaOngkirCostService;
 use App\Support\StoreSettings;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class CheckoutController extends Controller
 {
     public function __construct(
         private readonly PricingService $pricing,
-        private readonly ShippingCostService $shippingCost,
+        private readonly RajaOngkirCostService $shippingCost,
     ) {}
 
     /**
@@ -352,10 +353,16 @@ class CheckoutController extends Controller
             }
         }
 
-        // Ongkir dihitung ulang di server via Biteship (jangan percaya nilai dari client).
+        // Ongkir dihitung ulang di server via RajaOngkir (jangan percaya
+        // nilai dari client). Ambil sendiri → tanpa ongkir.
         $shippingCost = 0;
         $shippingEstimation = null;
         $courierCode = $data['ekspedisi'] ?? null;
+        $fulfillment = $data['metode_pengambilan'] ?? FulfillmentMethod::Kirim->value;
+
+        if ($fulfillment === FulfillmentMethod::Ambil->value) {
+            $courierCode = null;
+        }
 
         if ($courierCode !== null && $courierCode !== '') {
             $kodePos = $data['kode_pos'] ?? null;
@@ -374,7 +381,7 @@ class CheckoutController extends Controller
                         }
 
                         return $serviceCode === null || $serviceCode === ''
-                            || ($rate['service_code'] ?? '') === $serviceCode;
+                            || strtolower((string) ($rate['service_code'] ?? '')) === strtolower((string) $serviceCode);
                     });
 
                 if ($matched === null) {
@@ -399,7 +406,7 @@ class CheckoutController extends Controller
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
-                $order = DB::transaction(function () use ($data, $cart, $courierCode, $shippingCost, $shippingEstimation): Order {
+                $order = DB::transaction(function () use ($data, $cart, $courierCode, $shippingCost, $shippingEstimation, $fulfillment): Order {
                     // Lock baris buku + cetakan agar tidak oversell saat 2 checkout bersamaan.
                     $bookIds = $this->cartBookIds($cart);
                     $lockedBooks = Book::query()
@@ -457,6 +464,7 @@ class CheckoutController extends Controller
                         'shipping_cost' => $shippingCost,
                         'ongkir_estimasi' => $shippingEstimation,
                         'is_dropship' => false,
+                        'metode_pengambilan' => $fulfillment,
                         'status' => OrderStatus::MenungguKonfirmasi,
                     ]);
 

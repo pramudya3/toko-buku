@@ -17,6 +17,8 @@ use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
+
+    Setting::set('origin_postal_code', '65144');
 });
 
 it('returns full address (incl. kelurahan) in customer options', function (): void {
@@ -41,6 +43,9 @@ it('returns full address (incl. kelurahan) in customer options', function (): vo
 });
 
 it('creates a manual order and calculates prices via PricingService (ORD-03, ORD-08)', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
     $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
     $customer = User::factory()->create();
 
@@ -50,6 +55,10 @@ it('creates a manual order and calculates prices via PricingService (ORD-03, ORD
             'nama_pembeli' => $customer->name,
             'metode_bayar' => 'transfer',
             'sumber_pembelian' => 'shopee',
+            'metode_pengambilan' => 'kirim',
+            'kode_pos' => '65144',
+            'metode_pengambilan' => 'kirim',
+            'ekspedisi' => 'jne',
             'items' => [
                 ['book_id' => $book->id, 'qty' => 2],
             ],
@@ -61,7 +70,8 @@ it('creates a manual order and calculates prices via PricingService (ORD-03, ORD
 
     expect($order->status)->toBe(OrderStatus::MenungguKonfirmasi)
         ->and($order->sumber_pembelian)->toBe('shopee')
-        ->and($order->total)->toBe(100000)
+        ->and($order->total)->toBe(112000)
+        ->and($order->shipping_cost)->toBe(12000)
         ->and($order->items()->first()->price_final)->toBe(50000);
 });
 
@@ -83,7 +93,7 @@ it('filters the order list by sales channel', function (): void {
 
 it('checks shipping cost from admin endpoint (cached shared)', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $this->actingAs($this->admin)
         ->post(route('admin.orders.check-ongkir'), [
@@ -98,7 +108,7 @@ it('checks shipping cost from admin endpoint (cached shared)', function (): void
 
 it('saves shipping cost and courier on manual order', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000, 'berat_gr' => 500]);
 
@@ -106,6 +116,7 @@ it('saves shipping cost and courier on manual order', function (): void {
         ->post(route('admin.orders.store'), [
             'nama_pembeli' => 'Pembeli Langsung',
             'metode_bayar' => 'transfer',
+            'metode_pengambilan' => 'kirim',
             'kode_pos' => '65144',
             'ekspedisi' => 'jne',
             'items' => [
@@ -120,7 +131,7 @@ it('saves shipping cost and courier on manual order', function (): void {
     // Berat 1 kg (500gr × 2) → JNE 12.000; total = subtotal 100.000 + ongkir.
     expect($order->shipping_cost)->toBe(12000)
         ->and($order->ekspedisi)->toBe('jne')
-        ->and($order->ongkir_estimasi)->toBe('1 - 2 days')
+        ->and($order->ongkir_estimasi)->toBe('1-2')
         ->and($order->kode_pos)->toBe('65144')
         ->and($order->total)->toBe(112000);
 });
@@ -141,6 +152,9 @@ it('rejects an unknown sales channel on manual order', function (): void {
 });
 
 it('generates a unique order number', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
     $book = Book::factory()->withStock()->create(['harga' => 10000]);
 
     foreach (range(1, 3) as $index) {
@@ -148,6 +162,9 @@ it('generates a unique order number', function (): void {
             ->post(route('admin.orders.store'), [
                 'nama_pembeli' => 'Pembeli '.$index,
                 'metode_bayar' => 'transfer',
+                'sumber_pembelian' => 'shopee',
+                'kode_pos' => '65144',
+                'ekspedisi' => 'jne',
                 'items' => [['book_id' => $book->id, 'qty' => 1]],
             ]);
     }
@@ -158,12 +175,18 @@ it('generates a unique order number', function (): void {
 });
 
 it('creates dropship order with end-customer data (DROP-01)', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
     $book = Book::factory()->withStock()->create(['harga' => 10000]);
 
     $this->actingAs($this->admin)
         ->post(route('admin.orders.store'), [
             'nama_pembeli' => 'Reseller',
             'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'website',
+            'kode_pos' => '65144',
+            'ekspedisi' => 'jne',
             'is_dropship' => true,
             'end_customer_name' => 'Andini',
             'end_customer_whatsapp' => '081234567890',
@@ -423,7 +446,10 @@ it('rejects cancelling an order that has been shipped', function (): void {
         ->assertRedirect();
 
     $this->actingAs($this->admin)
-        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Dikirim->value])
+        ->patch(route('admin.orders.status', $order), [
+            'status' => OrderStatus::Dikirim->value,
+            'awb' => 'AWB-CANCEL-TEST',
+        ])
         ->assertRedirect();
 
     $this->actingAs($this->admin)
@@ -498,6 +524,9 @@ it('shows order detail with items and pricing breakdown (ORD-02)', function (): 
 });
 
 it('captures HPP (harga beli cetakan) snapshot on order items for profit tracking', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
     $customer = User::factory()->customer()->create();
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 40000]);
     $edition1 = $book->editions()->first();
@@ -514,6 +543,9 @@ it('captures HPP (harga beli cetakan) snapshot on order items for profit trackin
             'nama_pembeli' => $customer->name,
             'whatsapp_pembeli' => $customer->whatsapp_number,
             'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'website',
+            'kode_pos' => '65144',
+            'ekspedisi' => 'jne',
             'items' => [
                 ['book_id' => $book->id, 'book_edition_id' => $edition1->id, 'qty' => 1],
                 ['book_id' => $book->id, 'book_edition_id' => $edition2->id, 'qty' => 1],
@@ -748,7 +780,7 @@ it('processes a toko order without Biteship booking', function (): void {
     $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
     $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, [
-        'payment_status' => PaymentStatus::Menunggu,
+        'payment_status' => PaymentStatus::Lunas,
         'sumber_pembelian' => 'toko',
     ]);
     flowOrderItem($order, $book);
@@ -793,7 +825,28 @@ it('blocks marking a website order as shipped without an AWB', function (): void
         ->assertRedirect();
 
     expect($order->fresh()->status)->toBe(OrderStatus::Diproses)
-        ->and(session('inertia.flash_data.toast.message'))->toContain('AWB');
+        ->and(session('inertia.flash_data.toast.message'))->toContain('Resi');
+});
+
+it('marks an order as shipped with a manual awb and tracking link', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, ['sumber_pembelian' => 'website']);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), [
+            'status' => OrderStatus::Dikirim->value,
+            'awb' => 'WAN-123456',
+            'biteship_courier_link' => 'https://www.wahana.com/lacak-kiriman?noresi=WAN-123456',
+        ])
+        ->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->status)->toBe(OrderStatus::Dikirim)
+        ->and($order->awb)->toBe('WAN-123456')
+        ->and($order->biteship_courier_link)->toBe('https://www.wahana.com/lacak-kiriman?noresi=WAN-123456');
 });
 
 it('allows marking a website order as shipped once the AWB exists', function (): void {
@@ -899,4 +952,454 @@ it('offers only enabled couriers in the booking dropdown', function (): void {
     $services = app(BiteshipShippingService::class)->courierServices();
 
     expect(collect($services)->pluck('courier_code')->all())->toBe(['wahana']);
+});
+
+it('blocks booking with a friendly message when origin postal code is missing', function (): void {
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_alamat', 'Jl. Merdeka 1, KOTA MALANG, 65144');
+    Setting::set('origin_postal_code', null);
+
+    fakeBiteshipBooking();
+
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.shipping', $order), ['courier' => 'jne'])
+        ->assertRedirect();
+
+    Http::assertNothingSent();
+
+    expect($order->fresh()->awb)->toBeNull()
+        ->and(session('inertia.flash_data.toast.message'))->toContain('Kode pos asal toko belum diatur');
+});
+
+it('exposes detailed shipping data and tracking template on the order page', function (): void {
+    Setting::set('store_nama_lembaga', 'Toko Buku Test');
+    Setting::set('store_telepon', '08123456789');
+    Setting::set('store_email', 'toko@test.id');
+    Setting::set('store_alamat', 'Jl. Test 1, KOTA MALANG, 65151');
+    Setting::set('origin_postal_code', '65151');
+
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'no_hp' => '08199999999',
+        'alamat' => 'Jl. Merdeka 1',
+        'kelurahan' => 'BARENG',
+        'kecamatan' => 'KLOJEN',
+        'kabupaten_kota' => 'KOTA MALANG',
+        'provinsi' => 'JAWA TIMUR',
+        'kode_pos' => '65144',
+    ]);
+
+    $props = inertiaProps($this->actingAs($this->admin)
+        ->get(route('admin.orders.show', $order))
+        ->assertSuccessful());
+
+    expect($props['storeNamaLembaga'])->toBe('Toko Buku Test')
+        ->and($props['storeTelepon'])->toBe('08123456789')
+        ->and($props['originPostalCode'])->toBe('65151')
+        ->and($props['trackingUrlTemplate'])->toContain('{awb}')
+        ->and($props['order']['no_hp'])->toBe('08199999999')
+        ->and($props['order']['kelurahan'])->toBe('BARENG')
+        ->and($props['order']['kode_pos'])->toBe('65144')
+        ->and($props['order']['provinsi'])->toBe('JAWA TIMUR');
+});
+
+it('searches book options by title, sku, author or translator', function (): void {
+    Book::factory()->create([
+        'aktif' => true,
+        'judul' => 'Dunia Sophie',
+        'kode_sku' => 'SKU-A',
+        'penulis' => 'Jostein Gaarder',
+        'penterjemah' => 'Bambang Irawan',
+    ]);
+    Book::factory()->create([
+        'aktif' => true,
+        'judul' => 'Buku Biasa',
+        'kode_sku' => 'SKU-B',
+        'penulis' => 'Penulis Lain',
+        'penterjemah' => null,
+    ]);
+
+    $this->actingAs($this->admin)->getJson(route('admin.orders.options.books', ['search' => 'Gaarder']))
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('data.0.judul', 'Dunia Sophie');
+
+    $this->actingAs($this->admin)->getJson(route('admin.orders.options.books', ['search' => 'Bambang']))
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('data.0.judul', 'Dunia Sophie');
+
+    $this->actingAs($this->admin)->getJson(route('admin.orders.options.books', ['search' => 'SKU-B']))
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('data.0.judul', 'Buku Biasa');
+});
+
+// ── Pembayaran channel toko & auto-resolve customer ──
+
+it('marks a toko order paid in cash as lunas immediately', function (): void {
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Toko Tunai',
+            'metode_bayar' => 'cash',
+            'sumber_pembelian' => 'toko',
+            'items' => [
+                ['book_id' => $book->id, 'qty' => 1],
+            ],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    $order = Order::latest('id')->first();
+
+    expect($order->payment_status)->toBe(PaymentStatus::Lunas)
+        ->and($order->sumber_pembelian)->toBe('toko');
+});
+
+it('keeps a toko order paid by transfer waiting for admin confirmation', function (): void {
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Toko Transfer',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'toko',
+            'items' => [
+                ['book_id' => $book->id, 'qty' => 1],
+            ],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    $order = Order::latest('id')->first();
+
+    expect($order->payment_status)->toBe(PaymentStatus::Menunggu);
+
+    // Fallback: admin bisa konfirmasi manual untuk semua channel.
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.payment', $order))
+        ->assertRedirect();
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::Lunas);
+});
+
+it('links the order to a customer automatically when name matches uniquely', function (): void {
+    $customer = User::factory()->create(['name' => 'Budi Santoso', 'whatsapp_number' => '0811111111']);
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Budi Santoso',
+            'whatsapp_pembeli' => '0811111111',
+            'metode_bayar' => 'cash',
+            'sumber_pembelian' => 'toko',
+            'items' => [
+                ['book_id' => $book->id, 'qty' => 1],
+            ],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    expect(Order::latest('id')->first()->user_id)->toBe($customer->id);
+});
+
+it('leaves the order unlinked when the customer name is ambiguous', function (): void {
+    User::factory()->create(['name' => 'Budi Santoso', 'whatsapp_number' => '0811111111']);
+    User::factory()->create(['name' => 'Budi Santoso', 'whatsapp_number' => '0822222222']);
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Budi Santoso',
+            'whatsapp_pembeli' => '0899999999',
+            'metode_bayar' => 'cash',
+            'sumber_pembelian' => 'toko',
+            'items' => [
+                ['book_id' => $book->id, 'qty' => 1],
+            ],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    expect(Order::latest('id')->first()->user_id)->toBeNull();
+});
+
+// ── Order toko tanpa ongkir ──
+
+it('processes an ambil-sendiri order without shipping cost', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, [
+        'sumber_pembelian' => 'toko',
+        'metode_pengambilan' => 'ambil',
+        'payment_status' => PaymentStatus::Lunas,
+        'shipping_cost' => 0,
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.process', $order), [
+            'warehouse_origin' => 'malang',
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->status)->toBe(OrderStatus::Diproses)
+        ->and($order->shipping_cost)->toBe(0);
+});
+
+it('keeps the stored shipping cost when processing without sending it', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, [
+        'sumber_pembelian' => 'website',
+        'shipping_cost' => 12000,
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.process', $order), [
+            'ekspedisi' => 'jne',
+            'warehouse_origin' => 'malang',
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Diproses)
+        ->and($order->fresh()->shipping_cost)->toBe(12000);
+});
+
+// ── Metode pengambilan: kirim / ambil sendiri ──
+
+it('defaults created orders to ambil sendiri', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Toko',
+            'metode_bayar' => 'cash',
+            'sumber_pembelian' => 'toko',
+            'items' => [['book_id' => $book->id, 'qty' => 1]],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    expect(Order::latest('id')->first()->metode_pengambilan)->toBe('ambil');
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Shopee',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'shopee',
+            'items' => [['book_id' => $book->id, 'qty' => 1]],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    expect(Order::latest('id')->first()->metode_pengambilan)->toBe('ambil');
+});
+
+it('completes an ambil-sendiri order directly from diproses', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'sumber_pembelian' => 'website',
+        'metode_pengambilan' => 'ambil',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Selesai->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Selesai);
+});
+
+it('does not auto-cancel unpaid ambil-sendiri orders after 24 hours', function (): void {
+    $order = flowOrder(OrderStatus::MenungguKonfirmasi->value, [
+        'sumber_pembelian' => 'website',
+        'metode_pengambilan' => 'ambil',
+        'payment_status' => PaymentStatus::Menunggu,
+        'created_at' => now()->subHours(25),
+    ]);
+
+    $this->artisan('orders:cancel-unpaid')->assertSuccessful();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::MenungguKonfirmasi);
+});
+
+it('rejects creating an order with qty exceeding book stock', function (): void {
+    $book = Book::factory()->withStock(malang: 3)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Overstock',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'toko',
+            'items' => [
+                ['book_id' => $book->id, 'qty' => 5],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('items');
+
+    expect(Order::count())->toBe(0);
+});
+
+it('requires ekspedisi when the order is shipped (not ambil sendiri)', function (): void {
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Kirim',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'shopee',
+            'metode_pengambilan' => 'kirim',
+            'items' => [['book_id' => $book->id, 'qty' => 1]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('ekspedisi');
+
+    expect(Order::count())->toBe(0);
+});
+
+it('ignores ekspedisi and shipping cost when the order is ambil sendiri', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
+    $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Ambil',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'toko',
+            'metode_pengambilan' => 'ambil',
+            'kode_pos' => '65144',
+            'ekspedisi' => 'jne',
+            'items' => [['book_id' => $book->id, 'qty' => 1]],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    $order = Order::latest('id')->first();
+
+    expect($order->metode_pengambilan)->toBe('ambil')
+        ->and($order->ekspedisi)->toBeNull()
+        ->and($order->shipping_cost)->toBe(0);
+});
+
+// ── Cash: langsung diproses + stok otomatis terpotong ──
+
+it('processes a cash order immediately at creation (diproses + stock deducted)', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Cash',
+            'metode_bayar' => 'cash',
+            'sumber_pembelian' => 'toko',
+            'items' => [['book_id' => $book->id, 'qty' => 2]],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    $order = Order::latest('id')->first();
+
+    expect($order->status)->toBe(OrderStatus::Diproses)
+        ->and($order->payment_status)->toBe(PaymentStatus::Lunas)
+        ->and($order->warehouse_origin)->toBe('malang')
+        ->and($book->fresh()->stok)->toBe(3);
+});
+
+it('keeps transfer orders waiting and does not deduct stock at creation', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Transfer',
+            'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'toko',
+            'items' => [['book_id' => $book->id, 'qty' => 2]],
+        ])
+        ->assertSessionDoesntHaveErrors()
+        ->assertRedirect();
+
+    $order = Order::latest('id')->first();
+
+    expect($order->status)->toBe(OrderStatus::MenungguKonfirmasi)
+        ->and($order->payment_status)->toBe(PaymentStatus::Menunggu)
+        ->and($book->fresh()->stok)->toBe(5);
+});
+
+it('rejects a cash order when stock is insufficient at the default warehouse', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 2)->create(['aktif' => true, 'harga' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.orders.store'), [
+            'nama_pembeli' => 'Pembeli Cash',
+            'metode_bayar' => 'cash',
+            'sumber_pembelian' => 'toko',
+            'items' => [['book_id' => $book->id, 'qty' => 5]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasErrors('items');
+
+    expect(Order::count())->toBe(0)
+        ->and($book->fresh()->stok)->toBe(2);
+});
+
+it('requires a resi before marking a toko kirim order as shipped', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'sumber_pembelian' => 'toko',
+        'metode_pengambilan' => 'kirim',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Dikirim->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Diproses)
+        ->and(session('inertia.flash_data.toast.message'))->toContain('Resi');
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), [
+            'status' => OrderStatus::Dikirim->value,
+            'awb' => 'WAN-999',
+        ])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Dikirim);
+});
+
+it('blocks completing a toko kirim order directly without shipping', function (): void {
+    $malang = Warehouse::firstOrCreate(['kode' => 'malang'], ['nama' => 'Malang', 'is_active' => true]);
+    $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
+    $order = flowOrder(OrderStatus::Diproses->value, [
+        'sumber_pembelian' => 'toko',
+        'metode_pengambilan' => 'kirim',
+    ]);
+    flowOrderItem($order, $book);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Selesai->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Diproses);
 });

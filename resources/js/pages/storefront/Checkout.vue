@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, router, useHttp } from '@inertiajs/vue3';
-import { Loader2, Minus, Plus, Trash2 } from '@lucide/vue';
+import { Loader2, Minus, PackageCheck, Plus, Trash2, Truck } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
@@ -217,12 +217,25 @@ const isFormComplete = computed(() => {
     );
 });
 
-// ── Ongkos kirim (api.co.id) ──
+// ── Ongkos kirim (RajaOngkir) ──
 const shippingCosts = ref<ShippingOption[]>([]);
 const shippingWeight = ref<number | null>(null);
 const ongkirLoading = ref(false);
 const ongkirError = ref('');
+const ongkirStale = ref(false);
 const selectedCourier = ref('');
+
+// Metode pengambilan: kirim (default) / ambil sendiri — ambil sendiri
+// tidak perlu alamat & ongkir.
+const fulfillmentMethod = ref<'kirim' | 'ambil'>('kirim');
+const isAmbil = computed(() => fulfillmentMethod.value === 'ambil');
+
+function chooseFulfillment(method: 'kirim' | 'ambil'): void {
+    // Jangan clear hasil cek ongkir — balik ke "Kirim" mengembalikan ongkir
+    // yang sudah dipilih (tanpa hit API tambahan). Total menghitung ongkir
+    // hanya saat metode kirim.
+    fulfillmentMethod.value = method;
+}
 function toggleGroup(key: string, checked: boolean) {
     router.post(
         CartController.toggleGroup().url,
@@ -319,6 +332,7 @@ function checkOngkir(): void {
 
     ongkirLoading.value = true;
     ongkirError.value = '';
+    ongkirStale.value = false;
 
     ongkirTimer = setTimeout(() => {
         ongkirRequest.transform(() => ({
@@ -366,11 +380,28 @@ function checkOngkir(): void {
 }
 
 const grandTotal = computed(
-    () => totalAfterDiscount.value + shippingCost.value,
+    () => totalAfterDiscount.value + (isAmbil.value ? 0 : shippingCost.value),
 );
+
+/**
+ * Keranjang berubah (qty/item) setelah cek ongkir → hasil basi, wajib
+ * cek ulang (berat berbeda). Tanpa auto-call — hemat hit API.
+ */
+function invalidateOngkir(): void {
+    if (shippingCosts.value.length === 0 && selectedCourier.value === '') {
+        return;
+    }
+
+    selectedShippingValue.value = '';
+    selectedCourier.value = '';
+    shippingCosts.value = [];
+    ongkirStale.value = true;
+}
 
 function updateQty(item: CartItem, delta: number) {
     const qty = item.qty + delta;
+
+    invalidateOngkir();
 
     if (qty <= 0) {
         router.post(CartController.remove(item.book.id).url, undefined, {
@@ -520,6 +551,63 @@ function onFormError() {
                             </div>
                             <div class="border-t pt-6">
                                 <h2 class="text-sm font-semibold">
+                                    Metode Pengambilan
+                                </h2>
+                                <div class="mt-3 grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
+                                        :class="
+                                            !isAmbil
+                                                ? 'border-primary bg-primary/5'
+                                                : ''
+                                        "
+                                        @click="chooseFulfillment('kirim')"
+                                    >
+                                        <Truck class="size-4 shrink-0" />
+                                        <span>
+                                            <span class="block font-medium">
+                                                Kirim
+                                            </span>
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Via ekspedisi
+                                            </span>
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
+                                        :class="
+                                            isAmbil
+                                                ? 'border-primary bg-primary/5'
+                                                : ''
+                                        "
+                                        @click="chooseFulfillment('ambil')"
+                                    >
+                                        <PackageCheck class="size-4 shrink-0" />
+                                        <span>
+                                            <span class="block font-medium">
+                                                Ambil Sendiri
+                                            </span>
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Di toko, tanpa ongkir
+                                            </span>
+                                        </span>
+                                    </button>
+                                </div>
+                                <input
+                                    type="hidden"
+                                    name="metode_pengambilan"
+                                    :value="fulfillmentMethod"
+                                />
+                            </div>
+
+                            <div v-if="!isAmbil" class="border-t pt-6">
+                                <h2 class="text-sm font-semibold">
                                     Alamat Pengiriman
                                 </h2>
                                 <div class="mt-3">
@@ -598,7 +686,10 @@ function onFormError() {
                                             </p>
                                         </div>
                                     </div>
-                                    <div class="grid gap-2 md:col-span-2">
+                                    <div
+                                        v-if="!isAmbil"
+                                        class="grid gap-2 md:col-span-2"
+                                    >
                                         <Label for="ekspedisi"
                                             >Ekspedisi & Ongkir</Label
                                         >
@@ -718,6 +809,13 @@ function onFormError() {
                                             class="text-xs text-destructive"
                                         >
                                             {{ ongkirError }}
+                                        </p>
+                                        <p
+                                            v-else-if="ongkirStale"
+                                            class="text-xs text-amber-600 dark:text-amber-400"
+                                        >
+                                            Berat berubah — tekan Cek Ongkir
+                                            lagi.
                                         </p>
                                         <p
                                             v-else-if="
@@ -990,7 +1088,7 @@ function onFormError() {
                                 />
                             </div>
                             <div
-                                v-if="selectedCourier"
+                                v-if="!isAmbil && selectedCourier"
                                 class="flex items-center justify-between text-sm"
                             >
                                 <span class="text-muted-foreground"

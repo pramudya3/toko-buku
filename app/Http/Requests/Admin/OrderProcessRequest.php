@@ -26,12 +26,17 @@ class OrderProcessRequest extends FormRequest
         $order = $this->route('order');
 
         return [
-            'shipping_cost' => ['required', 'integer', 'min:0'],
-            // Ekspedisi wajib hanya untuk channel website (pakai kurir kurir);
-            // channel lain (toko/marketplace) opsional.
+            // Ongkir memakai nilai tersimpan dari order (diisi saat create/
+            // checkout) — tidak ditanyakan lagi di langkah proses.
+            'shipping_cost' => ['nullable', 'integer', 'min:0'],
+            // Ekspedisi wajib hanya untuk channel utama mode kirim;
+            // marketplace (pencatatan) & ambil sendiri opsional.
             'ekspedisi' => [
                 'nullable',
-                Rule::requiredIf($order?->sumber_pembelian === 'website'),
+                Rule::requiredIf(
+                    $order?->isMainChannel() === true
+                        && ($order?->metode_pengambilan ?? 'kirim') !== 'ambil',
+                ),
                 Rule::in(StoreSettings::enabledCourierCodes() ?: ['__tidak_ada__']),
             ],
             'courier_service_code' => ['nullable', 'string', 'max:50'],

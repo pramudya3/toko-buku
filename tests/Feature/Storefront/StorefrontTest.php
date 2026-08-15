@@ -14,6 +14,9 @@ use App\Models\User;
 
 beforeEach(function (): void {
     $this->customer = User::factory()->create();
+
+    // Origin toko (cek ongkir/booking membaca dari tabel settings saja).
+    Setting::set('origin_postal_code', '65144');
 });
 
 it('lists only active books in the catalog', function (): void {
@@ -322,7 +325,7 @@ it('keeps separate cart lines per edition and prices checkout by edition', funct
         'nama_pembeli' => 'Budi',
         'whatsapp_pembeli' => '08123456789',
         'metode_bayar' => 'transfer',
-        'ekspedisi' => '',
+        'metode_pengambilan' => 'ambil',
         'selected_groups' => ['regular'],
     ])->assertRedirect();
 
@@ -426,6 +429,7 @@ it('only processes selected groups when placing the order', function (): void {
     $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli Grup',
         'metode_bayar' => 'transfer',
+        'metode_pengambilan' => 'ambil',
         'selected_groups' => ['bundle-'.$promo->id],
     ])->assertRedirect();
 
@@ -443,6 +447,7 @@ it('rejects checkout when no group is selected', function (): void {
     $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli',
         'metode_bayar' => 'transfer',
+        'metode_pengambilan' => 'ambil',
         'selected_groups' => [],
     ])->assertSessionHasErrors('items');
 
@@ -534,7 +539,7 @@ it('moves incomplete bundle books to regular group with normal price', function 
 
 it('returns shipping costs for the cart destination', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 3)->create(['aktif' => true, 'berat_gr' => 500]);
     session(['cart' => [$book->id => 2]]);
@@ -550,7 +555,7 @@ it('returns shipping costs for the cart destination', function (): void {
 
 it('calculates shipping costs only for the selected groups', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $bookA = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 100000]);
     $bookB = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 50000]);
@@ -621,7 +626,7 @@ it('rejects removing an unknown cart group', function (): void {
 
 it('saves shipping cost and courier when placing the order', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 50000]);
     session(['cart' => [$book->id => 1]]);
@@ -637,14 +642,14 @@ it('saves shipping cost and courier when placing the order', function (): void {
 
     expect($order->shipping_cost)->toBe(12000)
         ->and($order->ekspedisi)->toBe('jne')
-        ->and($order->ongkir_estimasi)->toBe('1 - 2 days')
+        ->and($order->ongkir_estimasi)->toBe('1-2')
         ->and($order->kode_pos)->toBe('65144')
         ->and($order->total)->toBe(62000); // 50.000 + ongkir 12.000
 });
 
 it('rejects invalid courier when placing the order', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'berat_gr' => 500]);
     session(['cart' => [$book->id => 1]]);
@@ -686,6 +691,7 @@ it('creates a checkout order linked to the logged-in user', function (): void {
         'kecamatan' => 'KLOJEN',
         'kode_pos' => '65144',
         'metode_bayar' => 'transfer',
+        'metode_pengambilan' => 'ambil',
     ])
         ->assertRedirect();
 
@@ -708,6 +714,7 @@ it('links checkout order to the logged-in user', function (): void {
     $this->actingAs($user)->post(route('checkout.store'), [
         'nama_pembeli' => $user->name,
         'metode_bayar' => 'transfer',
+        'metode_pengambilan' => 'ambil',
     ])->assertRedirect();
 
     expect(Order::firstOrFail()->user_id)->toBe($user->id);
@@ -721,6 +728,7 @@ it('rejects checkout when stock is insufficient', function (): void {
     $this->actingAs($this->customer)->post(route('checkout.store'), [
         'nama_pembeli' => 'Pembeli',
         'metode_bayar' => 'transfer',
+        'metode_pengambilan' => 'ambil',
     ])->assertSessionHasErrors('items');
 
     expect(Order::count())->toBe(0);
@@ -766,6 +774,9 @@ it('hides checkout success page from strangers', function (): void {
 });
 
 it('saves whatsapp number when admin creates an order', function (): void {
+    createLocalVillages();
+    fakeRajaOngkirApi();
+
     $admin = User::factory()->create(['is_admin' => true]);
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true]);
 
@@ -774,6 +785,9 @@ it('saves whatsapp number when admin creates an order', function (): void {
             'nama_pembeli' => 'Pembeli WA',
             'whatsapp_pembeli' => '08111111111',
             'metode_bayar' => 'transfer',
+            'sumber_pembelian' => 'website',
+            'kode_pos' => '65144',
+            'ekspedisi' => 'jne',
             'items' => [['book_id' => $book->id, 'qty' => 1]],
         ])
         ->assertRedirect();

@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Warehouse;
+use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 
@@ -23,6 +24,7 @@ beforeEach(function (): void {
     // Data origin toko — wajib sebelum booking Biteship.
     Setting::set('store_telepon', '08123456789');
     Setting::set('store_alamat', 'Jl. Merdeka 1, KLOJEN, KOTA MALANG, JAWA TIMUR, 65144');
+    Setting::set('origin_postal_code', '65144');
 });
 
 function orderIn(string $status, array $overrides = []): Order
@@ -53,7 +55,7 @@ it('rejects processing an unpaid website order', function (): void {
     expect($order->fresh()->status)->toBe(OrderStatus::MenungguKonfirmasi);
 });
 
-it('allows processing a toko order without payment confirmation', function (): void {
+it('requires payment confirmation before processing a toko order (main channel)', function (): void {
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'harga' => 50000]);
     $order = orderIn(OrderStatus::MenungguKonfirmasi->value, [
         'payment_status' => PaymentStatus::Menunggu,
@@ -76,7 +78,8 @@ it('allows processing a toko order without payment confirmation', function (): v
         ])
         ->assertRedirect();
 
-    expect($order->fresh()->status)->toBe(OrderStatus::Diproses);
+    expect($order->fresh()->status)->toBe(OrderStatus::MenungguKonfirmasi)
+        ->and(session('inertia.flash_data.toast.message'))->toContain('lunas');
 });
 
 // ── Auto-batal 24 jam ──
@@ -407,27 +410,27 @@ it('applies the shipment status when refreshing from the admin panel', function 
 
 it('charges the price of the courier service chosen at checkout', function (): void {
     Http::fake([
-        'api.biteship.com/*' => Http::response([
-            'success' => true,
-            'pricing' => [
-                [
-                    'courier_code' => 'jne',
-                    'courier_name' => 'JNE',
-                    'courier_service_code' => 'reg',
-                    'courier_service_name' => 'Reguler',
-                    'price' => 12000,
-                    'duration' => '1 - 2 days',
-                ],
-                [
-                    'courier_code' => 'jne',
-                    'courier_name' => 'JNE',
-                    'courier_service_code' => 'yes',
-                    'courier_service_name' => 'YES',
-                    'price' => 25000,
-                    'duration' => '1 day',
-                ],
-            ],
+        'rajaongkir.komerce.id/api/v1/destination/domestic-destination*' => Http::response([
+            'meta' => ['message' => 'ok', 'code' => 200, 'status' => 'success'],
+            'data' => [[
+                'id' => 700114,
+                'label' => 'Test 65144',
+                'province_name' => 'JAWA TIMUR',
+                'city_name' => 'KOTA MALANG',
+                'district_name' => 'KLOJEN',
+                'subdistrict_name' => 'BARENG',
+                'zip_code' => '65144',
+            ]],
         ]),
+        'rajaongkir.komerce.id/api/v1/calculate/domestic-cost' => function (Request $request) {
+            return Http::response([
+                'meta' => ['message' => 'ok', 'code' => 200, 'status' => 'success'],
+                'data' => $request['courier'] === 'jne' ? [
+                    ['name' => 'JNE', 'code' => 'jne', 'service' => 'REG', 'description' => 'Reguler', 'cost' => 12000, 'etd' => '1-2'],
+                    ['name' => 'JNE', 'code' => 'jne', 'service' => 'YES', 'description' => 'Yakin Esok Sampai', 'cost' => 25000, 'etd' => '1'],
+                ] : [],
+            ]);
+        },
     ]);
 
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'harga' => 50000]);
@@ -455,19 +458,26 @@ it('charges the price of the courier service chosen at checkout', function (): v
 
 it('rejects checkout when the courier service is unavailable', function (): void {
     Http::fake([
-        'api.biteship.com/*' => Http::response([
-            'success' => true,
-            'pricing' => [
-                [
-                    'courier_code' => 'jne',
-                    'courier_name' => 'JNE',
-                    'courier_service_code' => 'reg',
-                    'courier_service_name' => 'Reguler',
-                    'price' => 12000,
-                    'duration' => '1 - 2 days',
-                ],
-            ],
+        'rajaongkir.komerce.id/api/v1/destination/domestic-destination*' => Http::response([
+            'meta' => ['message' => 'ok', 'code' => 200, 'status' => 'success'],
+            'data' => [[
+                'id' => 700114,
+                'label' => 'Test 65144',
+                'province_name' => 'JAWA TIMUR',
+                'city_name' => 'KOTA MALANG',
+                'district_name' => 'KLOJEN',
+                'subdistrict_name' => 'BARENG',
+                'zip_code' => '65144',
+            ]],
         ]),
+        'rajaongkir.komerce.id/api/v1/calculate/domestic-cost' => function (Request $request) {
+            return Http::response([
+                'meta' => ['message' => 'ok', 'code' => 200, 'status' => 'success'],
+                'data' => $request['courier'] === 'jne' ? [
+                    ['name' => 'JNE', 'code' => 'jne', 'service' => 'REG', 'description' => 'Reguler', 'cost' => 12000, 'etd' => '1-2'],
+                ] : [],
+            ]);
+        },
     ]);
 
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'harga' => 50000]);
@@ -492,7 +502,7 @@ it('rejects checkout when the courier service is unavailable', function (): void
 // ── Service courier tersimpan ──
 
 it('stores courier service code at checkout', function (): void {
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'harga' => 50000]);
 
@@ -682,4 +692,22 @@ it('rejects checkout when the courier is disabled', function (): void {
     ])->assertRedirect()->assertSessionHasErrors('ekspedisi');
 
     expect(Order::count())->toBe(0);
+});
+
+it('places an ambil-sendiri order without address or shipping cost', function (): void {
+    $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'harga' => 50000]);
+
+    session(['cart' => [$book->id => 1]]);
+
+    $this->actingAs($this->customer)->post(route('checkout.store'), [
+        'nama_pembeli' => 'Pembeli Ambil',
+        'metode_bayar' => 'transfer',
+        'metode_pengambilan' => 'ambil',
+    ])->assertRedirect();
+
+    $order = Order::latest('id')->first();
+
+    expect($order->metode_pengambilan)->toBe('ambil')
+        ->and($order->shipping_cost)->toBe(0)
+        ->and($order->ekspedisi)->toBeNull();
 });

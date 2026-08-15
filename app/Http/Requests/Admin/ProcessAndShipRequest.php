@@ -35,7 +35,8 @@ class ProcessAndShipRequest extends FormRequest
         return [
             'konfirmasi_lunas' => ['nullable', 'boolean'],
             'shipping_cost' => [
-                Rule::requiredIf($needsProcess),
+                // Ambil sendiri tanpa ongkir.
+                Rule::requiredIf($needsProcess && ($order?->metode_pengambilan ?? 'kirim') !== 'ambil'),
                 'integer', 'min:0',
             ],
             'ekspedisi' => [

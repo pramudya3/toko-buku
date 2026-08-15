@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OrderProcessRequest;
@@ -19,7 +21,7 @@ use App\Services\BiteshipShippingService;
 use App\Services\InventoryService;
 use App\Services\OrderStatusService;
 use App\Services\PricingService;
-use App\Services\ShippingCostService;
+use App\Services\RajaOngkirCostService;
 use App\Support\StoreSettings;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +38,7 @@ class OrderController extends Controller
         private readonly PricingService $pricing,
         private readonly OrderStatusService $statusService,
         private readonly InventoryService $inventoryService,
-        private readonly ShippingCostService $shippingCost,
+        private readonly RajaOngkirCostService $shippingCost,
         private readonly BiteshipShippingService $biteship,
     ) {}
 
@@ -102,7 +104,9 @@ class OrderController extends Controller
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->whereLike('judul', "%{$search}%")
-                        ->orWhereLike('kode_sku', "%{$search}%");
+                        ->orWhereLike('kode_sku', "%{$search}%")
+                        ->orWhereLike('penulis', "%{$search}%")
+                        ->orWhereLike('penterjemah', "%{$search}%");
                 });
             })
             ->orderBy('judul')
@@ -142,13 +146,14 @@ class OrderController extends Controller
 
     /**
      * Cek ongkir utk order manual (admin) — alamat tujuan + berat items.
-     * Memakai ShippingCostService yang sama dgn storefront → cache 24 jam shared.
+     * Memakai RajaOngkirCostService yang sama dgn storefront → cache 24 jam shared.
      */
     public function checkOngkir(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'postal_code' => ['required', 'string', 'max:10'],
-            'weight_kg' => ['required', 'numeric', 'min:0.01', 'max:200'],
+            // Berat 0 diperbolehkan (buku tanpa berat) — service floor ke 1 gram.
+            'weight_kg' => ['required', 'numeric', 'min:0', 'max:200'],
         ]);
 
         // Biteship butuh items[] — admin order manual, pakai 1 item dgn total berat.
@@ -185,6 +190,16 @@ class OrderController extends Controller
         $shippingEstimation = null;
         $courierCode = $data['ekspedisi'] ?? null;
 
+        // Metode pengambilan: kirim / ambil sendiri — default ambil sendiri
+        // (toko & marketplace = pencatatan; kirim dipilih eksplisit).
+        $fulfillment = $data['metode_pengambilan']
+            ?? FulfillmentMethod::Ambil->value;
+
+        // Ambil sendiri → tanpa ongkir (ekspedisi diabaikan).
+        if ($fulfillment === FulfillmentMethod::Ambil->value) {
+            $courierCode = null;
+        }
+
         if ($courierCode !== null && $courierCode !== '') {
             $kodePos = $data['kode_pos'] ?? null;
 
@@ -194,8 +209,16 @@ class OrderController extends Controller
 
             try {
                 $items = $this->orderItemsForBiteship($data['items']);
+                $serviceCode = $data['courier_service_code'] ?? null;
                 $matched = collect($this->shippingCost->costs($kodePos, $items))
-                    ->firstWhere('courier_code', $courierCode);
+                    ->first(function (array $rate) use ($courierCode, $serviceCode): bool {
+                        if ($rate['courier_code'] !== $courierCode) {
+                            return false;
+                        }
+
+                        return $serviceCode === null || $serviceCode === ''
+                            || strtolower((string) ($rate['service_code'] ?? '')) === strtolower((string) $serviceCode);
+                    });
 
                 if ($matched === null) {
                     throw new RuntimeException('Ekspedisi tidak valid — pilih ulang dari daftar ongkir.');
@@ -208,50 +231,76 @@ class OrderController extends Controller
             }
         }
 
-        for ($attempt = 0; $attempt < 3; $attempt++) {
-            try {
-                $order = DB::transaction(function () use ($data, $isDropship, $courierCode, $shippingCost, $shippingEstimation): Order {
-                    $order = new Order([
-                        'no_order' => $this->generateOrderNumber(),
-                        'user_id' => $data['user_id'] ?? null,
-                        'nama_pembeli' => $data['nama_pembeli'],
-                        'no_hp' => $data['whatsapp_pembeli'] ?? null,
-                        'alamat' => $data['alamat'] ?? null,
-                        'provinsi' => $data['provinsi'] ?? null,
-                        'kabupaten_kota' => $data['kabupaten_kota'] ?? null,
-                        'kecamatan' => $data['kecamatan'] ?? null,
-                        'kelurahan' => $data['kelurahan'] ?? null,
-                        'kode_pos' => $data['kode_pos'] ?? null,
-                        'metode_bayar' => $data['metode_bayar'],
-                        'sumber_pembelian' => $data['sumber_pembelian'] ?? null,
-                        'total' => 0,
-                        'ekspedisi' => $courierCode,
-                        'shipping_cost' => $shippingCost,
-                        'ongkir_estimasi' => $shippingEstimation,
-                        'is_dropship' => $isDropship,
-                        'status' => OrderStatus::MenungguKonfirmasi,
-                    ]);
+        // Resolve customer terdaftar bila tidak dipilih di picker — order
+        // (mis. pembelian toko) otomatis tampil di "Pesanan Saya" customer.
+        $userId = $data['user_id'] ?? null;
 
-                    $this->pricing->storeOrderWithItems($order, $data['items']);
+        if (! is_string($userId) || $userId === '') {
+            $userId = $this->resolveCustomerId($data['nama_pembeli'], $data['whatsapp_pembeli'] ?? null);
+        }
 
-                    if ($order->is_dropship) {
-                        $order->dropshipper()->create([
-                            'user_id' => $data['user_id'] ?? null,
-                            'end_customer_name' => $data['end_customer_name'],
-                            'end_customer_whatsapp' => $data['end_customer_whatsapp'] ?? null,
-                            'end_customer_address' => $data['end_customer_address'] ?? null,
+        // Pembayaran cash (di kasir) → langsung lunas; transfer → menunggu
+        // konfirmasi admin (verifikasi manual).
+        $paymentStatus = ($data['metode_bayar'] ?? null) === PaymentMethod::Cash->value
+            ? PaymentStatus::Lunas
+            : PaymentStatus::Menunggu;
+
+        try {
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                try {
+                    $order = DB::transaction(function () use ($request, $data, $isDropship, $courierCode, $shippingCost, $shippingEstimation, $userId, $paymentStatus, $fulfillment): Order {
+                        $order = new Order([
+                            'no_order' => $this->generateOrderNumber(),
+                            'user_id' => $userId,
+                            'nama_pembeli' => $data['nama_pembeli'],
+                            'no_hp' => $data['whatsapp_pembeli'] ?? null,
+                            'alamat' => $data['alamat'] ?? null,
+                            'provinsi' => $data['provinsi'] ?? null,
+                            'kabupaten_kota' => $data['kabupaten_kota'] ?? null,
+                            'kecamatan' => $data['kecamatan'] ?? null,
+                            'kelurahan' => $data['kelurahan'] ?? null,
+                            'kode_pos' => $data['kode_pos'] ?? null,
+                            'metode_bayar' => $data['metode_bayar'],
+                            'sumber_pembelian' => $data['sumber_pembelian'] ?? null,
+                            'total' => 0,
+                            'ekspedisi' => $courierCode,
+                            'shipping_cost' => $shippingCost,
+                            'ongkir_estimasi' => $shippingEstimation,
+                            'is_dropship' => $isDropship,
+                            'status' => OrderStatus::MenungguKonfirmasi,
+                            'payment_status' => $paymentStatus,
+                            'metode_pengambilan' => $fulfillment,
                         ]);
+
+                        $this->pricing->storeOrderWithItems($order, $data['items']);
+
+                        if ($order->is_dropship) {
+                            $order->dropshipper()->create([
+                                'user_id' => $userId,
+                                'end_customer_name' => $data['end_customer_name'],
+                                'end_customer_whatsapp' => $data['end_customer_whatsapp'] ?? null,
+                                'end_customer_address' => $data['end_customer_address'] ?? null,
+                            ]);
+                        }
+
+                        // Cash → langsung diproses: stok otomatis terpotong dari
+                        // gudang default (menunggu konfirmasi hanya utk transfer).
+                        if ($paymentStatus === PaymentStatus::Lunas) {
+                            $this->processCashOrder($order, $request->user()->id);
+                        }
+
+                        return $order->fresh();
+                    });
+
+                    break;
+                } catch (UniqueConstraintViolationException $exception) {
+                    if ($attempt === 2) {
+                        throw $exception;
                     }
-
-                    return $order->fresh();
-                });
-
-                break;
-            } catch (UniqueConstraintViolationException $exception) {
-                if ($attempt === 2) {
-                    throw $exception;
                 }
             }
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['items' => $exception->getMessage()]);
         }
 
         if ($order === null) {
@@ -264,6 +313,40 @@ class OrderController extends Controller
     }
 
     /**
+     * Order cash langsung diproses: cek stok gudang default, potong stok,
+     * hitung ulang total, transisi → diproses.
+     */
+    private function processCashOrder(Order $order, string $userId): void
+    {
+        $warehouse = Warehouse::query()
+            ->sellable()
+            ->orderBy('kode')
+            ->first();
+
+        if ($warehouse === null) {
+            throw new RuntimeException('Tidak ada gudang aktif untuk memproses pesanan.');
+        }
+
+        $order->warehouse_origin = $warehouse->kode;
+        $order->save();
+
+        $order->load('items.book', 'items.edition');
+
+        foreach ($order->items as $item) {
+            $this->inventoryService->assertSufficientStock(
+                $item->book,
+                $warehouse,
+                $item->qty,
+                $item->edition,
+            );
+        }
+
+        $this->inventoryService->deductForOrder($order, $userId);
+        $this->pricing->applyToOrder($order);
+        $this->statusService->transition($order, OrderStatus::Diproses, $userId);
+    }
+
+    /**
      * Detail order (ORD-02, DROP-01).
      */
     public function show(Order $order): Response
@@ -272,14 +355,12 @@ class OrderController extends Controller
             'user:id,name,whatsapp_number,status_pelanggan',
             'items.book:id,judul,kode_sku,cover_url',
             'dropshipper',
-            'cashFlows',
         ]);
 
         return Inertia::render('admin/orders/Show', [
             'order' => $order,
             'statusOptions' => OrderStatus::options(),
             'couriers' => StoreSettings::enabledCouriers(),
-            'shippingCouriers' => $this->biteship->courierServices(),
             'paymentMethods' => StoreSettings::allPaymentMethods(),
             'salesChannels' => StoreSettings::allSalesChannels(),
             'warehouseOptions' => Warehouse::query()
@@ -287,9 +368,15 @@ class OrderController extends Controller
                 ->orderBy('nama')
                 ->pluck('nama', 'kode')
                 ->all(),
-            // Data origin toko untuk booking Biteship (cek kelengkapan di UI).
+            // Template link tracking (mis. lacak Wahana) untuk auto-isi saat
+            // input resi manual — placeholder {awb} diganti nomor resi.
+            'trackingUrlTemplate' => config('shipping.tracking_url_template', ''),
+            // Data origin toko untuk pengiriman manual (pengirim) & cek kelengkapan.
+            'storeNamaLembaga' => Setting::get('store_nama_lembaga', ''),
             'storeTelepon' => Setting::get('store_telepon', ''),
+            'storeEmail' => Setting::get('store_email', ''),
             'storeAlamat' => Setting::get('store_alamat', ''),
+            'originPostalCode' => Setting::get('origin_postal_code', ''),
         ]);
     }
 
@@ -587,15 +674,17 @@ class OrderController extends Controller
             );
         }
 
-        // Order website harus lunas sebelum diproses (stok terpotong);
-        // channel lain (toko/marketplace) tidak perlu konfirmasi transfer.
-        if ($lockedOrder->sumber_pembelian === 'website'
+        // Channel utama (website/toko) wajib lunas sebelum diproses —
+        // menunggu konfirmasi hanya utk pembayaran transfer. Marketplace
+        // hanya pencatatan (proses di-handle platform e-commerce).
+        if ($lockedOrder->isMainChannel()
             && $lockedOrder->payment_status !== PaymentStatus::Lunas) {
             throw new RuntimeException('Pembayaran belum dikonfirmasi lunas — konfirmasi pembayaran terlebih dahulu.');
         }
 
         $lockedOrder->update([
-            'shipping_cost' => (int) $data['shipping_cost'],
+            // Ongkir memakai nilai tersimpan bila tidak dikirim ulang.
+            'shipping_cost' => (int) ($data['shipping_cost'] ?? $lockedOrder->shipping_cost),
             'ekspedisi' => isset($data['ekspedisi']) && $data['ekspedisi'] !== ''
                 ? (string) $data['ekspedisi']
                 : null,
@@ -649,17 +738,29 @@ class OrderController extends Controller
             return back();
         }
 
-        // Resi wajib ada sebelum order website ditandai dikirim — booking
-        // Biteship dulu (AWB terbit), supaya customer bisa melacak di Pesanan Saya.
+        // Resi wajib sebelum order channel utama ditandai dikirim (mode
+        // kirim) — dari input manual di "Proses Kirim".
         if ($target === OrderStatus::Dikirim
-            && $order->sumber_pembelian === 'website'
-            && $order->awb === null) {
+            && $order->isMainChannel()
+            && ($order->metode_pengambilan ?? 'kirim') !== 'ambil'
+            && $order->awb === null
+            && trim($request->string('awb')->toString()) === '') {
             Inertia::flash('toast', [
                 'type' => 'error',
-                'message' => 'Buat pengiriman Biteship terlebih dahulu — AWB diperlukan sebelum menandai dikirim.',
+                'message' => 'Masukkan No. Resi terlebih dahulu sebelum menandai dikirim.',
             ]);
 
             return back();
+        }
+
+        // Simpan resi & link tracking (booking Biteship atau manual).
+        $awb = trim($request->string('awb')->toString());
+
+        if ($target === OrderStatus::Dikirim && $awb !== '') {
+            $order->update([
+                'awb' => $awb,
+                'biteship_courier_link' => $request->string('biteship_courier_link')->toString() ?: null,
+            ]);
         }
 
         try {
@@ -697,6 +798,31 @@ class OrderController extends Controller
     /**
      * Nomor order unik: ORD-YYYYMMDD-XXXX (urutan per hari).
      */
+    /**
+     * Cari customer terdaftar dari nama/WhatsApp — hanya bila cocok TEPAT
+     * satu user (non-admin); ambigu → null (order tetap bisa dibuat manual).
+     */
+    private function resolveCustomerId(string $name, ?string $whatsapp): ?string
+    {
+        if ($whatsapp !== null && trim($whatsapp) !== '') {
+            $byWhatsapp = User::query()
+                ->where('is_admin', false)
+                ->where('whatsapp_number', trim($whatsapp))
+                ->pluck('id');
+
+            if ($byWhatsapp->count() === 1) {
+                return (string) $byWhatsapp->first();
+            }
+        }
+
+        $byName = User::query()
+            ->where('is_admin', false)
+            ->whereLike('name', trim($name))
+            ->pluck('id');
+
+        return $byName->count() === 1 ? (string) $byName->first() : null;
+    }
+
     /**
      * Bangun items[] untuk payload Biteship dari data items form admin.
      *
