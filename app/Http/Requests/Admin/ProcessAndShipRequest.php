@@ -2,12 +2,18 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Support\StoreSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class OrderProcessRequest extends FormRequest
+/**
+ * Alur gabungan "Proses & Kirim": konfirmasi lunas + proses + booking Biteship
+ * (+ penjadwalan pickup). Field proses hanya wajib saat order masih
+ * menunggu_konfirmasi; saat diproses (retry booking) bisa dikosongkan.
+ */
+class ProcessAndShipRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,27 +31,33 @@ class OrderProcessRequest extends FormRequest
     public function rules(): array
     {
         $order = $this->route('order');
-        // Ekspedisi wajib hanya untuk channel utama mode kirim; marketplace
-        // (pencatatan) & ambil sendiri opsional.
-        $isMainKirim = $order instanceof Order
-            && $order->isMainChannel()
+        $needsProcess = $order instanceof Order
+            && $order->status === OrderStatus::MenungguKonfirmasi;
+        $isWebsite = $order instanceof Order && $order->sumber_pembelian === 'website';
+        $isKirim = $order instanceof Order
             && ($order->metode_pengambilan ?? 'kirim') !== 'ambil';
 
         return [
-            // Ongkir memakai nilai tersimpan dari order (diisi saat create/
-            // checkout) — tidak ditanyakan lagi di langkah proses.
-            'shipping_cost' => ['nullable', 'integer', 'min:0'],
+            'konfirmasi_lunas' => ['nullable', 'boolean'],
+            'shipping_cost' => [
+                // Ambil sendiri tanpa ongkir.
+                Rule::requiredIf($needsProcess && $isKirim),
+                'integer', 'min:0',
+            ],
             'ekspedisi' => [
                 'nullable',
-                Rule::requiredIf($isMainKirim),
+                Rule::requiredIf($needsProcess && $isWebsite),
                 Rule::in(StoreSettings::enabledCourierCodes() ?: ['__tidak_ada__']),
             ],
             'courier_service_code' => ['nullable', 'string', 'max:50'],
             'warehouse_origin' => [
-                'required',
+                Rule::requiredIf($needsProcess),
                 // Hindari bind `false` (di SQLite jadi '') — pakai 0.
                 Rule::exists('warehouses', 'kode')->where('is_defect', 0),
             ],
+            'collection_method' => ['nullable', Rule::in(['pickup', 'drop_off'])],
+            'pickup_date' => ['nullable', 'date'],
+            'pickup_time' => ['nullable', 'date_format:H:i'],
         ];
     }
 
@@ -59,6 +71,7 @@ class OrderProcessRequest extends FormRequest
             'ekspedisi.required' => 'Ekspedisi wajib diisi.',
             'warehouse_origin.required' => 'Gudang asal wajib dipilih.',
             'warehouse_origin' => 'Gudang asal tidak valid.',
+            'collection_method' => 'Metode penyerahan tidak valid.',
         ];
     }
 }

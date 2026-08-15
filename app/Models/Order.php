@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string|null $provinsi
  * @property string|null $kabupaten_kota
  * @property string|null $kecamatan
+ * @property string|null $kelurahan
  * @property string|null $kode_pos
  * @property string|null $nama_penerima
  * @property PaymentMethod $metode_bayar
@@ -39,12 +41,27 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property PaymentStatus $payment_status
  * @property string|null $ekspedisi
  * @property string|null $ongkir_estimasi
+ * @property string|null $courier_service_code
+ * @property string|null $shipping_collection_method
+ * @property string|null $metode_pengambilan
+ * @property string|null $bukti_transfer_path
+ * @property Carbon|null $bukti_transfer_at
+ * @property string|null $biteship_order_id
+ * @property string|null $awb
+ * @property string|null $biteship_label_url
+ * @property string|null $biteship_status
+ * @property string|null $biteship_courier_link
  */
 #[Fillable([
     'no_order', 'user_id', 'nama_pembeli', 'no_hp', 'email_pembeli', 'alamat',
-    'provinsi', 'kabupaten_kota', 'kecamatan', 'kode_pos', 'nama_penerima',
+    'provinsi', 'kabupaten_kota', 'kecamatan', 'kelurahan', 'kode_pos', 'nama_penerima',
     'metode_bayar', 'sumber_pembelian', 'total', 'shipping_cost', 'is_dropship', 'warehouse_origin',
-    'status', 'payment_status', 'ekspedisi', 'ongkir_estimasi',
+    'status', 'payment_status', 'ekspedisi', 'ongkir_estimasi', 'courier_service_code',
+    'shipping_collection_method',
+    'metode_pengambilan',
+    'bukti_transfer_path', 'bukti_transfer_at',
+    'biteship_order_id', 'awb', 'biteship_label_url', 'biteship_status',
+    'biteship_courier_link',
 ])]
 #[ObservedBy([OrderObserver::class])]
 class Order extends Model
@@ -95,6 +112,7 @@ class Order extends Model
             'is_dropship' => 'boolean',
             'status' => OrderStatus::class,
             'payment_status' => PaymentStatus::class,
+            'bukti_transfer_at' => 'datetime',
         ];
     }
 
@@ -104,5 +122,15 @@ class Order extends Model
     public function subtotal(): int
     {
         return $this->total - $this->shipping_cost;
+    }
+
+    /**
+     * Channel utama (website/toko) menjalankan proses penuh di aplikasi;
+     * channel lain (marketplace) hanya pencatatan — proses di-handle
+     * platform e-commerce masing-masing.
+     */
+    public function isMainChannel(): bool
+    {
+        return in_array($this->sumber_pembelian, ['website', 'toko'], true);
     }
 }

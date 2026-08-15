@@ -187,78 +187,6 @@ parameters:
 			path: app/Http/Controllers/Admin/InventoryReportController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Order\|App\\Models\\OrderItem\:\:\$book\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Order\|App\\Models\\OrderItem\:\:\$edition\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Order\|App\\Models\\OrderItem\:\:\$qty\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Access to protected property App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:\$items\.$#'
-			identifier: property.protected
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Call to an undefined method App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:update\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\InventoryService\:\:deductForOrder\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\OrderStatusService\:\:canTransition\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\OrderStatusService\:\:transition\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\PricingService\:\:applyToOrder\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Parameter \#2 \$userId of method App\\Services\\InventoryService\:\:deductForOrder\(\) expects string\|null, int given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
-			message: '#^Parameter \#3 \$userId of method App\\Services\\OrderStatusService\:\:transition\(\) expects string\|null, int given\.$#'
-			identifier: argument.type
-			count: 2
-			path: app/Http/Controllers/Admin/OrderController.php
-
-		-
 			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -1019,12 +947,6 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Services/SalesXlsxExporter.php
-
-		-
-			message: '#^Method App\\Services\\ShippingCostService\:\:get\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/ShippingCostService.php
 
 		-
 			message: '#^Method App\\Services\\SupplierService\:\:saldoHutang\(\) should return int but returns float\|int\.$#'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, router, useHttp } from '@inertiajs/vue3';
-import { Loader2, Minus, Plus, Trash2 } from '@lucide/vue';
+import { Loader2, Minus, PackageCheck, Plus, Trash2, Truck } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
@@ -80,6 +80,7 @@ type UserInfo = {
 type ShippingOption = {
     courier_code: string;
     courier_name: string;
+    service_code: string;
     price: number;
     weight: number;
     estimation: string | null;
@@ -216,12 +217,25 @@ const isFormComplete = computed(() => {
     );
 });
 
-// ── Ongkos kirim (api.co.id) ──
+// ── Ongkos kirim (RajaOngkir) ──
 const shippingCosts = ref<ShippingOption[]>([]);
 const shippingWeight = ref<number | null>(null);
 const ongkirLoading = ref(false);
 const ongkirError = ref('');
+const ongkirStale = ref(false);
 const selectedCourier = ref('');
+
+// Metode pengambilan: kirim (default) / ambil sendiri — ambil sendiri
+// tidak perlu alamat & ongkir.
+const fulfillmentMethod = ref<'kirim' | 'ambil'>('kirim');
+const isAmbil = computed(() => fulfillmentMethod.value === 'ambil');
+
+function chooseFulfillment(method: 'kirim' | 'ambil'): void {
+    // Jangan clear hasil cek ongkir — balik ke "Kirim" mengembalikan ongkir
+    // yang sudah dipilih (tanpa hit API tambahan). Total menghitung ongkir
+    // hanya saat metode kirim.
+    fulfillmentMethod.value = method;
+}
 function toggleGroup(key: string, checked: boolean) {
     router.post(
         CartController.toggleGroup().url,
@@ -249,11 +263,33 @@ const ongkirRequest = useHttp<{
 }>();
 let ongkirTimer: ReturnType<typeof setTimeout> | undefined;
 
-const selectedShippingOption = computed(
-    () =>
+// Value Select berbentuk "courier_code:service_code" — layanan tersimpan
+// lewat hidden input, bukan hilang seperti sebelumnya.
+const selectedShippingValue = ref('');
+
+// Opsi yang benar-benar dipilih user (courier:service) — bukan asumsi
+// layanan pertama dari kurir (bug lama: semua order tersimpan NULL).
+const selectedShippingOption = computed(() => {
+    if (selectedShippingValue.value !== '') {
+        return (
+            shippingCosts.value.find(
+                (option) =>
+                    `${option.courier_code}:${option.service_code}` ===
+                    selectedShippingValue.value,
+            ) ?? null
+        );
+    }
+
+    // Fallback: belum pilih layanan → opsi pertama kurir terpilih.
+    return (
         shippingCosts.value.find(
-            (c) => c.courier_code === selectedCourier.value,
-        ) ?? null,
+            (option) => option.courier_code === selectedCourier.value,
+        ) ?? null
+    );
+});
+
+const selectedServiceCode = computed(
+    () => selectedShippingOption.value?.service_code ?? '',
 );
 
 const shippingCost = computed(() => selectedShippingOption.value?.price ?? 0);
@@ -269,6 +305,7 @@ watch(
     ],
     () => {
         selectedCourier.value = '';
+        selectedShippingValue.value = '';
         shippingCosts.value = [];
         shippingWeight.value = null;
         ongkirError.value = '';
@@ -295,6 +332,7 @@ function checkOngkir(): void {
 
     ongkirLoading.value = true;
     ongkirError.value = '';
+    ongkirStale.value = false;
 
     ongkirTimer = setTimeout(() => {
         ongkirRequest.transform(() => ({
@@ -322,6 +360,7 @@ function checkOngkir(): void {
                     )
                 ) {
                     selectedCourier.value = '';
+                    selectedShippingValue.value = '';
                 }
 
                 ongkirError.value =
@@ -341,11 +380,28 @@ function checkOngkir(): void {
 }
 
 const grandTotal = computed(
-    () => totalAfterDiscount.value + shippingCost.value,
+    () => totalAfterDiscount.value + (isAmbil.value ? 0 : shippingCost.value),
 );
+
+/**
+ * Keranjang berubah (qty/item) setelah cek ongkir → hasil basi, wajib
+ * cek ulang (berat berbeda). Tanpa auto-call — hemat hit API.
+ */
+function invalidateOngkir(): void {
+    if (shippingCosts.value.length === 0 && selectedCourier.value === '') {
+        return;
+    }
+
+    selectedShippingValue.value = '';
+    selectedCourier.value = '';
+    shippingCosts.value = [];
+    ongkirStale.value = true;
+}
 
 function updateQty(item: CartItem, delta: number) {
     const qty = item.qty + delta;
+
+    invalidateOngkir();
 
     if (qty <= 0) {
         router.post(CartController.remove(item.book.id).url, undefined, {
@@ -433,7 +489,10 @@ function onFormError() {
             v-slot="{ errors, processing }"
             @error="onFormError"
         >
-            <div v-if="groups.length" class="grid gap-6 lg:grid-cols-2">
+            <div
+                v-if="groups.length"
+                class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+            >
                 <div class="flex flex-col gap-6">
                     <Card>
                         <CardContent class="flex flex-col gap-6">
@@ -441,7 +500,9 @@ function onFormError() {
                                 <h2 class="text-sm font-semibold">
                                     Data Pembeli
                                 </h2>
-                                <div class="mt-3 grid gap-4 md:grid-cols-2">
+                                <div
+                                    class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
+                                >
                                     <div class="grid gap-2">
                                         <Label for="nama_pembeli"
                                             >Nama Lengkap *</Label
@@ -490,6 +551,63 @@ function onFormError() {
                             </div>
                             <div class="border-t pt-6">
                                 <h2 class="text-sm font-semibold">
+                                    Metode Pengambilan
+                                </h2>
+                                <div class="mt-3 grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
+                                        :class="
+                                            !isAmbil
+                                                ? 'border-primary bg-primary/5'
+                                                : ''
+                                        "
+                                        @click="chooseFulfillment('kirim')"
+                                    >
+                                        <Truck class="size-4 shrink-0" />
+                                        <span>
+                                            <span class="block font-medium">
+                                                Kirim
+                                            </span>
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Via ekspedisi
+                                            </span>
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
+                                        :class="
+                                            isAmbil
+                                                ? 'border-primary bg-primary/5'
+                                                : ''
+                                        "
+                                        @click="chooseFulfillment('ambil')"
+                                    >
+                                        <PackageCheck class="size-4 shrink-0" />
+                                        <span>
+                                            <span class="block font-medium">
+                                                Ambil Sendiri
+                                            </span>
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Di toko, tanpa ongkir
+                                            </span>
+                                        </span>
+                                    </button>
+                                </div>
+                                <input
+                                    type="hidden"
+                                    name="metode_pengambilan"
+                                    :value="fulfillmentMethod"
+                                />
+                            </div>
+
+                            <div v-if="!isAmbil" class="border-t pt-6">
+                                <h2 class="text-sm font-semibold">
                                     Alamat Pengiriman
                                 </h2>
                                 <div class="mt-3">
@@ -504,7 +622,9 @@ function onFormError() {
                                 <h2 class="text-sm font-semibold">
                                     Pembayaran & Pengiriman
                                 </h2>
-                                <div class="mt-3 grid gap-4 md:grid-cols-2">
+                                <div
+                                    class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
+                                >
                                     <div class="grid gap-2">
                                         <Label for="metode_bayar"
                                             >Metode Bayar *</Label
@@ -547,12 +667,14 @@ function onFormError() {
                                             <p
                                                 v-for="account in bankAccounts"
                                                 :key="account.id"
-                                                class="flex items-center gap-2"
+                                                class="flex flex-wrap items-center gap-2"
                                             >
                                                 <span class="font-medium">
                                                     {{ account.bank_name }}
                                                 </span>
-                                                <span class="font-mono">
+                                                <span
+                                                    class="font-mono break-all"
+                                                >
                                                     {{ account.account_number }}
                                                 </span>
                                                 <span
@@ -564,19 +686,41 @@ function onFormError() {
                                             </p>
                                         </div>
                                     </div>
-                                    <div class="grid gap-2 md:col-span-2">
+                                    <div
+                                        v-if="!isAmbil"
+                                        class="grid gap-2 md:col-span-2"
+                                    >
                                         <Label for="ekspedisi"
                                             >Ekspedisi & Ongkir</Label
                                         >
                                         <div class="flex items-end gap-2">
-                                            <div class="grid flex-1 gap-2">
+                                            <div
+                                                class="grid min-w-0 flex-1 gap-2"
+                                            >
                                                 <Select
-                                                    v-model="selectedCourier"
-                                                    name="ekspedisi"
+                                                    v-model="
+                                                        selectedShippingValue
+                                                    "
                                                     :disabled="
                                                         ongkirLoading ||
                                                         shippingCosts.length ===
                                                             0
+                                                    "
+                                                    @update:model-value="
+                                                        (val) => {
+                                                            const value =
+                                                                String(
+                                                                    val ?? '',
+                                                                );
+                                                            const [courier] =
+                                                                value.split(
+                                                                    ':',
+                                                                );
+                                                            selectedShippingValue =
+                                                                value;
+                                                            selectedCourier =
+                                                                courier ?? '';
+                                                        }
                                                     "
                                                 >
                                                     <SelectTrigger
@@ -597,12 +741,8 @@ function onFormError() {
                                                     >
                                                         <SelectItem
                                                             v-for="option in shippingCosts"
-                                                            :key="
-                                                                option.courier_code
-                                                            "
-                                                            :value="
-                                                                option.courier_code
-                                                            "
+                                                            :key="`${option.courier_code}:${option.service_code}`"
+                                                            :value="`${option.courier_code}:${option.service_code}`"
                                                         >
                                                             {{
                                                                 option.courier_name
@@ -626,6 +766,16 @@ function onFormError() {
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                                <input
+                                                    type="hidden"
+                                                    name="ekspedisi"
+                                                    :value="selectedCourier"
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    name="courier_service_code"
+                                                    :value="selectedServiceCode"
+                                                />
                                             </div>
                                             <Button
                                                 type="button"
@@ -659,6 +809,13 @@ function onFormError() {
                                             class="text-xs text-destructive"
                                         >
                                             {{ ongkirError }}
+                                        </p>
+                                        <p
+                                            v-else-if="ongkirStale"
+                                            class="text-xs text-amber-600 dark:text-amber-400"
+                                        >
+                                            Berat berubah — tekan Cek Ongkir
+                                            lagi.
                                         </p>
                                         <p
                                             v-else-if="
@@ -701,7 +858,7 @@ function onFormError() {
                             >
                                 <div class="flex items-center gap-2">
                                     <label
-                                        class="flex cursor-pointer items-center gap-2"
+                                        class="flex min-w-0 cursor-pointer items-center gap-2"
                                     >
                                         <Checkbox
                                             :model-value="
@@ -721,7 +878,9 @@ function onFormError() {
                                                     )
                                             "
                                         />
-                                        <span class="text-sm font-semibold">
+                                        <span
+                                            class="min-w-0 text-sm font-semibold"
+                                        >
                                             {{ group.name }}
                                         </span>
                                     </label>
@@ -787,7 +946,7 @@ function onFormError() {
                                                     "
                                                 >
                                                     <SelectTrigger
-                                                        class="h-7 w-auto gap-1 rounded-md border px-1.5 text-xs"
+                                                        class="h-7 w-auto max-w-44 min-w-0 gap-1 rounded-md border px-1.5 text-xs"
                                                     >
                                                         <SelectValue
                                                             placeholder="Cetakan"
@@ -929,7 +1088,7 @@ function onFormError() {
                                 />
                             </div>
                             <div
-                                v-if="selectedCourier"
+                                v-if="!isAmbil && selectedCourier"
                                 class="flex items-center justify-between text-sm"
                             >
                                 <span class="text-muted-foreground"

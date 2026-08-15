@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\SalesChannelController;
 use App\Http\Controllers\Admin\SalesReportController;
 use App\Http\Controllers\Admin\SalesReturnController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\StockRequestController as AdminStockRequestController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\SupplierDebtController;
 use App\Http\Controllers\Admin\SupplierPurchaseController;
@@ -31,9 +32,11 @@ use App\Http\Controllers\Admin\SupplierReturnController;
 use App\Http\Controllers\Admin\TierDiscountController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WarehouseController;
+use App\Http\Controllers\BiteshipWebhookController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\MyOrderController;
 use App\Http\Controllers\PublicAddressController;
+use App\Http\Controllers\StockRequestController;
 use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +49,9 @@ Route::get('wilayah/villages', [PublicAddressController::class, 'villages'])->na
 
 Route::get('tentang-kami', [StorefrontController::class, 'about'])->name('about');
 Route::get('promo', [StorefrontController::class, 'promo'])->name('books.promo');
+
+// Webhook Biteship — verifikasi X-Signature di controller.
+Route::post('webhooks/biteship', BiteshipWebhookController::class)->name('webhooks.biteship');
 Route::get('buku', [StorefrontController::class, 'catalog'])->name('books.catalog');
 Route::get('buku/lainnya', [StorefrontController::class, 'loadMore'])->name('books.load-more');
 // URL publik: /buku/{uuid}-{judul} — lookup tetap pakai uuid (36 char pertama),
@@ -54,10 +60,21 @@ Route::get('buku/{bookUrl}', [StorefrontController::class, 'show'])
     ->where('bookUrl', '[a-f0-9-]{36}(-[a-z0-9-]+)?')
     ->name('books.show');
 
-Route::get('checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store')->middleware('throttle:5,1');
-Route::post('checkout/ongkir', [CheckoutController::class, 'shippingCosts'])->name('checkout.shipping-cost');
-Route::get('checkout/sukses', [CheckoutController::class, 'success'])->name('checkout.success');
+// Checkout & ongkir (cek ongkir memakai API berbayar) hanya untuk user login.
+Route::middleware(['auth'])->group(function () {
+    Route::get('checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store')->middleware('throttle:5,1');
+    Route::post('checkout/ongkir', [CheckoutController::class, 'shippingCosts'])->name('checkout.shipping-cost');
+    Route::get('checkout/sukses', [CheckoutController::class, 'success'])->name('checkout.success');
+
+    Route::get('pesanan-saya', [MyOrderController::class, 'index'])->name('my-orders.index');
+    Route::get('pesanan-saya/{order}', [MyOrderController::class, 'show'])->name('my-orders.show');
+    Route::get('pesanan-saya/{order}/invoice', [MyOrderController::class, 'invoice'])->name('my-orders.invoice');
+    Route::post('pesanan-saya/{order}/bukti', [MyOrderController::class, 'uploadBukti'])->name('my-orders.upload-bukti');
+    Route::post('stok/ajukan/{book}', [StockRequestController::class, 'store'])->name('stock-requests.store');
+});
+
+// Keranjang tetap publik — guest boleh mengisi keranjang (session), login saat checkout.
 Route::post('keranjang', [CheckoutController::class, 'add'])->name('cart.add');
 Route::post('keranjang/bulk', [CheckoutController::class, 'addBulk'])->name('cart.add-bulk');
 Route::post('keranjang/{book}/remove', [CheckoutController::class, 'remove'])->name('cart.remove');
@@ -65,10 +82,6 @@ Route::post('keranjang/grup/toggle', [CheckoutController::class, 'toggleGroup'])
 Route::post('keranjang/grup/hapus', [CheckoutController::class, 'removeGroup'])->name('cart.remove-group');
 Route::post('keranjang/{book}/qty', [CheckoutController::class, 'updateQty'])->name('cart.qty');
 Route::post('keranjang/{book}/edition', [CheckoutController::class, 'updateEdition'])->name('cart.edition');
-
-Route::middleware(['auth'])->group(function () {
-    Route::get('pesanan-saya', [MyOrderController::class, 'index'])->name('my-orders.index');
-});
 
 Route::redirect('admin/login', '/login')->name('admin.login');
 
@@ -125,8 +138,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::patch('orders/{order}/process', [OrderController::class, 'process'])->name('orders.process');
+    Route::post('orders/{order}/process-ship', [OrderController::class, 'processAndShip'])->name('orders.process-ship');
     Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
     Route::patch('orders/{order}/payment', [OrderController::class, 'confirmPayment'])->name('orders.payment');
+    Route::post('orders/{order}/shipping', [OrderController::class, 'createShipping'])->name('orders.shipping');
+    Route::post('orders/{order}/shipping/cancel', [OrderController::class, 'cancelShipping'])->name('orders.shipping.cancel');
+    Route::post('orders/{order}/shipping/pickup', [OrderController::class, 'requestPickup'])->name('orders.shipping.pickup');
+    Route::post('orders/{order}/shipping/refresh', [OrderController::class, 'refreshShipping'])->name('orders.shipping.refresh');
+    Route::get('orders/{order}/shipping/label', [OrderController::class, 'shippingLabel'])->name('orders.shipping.label');
 
     Route::get('promotions/options/books', [PromotionController::class, 'bookOptions'])->name('promotions.options.books');
     Route::resource('promotions', PromotionController::class)->except(['show']);
@@ -170,6 +189,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('sales-returns/orders/{order}', [SalesReturnController::class, 'orderDetail'])->name('sales-returns.orders.detail');
     Route::get('sales-returns/{salesReturn}/invoice', [SalesReturnController::class, 'invoice'])->name('sales-returns.invoice');
     Route::resource('sales-returns', SalesReturnController::class)->only(['index', 'store']);
+
+    // Pengajuan stok dari customer (buku stok habis).
+    Route::get('stock-requests', [AdminStockRequestController::class, 'index'])->name('stock-requests.index');
+    Route::get('stock-requests/{book}', [AdminStockRequestController::class, 'show'])->name('stock-requests.show');
 
     // Rekap harian penjualan (.xlsx).
     Route::get('daily-recap', [DailyRecapController::class, 'index'])->name('daily-recap.index');

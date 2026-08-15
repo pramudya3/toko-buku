@@ -33,6 +33,10 @@ class OrderStatusRequest extends FormRequest
                     OrderStatus::Batal->value,
                 ]),
             ],
+            // Resi & link tracking — wajib saat menandai Dikirim untuk
+            // pengiriman manual (mis. via website ekspedisi).
+            'awb' => ['nullable', 'string', 'max:100'],
+            'biteship_courier_link' => ['nullable', 'url', 'max:255'],
         ];
     }
 

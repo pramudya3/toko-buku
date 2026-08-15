@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { CheckCircle2 } from '@lucide/vue';
+import { CheckCircle2, Clock, Landmark, Printer } from '@lucide/vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
 import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import { invoice as invoiceRoute } from '@/routes/my-orders';
 
 type OrderItem = {
     id: string;
@@ -14,6 +15,7 @@ type OrderItem = {
 };
 
 type Order = {
+    id: string;
     no_order: string;
     nama_pembeli: string;
     total: number;
@@ -93,7 +95,10 @@ defineOptions({
             </div>
 
             <div class="mt-4 rounded-lg bg-muted p-4 text-sm">
-                <p class="font-medium">Instruksi Pembayaran</p>
+                <p class="flex items-center gap-1.5 font-medium">
+                    <Landmark class="size-4 text-primary" />
+                    Cara Membayar
+                </p>
                 <template v-if="bankAccounts.length > 0">
                     <p class="mt-1 text-muted-foreground">
                         Transfer ke salah satu rekening berikut:
@@ -117,14 +122,36 @@ defineOptions({
                     </ul>
                 </template>
                 <p class="mt-2 text-muted-foreground">
-                    Lalu kirim bukti transfer via WhatsApp ke nomor kami.
-                    Pesanan diproses setelah pembayaran dikonfirmasi.
+                    Setelah transfer, unggah bukti transfer di
+                    <Link :href="'/pesanan-saya'" class="font-medium underline"
+                        >Pesanan Saya</Link
+                    >
+                    — pesanan yang sudah mengirim bukti tidak akan dibatalkan.
+                </p>
+                <p
+                    class="mt-2 flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                >
+                    <Clock class="size-3.5 shrink-0" />
+                    Selesaikan pembayaran dalam 24 jam — jika tidak, pesanan
+                    otomatis dibatalkan.
                 </p>
             </div>
         </div>
 
-        <Button as-child>
-            <Link :href="'/buku'">Lanjut Belanja</Link>
-        </Button>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+            <Button as-child>
+                <Link :href="'/buku'">Lanjut Belanja</Link>
+            </Button>
+            <Button variant="outline" as-child>
+                <a
+                    :href="invoiceRoute(order.id).url"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <Printer class="size-4" />
+                    Cetak Invoice
+                </a>
+            </Button>
+        </div>
     </div>
 </template>

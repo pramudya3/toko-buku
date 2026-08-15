@@ -35,6 +35,9 @@ const props = defineProps<{
     telepon: string;
     email: string;
     jam_operasional: string;
+    hari_buka: string;
+    jam_buka: string;
+    jam_tutup: string;
     deskripsi: string;
     visi: string;
     misi: string;
@@ -237,6 +240,40 @@ const address = ref<AddressValue>({
                                 :default-value="jam_operasional"
                                 placeholder="Senin–Sabtu, 08.00–17.00 WIB"
                             />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="hari_buka"
+                                >Hari Buka (terstruktur)</Label
+                            >
+                            <Input
+                                id="hari_buka"
+                                name="hari_buka"
+                                type="text"
+                                :default-value="hari_buka"
+                                placeholder="Senin–Sabtu"
+                            />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-2">
+                                <Label for="jam_buka">Jam Buka</Label>
+                                <Input
+                                    id="jam_buka"
+                                    name="jam_buka"
+                                    type="time"
+                                    :default-value="jam_buka"
+                                    placeholder="08:00"
+                                />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="jam_tutup">Jam Tutup</Label>
+                                <Input
+                                    id="jam_tutup"
+                                    name="jam_tutup"
+                                    type="time"
+                                    :default-value="jam_tutup"
+                                    placeholder="17:00"
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardContent>

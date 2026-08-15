@@ -210,13 +210,14 @@ const visibleBundles = computed(() => {
     );
 });
 
-// Filter kategori aktif → hanya item yang berkaitan; section Promo (paket
-// hemat + promo per item) disembunyikan agar hasil filter tetap fokus.
+// Filter kategori/search aktif → hanya item yang berkaitan; section Promo
+// (paket hemat + promo per item) disembunyikan agar hasil filter tetap fokus.
 const categoryActive = computed(() => Boolean(props.filters.category_id));
 
 const showPromoSection = computed(
     () =>
         !categoryActive.value &&
+        !props.filters.search &&
         (props.promos.length > 0 || visibleBundles.value.length > 0),
 );
 
@@ -471,7 +472,7 @@ function loadMore() {
         <!-- Chips kategori — mobile saja (desktop di header) -->
         <div
             v-if="categories.length"
-            class="flex gap-2 overflow-x-auto pb-1 md:hidden"
+            class="flex gap-2 overflow-x-auto pb-1 lg:hidden"
         >
             <button
                 type="button"

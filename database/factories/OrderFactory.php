@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -44,6 +45,16 @@ class OrderFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => $status,
+        ]);
+    }
+
+    /**
+     * Order yang pembayarannya sudah dikonfirmasi lunas.
+     */
+    public function lunas(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'payment_status' => PaymentStatus::Lunas,
         ]);
     }
 

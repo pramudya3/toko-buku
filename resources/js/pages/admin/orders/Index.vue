@@ -73,7 +73,7 @@ const columns: DataTableColumn[] = [
         cellClass: 'text-right tabular-nums',
     },
     { key: 'total', header: 'Total', cellClass: 'text-right tabular-nums' },
-    { key: 'status', header: 'Status' },
+    { key: 'status', header: 'Status', cellClass: 'text-center' },
     { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
 ];
 

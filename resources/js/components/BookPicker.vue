@@ -8,6 +8,9 @@ export type BookOption = {
     id: string;
     judul: string;
     kode_sku: string | null;
+    penulis?: string | null;
+    penterjemah?: string | null;
+    stok?: number;
 };
 
 const props = withDefaults(
@@ -18,7 +21,7 @@ const props = withDefaults(
         emptyHint?: string;
     }>(),
     {
-        placeholder: 'Cari judul / SKU buku...',
+        placeholder: 'Cari judul / SKU / penulis / penerjemah buku...',
         emptyHint: 'Tidak ada buku ditemukan.',
     },
 );
@@ -112,6 +115,22 @@ function onBlur() {
     }, 150);
 }
 
+function stokVariant(stok: number | undefined): string {
+    if (stok === undefined) {
+        return 'text-muted-foreground';
+    }
+
+    if (stok <= 0) {
+        return 'text-destructive font-semibold';
+    }
+
+    if (stok < 5) {
+        return 'text-amber-600 dark:text-amber-400';
+    }
+
+    return 'text-muted-foreground';
+}
+
 function select(book: BookOption) {
     emit('select', book);
 
@@ -152,10 +171,29 @@ function select(book: BookOption) {
             >
                 <span class="font-medium">{{ book.judul }}</span>
                 <span
-                    v-if="book.kode_sku"
-                    class="text-xs text-muted-foreground"
+                    v-if="
+                        book.kode_sku ||
+                        book.penulis ||
+                        book.penterjemah ||
+                        book.stok !== undefined
+                    "
+                    class="w-full truncate text-xs text-muted-foreground"
                 >
-                    {{ book.kode_sku }}
+                    <template v-if="book.kode_sku">{{
+                        book.kode_sku
+                    }}</template>
+                    <template v-if="book.penulis">
+                        · Penulis: {{ book.penulis }}
+                    </template>
+                    <template v-if="book.penterjemah">
+                        · Penerjemah: {{ book.penterjemah }}
+                    </template>
+                    <template v-if="book.stok !== undefined">
+                        ·
+                        <span :class="stokVariant(book.stok)"
+                            >Stok: {{ book.stok }}</span
+                        >
+                    </template>
                 </span>
             </button>
             <p

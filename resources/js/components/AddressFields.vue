@@ -357,7 +357,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="grid gap-4 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="grid gap-2">
             <Label for="provinsi">Provinsi</Label>
             <SearchableSelect

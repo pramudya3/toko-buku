@@ -31,7 +31,39 @@ final class OrderStatusService
 
     public function canTransition(Order $order, OrderStatus $to): bool
     {
+        // Ambil sendiri (channel utama) & marketplace (pencatatan) boleh
+        // langsung selesai dari diproses; channel utama mode kirim wajib
+        // lewat dikirim (resi).
+        if ($order->status === OrderStatus::Diproses
+            && $to === OrderStatus::Selesai
+            && (! $order->isMainChannel() || ($order->metode_pengambilan ?? 'kirim') === 'ambil')) {
+            return true;
+        }
+
         return in_array($to, self::TRANSITIONS[$order->status->value], true);
+    }
+
+    /**
+     * Terapkan status pengiriman Biteship ke status order aplikasi
+     * (satu-satunya sumber mapping — dipakai webhook & tombol refresh admin).
+     *
+     * @return bool true bila transisi terjadi
+     */
+    public function applyBiteshipStatus(Order $order, string $biteshipStatus, ?string $userId = null): bool
+    {
+        $mapped = match ($biteshipStatus) {
+            'picked', 'in_transit', 'dropping_off' => OrderStatus::Dikirim,
+            'delivered' => OrderStatus::Selesai,
+            default => null,
+        };
+
+        if ($mapped === null || ! $this->canTransition($order, $mapped)) {
+            return false;
+        }
+
+        $this->transition($order, $mapped, $userId);
+
+        return true;
     }
 
     /**
