@@ -81,6 +81,51 @@ it('resolves labels for built-in and custom payment methods', function (): void 
         ->and(PaymentMethodEnum::labelFor('metode-hantu'))->toBe('metode-hantu');
 });
 
+it('bulk activates and deactivates payment methods', function (): void {
+    $cod = PaymentMethod::factory()->create(['is_active' => false]);
+    $qris = PaymentMethod::factory()->create(['is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.pembayaran.bulk'), [
+            'ids' => [$cod->id, $qris->id],
+            'is_active' => '1',
+        ])
+        ->assertRedirect();
+
+    expect($cod->fresh()->is_active)->toBeTrue()
+        ->and($qris->fresh()->is_active)->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.pembayaran.bulk'), [
+            'ids' => [$cod->id, $qris->id],
+            'is_active' => '0',
+        ])
+        ->assertRedirect();
+
+    expect($cod->fresh()->is_active)->toBeFalse()
+        ->and($qris->fresh()->is_active)->toBeFalse();
+});
+
+it('validates the bulk payment method payload', function (): void {
+    $method = PaymentMethod::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.pembayaran.bulk'), [
+            'ids' => ['tidak-ada'],
+            'is_active' => '1',
+        ])
+        ->assertSessionHasErrors(['ids.0']);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.pembayaran.bulk'), [
+            'ids' => [$method->id],
+            'is_active' => 'bukan-bool',
+        ])
+        ->assertSessionHasErrors('is_active');
+
+    expect($method->fresh()->is_active)->toBeTrue();
+});
+
 it('blocks customers from payment method settings', function (): void {
     $customer = User::factory()->customer()->create();
 

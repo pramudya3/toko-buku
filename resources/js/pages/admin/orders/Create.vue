@@ -178,10 +178,11 @@ const totalAfterTierDiscount = computed(() =>
     Math.max(0, subtotal.value - tierDiscountTotal.value),
 );
 
-// ── Ongkir (api.co.id) — order manual ──
+// ── Ongkir (RajaOngkir) — order manual ──
 type ShippingOption = {
     courier_code: string;
     courier_name: string;
+    service_code: string;
     price: number;
     weight: number;
     estimation: string | null;
@@ -192,6 +193,10 @@ const ongkirLoading = ref(false);
 const ongkirError = ref('');
 const ongkirStale = ref(false);
 const selectedCourier = ref('');
+const selectedServiceCode = ref('');
+// Nilai Select unik per layanan: "courier:service" (RajaOngkir bisa
+// mengembalikan beberapa layanan per kurir — jangan duplikat nilai).
+const shippingValue = ref('');
 const ongkirRequest = useHttp<{
     village_name: string;
     district_name: string;
@@ -211,7 +216,9 @@ const totalWeightKg = computed(() => {
 const selectedShippingOption = computed(
     () =>
         shippingCosts.value.find(
-            (c) => c.courier_code === selectedCourier.value,
+            (option) =>
+                `${option.courier_code}:${option.service_code}` ===
+                shippingValue.value,
         ) ?? null,
 );
 
@@ -238,6 +245,8 @@ function invalidateOngkir(): void {
     }
 
     selectedCourier.value = '';
+    selectedServiceCode.value = '';
+    shippingValue.value = '';
     shippingCosts.value = [];
     ongkirStale.value = true;
 }
@@ -251,6 +260,8 @@ function checkOngkir() {
     ongkirError.value = '';
     ongkirStale.value = false;
     selectedCourier.value = '';
+    selectedServiceCode.value = '';
+    shippingValue.value = '';
     shippingCosts.value = [];
 
     ongkirRequest.transform(() => ({
@@ -695,11 +706,25 @@ const buyerAddressText = computed(() =>
                                 <div class="flex items-end gap-2">
                                     <div class="grid min-w-0 flex-1 gap-2">
                                         <Select
-                                            v-model="selectedCourier"
+                                            v-model="shippingValue"
                                             name="ekspedisi"
                                             :disabled="
                                                 ongkirLoading ||
                                                 shippingCosts.length === 0
+                                            "
+                                            @update:model-value="
+                                                (val) => {
+                                                    const value = String(
+                                                        val ?? '',
+                                                    );
+                                                    const [courier, service] =
+                                                        value.split(':');
+                                                    shippingValue = value;
+                                                    selectedCourier =
+                                                        courier ?? '';
+                                                    selectedServiceCode =
+                                                        service ?? '';
+                                                }
                                             "
                                         >
                                             <SelectTrigger id="ekspedisi">
@@ -716,8 +741,8 @@ const buyerAddressText = computed(() =>
                                             <SelectContent class="max-h-64">
                                                 <SelectItem
                                                     v-for="option in shippingCosts"
-                                                    :key="option.courier_code"
-                                                    :value="option.courier_code"
+                                                    :key="`${option.courier_code}:${option.service_code}`"
+                                                    :value="`${option.courier_code}:${option.service_code}`"
                                                 >
                                                     {{ option.courier_name }} —
                                                     Rp
@@ -790,6 +815,11 @@ const buyerAddressText = computed(() =>
                                     type="hidden"
                                     name="shipping_cost"
                                     :value="shippingCost"
+                                />
+                                <input
+                                    type="hidden"
+                                    name="courier_service_code"
+                                    :value="selectedServiceCode"
                                 />
                                 <input
                                     type="hidden"

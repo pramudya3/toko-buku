@@ -71,6 +71,51 @@ it('soft deletes and restores a courier', function (): void {
     expect($courier->fresh()->trashed())->toBeFalse();
 });
 
+it('bulk activates and deactivates couriers', function (): void {
+    $jne = Courier::factory()->create(['is_active' => false]);
+    $jnt = Courier::factory()->create(['is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.ekspedisi.bulk'), [
+            'ids' => [$jne->id, $jnt->id],
+            'is_active' => '1',
+        ])
+        ->assertRedirect();
+
+    expect($jne->fresh()->is_active)->toBeTrue()
+        ->and($jnt->fresh()->is_active)->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.ekspedisi.bulk'), [
+            'ids' => [$jne->id, $jnt->id],
+            'is_active' => '0',
+        ])
+        ->assertRedirect();
+
+    expect($jne->fresh()->is_active)->toBeFalse()
+        ->and($jnt->fresh()->is_active)->toBeFalse();
+});
+
+it('validates the bulk courier payload', function (): void {
+    $courier = Courier::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.ekspedisi.bulk'), [
+            'ids' => ['tidak-ada'],
+            'is_active' => '1',
+        ])
+        ->assertSessionHasErrors(['ids.0']);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.ekspedisi.bulk'), [
+            'ids' => [$courier->id],
+            'is_active' => 'bukan-bool',
+        ])
+        ->assertSessionHasErrors('is_active');
+
+    expect($courier->fresh()->is_active)->toBeTrue();
+});
+
 it('blocks customers from courier settings', function (): void {
     $customer = User::factory()->customer()->create();
 

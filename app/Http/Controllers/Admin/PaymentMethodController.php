@@ -63,6 +63,38 @@ class PaymentMethodController extends Controller
     }
 
     /**
+     * Aktifkan / nonaktifkan beberapa metode pembayaran sekaligus.
+     */
+    public function bulkUpdate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'string', Rule::exists('payment_methods', 'id')],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $count = PaymentMethod::whereIn('id', $validated['ids'])->update([
+            'is_active' => $validated['is_active'],
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $validated['is_active']
+                ? "{$count} metode pembayaran berhasil diaktifkan."
+                : "{$count} metode pembayaran berhasil dinonaktifkan.",
+        ]);
+
+        ActivityLogger::log(
+            ActivityAction::SettingsUpdate,
+            $validated['is_active']
+                ? "{$count} metode pembayaran diaktifkan (bulk)"
+                : "{$count} metode pembayaran dinonaktifkan (bulk)"
+        );
+
+        return back();
+    }
+
+    /**
      * Hapus metode pembayaran (soft delete).
      */
     public function destroy(PaymentMethod $paymentMethod): RedirectResponse
