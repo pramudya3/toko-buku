@@ -81,6 +81,51 @@ it('resolves labels for built-in and custom sales channels', function (): void {
         ->and(SalesChannelEnum::labelFor('channel-hantu'))->toBe('channel-hantu');
 });
 
+it('bulk activates and deactivates sales channels', function (): void {
+    $toko = SalesChannel::factory()->create(['is_active' => false]);
+    $shopee = SalesChannel::factory()->create(['is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.sumber-penjualan.bulk'), [
+            'ids' => [$toko->id, $shopee->id],
+            'is_active' => '1',
+        ])
+        ->assertRedirect();
+
+    expect($toko->fresh()->is_active)->toBeTrue()
+        ->and($shopee->fresh()->is_active)->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.sumber-penjualan.bulk'), [
+            'ids' => [$toko->id, $shopee->id],
+            'is_active' => '0',
+        ])
+        ->assertRedirect();
+
+    expect($toko->fresh()->is_active)->toBeFalse()
+        ->and($shopee->fresh()->is_active)->toBeFalse();
+});
+
+it('validates the bulk sales channel payload', function (): void {
+    $channel = SalesChannel::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.sumber-penjualan.bulk'), [
+            'ids' => ['tidak-ada'],
+            'is_active' => '1',
+        ])
+        ->assertSessionHasErrors(['ids.0']);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.sumber-penjualan.bulk'), [
+            'ids' => [$channel->id],
+            'is_active' => 'bukan-bool',
+        ])
+        ->assertSessionHasErrors('is_active');
+
+    expect($channel->fresh()->is_active)->toBeTrue();
+});
+
 it('blocks customers from sales channel settings', function (): void {
     $customer = User::factory()->customer()->create();
 

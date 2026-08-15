@@ -9,7 +9,7 @@ defineOptions({
 });
 
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Plus } from '@lucide/vue';
+import { ChevronDown, Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import CourierController from '@/actions/App/Http/Controllers/Admin/CourierController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
@@ -26,6 +26,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -44,6 +50,7 @@ defineProps<{
 const dialogOpen = ref(false);
 const editing = ref<Courier | null>(null);
 const deleting = ref<Courier | null>(null);
+const selectedIds = ref<Set<string>>(new Set());
 
 const columns: DataTableColumn[] = [
     { key: 'name', header: 'Nama', cellClass: 'font-medium' },
@@ -59,6 +66,35 @@ function openCreate(): void {
 function openEdit(courier: Courier): void {
     editing.value = courier;
     dialogOpen.value = true;
+}
+
+function toggleActive(courier: Courier): void {
+    router.put(
+        CourierController.update(courier.id).url,
+        {
+            name: courier.name,
+            is_active: courier.is_active ? '0' : '1',
+        },
+        { preserveScroll: true },
+    );
+}
+
+function bulkSetActive(isActive: boolean): void {
+    if (selectedIds.value.size === 0) {
+        return;
+    }
+
+    router.put(
+        CourierController.bulkUpdate().url,
+        {
+            ids: [...selectedIds.value],
+            is_active: isActive ? '1' : '0',
+        },
+        {
+            preserveScroll: true,
+            onSuccess: () => selectedIds.value.clear(),
+        },
+    );
 }
 
 function confirmDelete(courier: Courier): void {
@@ -88,18 +124,28 @@ function executeDelete(): void {
                 Pengaturan Ekspedisi
             </h1>
             <p class="text-sm text-muted-foreground">
-                Daftar ekspedisi dan tarif ongkos kirim
+                Ekspedisi aktif tampil sebagai pilihan saat input ongkir di
+                pesanan
             </p>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h2 class="text-base font-medium">Ekspedisi</h2>
-                <p class="text-sm text-muted-foreground">
-                    Ekspedisi aktif tampil sebagai pilihan saat input ongkir di
-                    pesanan
-                </p>
-            </div>
+        <div class="flex flex-wrap items-center justify-end gap-4">
+            <DropdownMenu v-if="selectedIds.size > 0">
+                <DropdownMenuTrigger as-child>
+                    <Button variant="outline">
+                        Ubah Status ({{ selectedIds.size }})
+                        <ChevronDown class="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem @click="bulkSetActive(true)">
+                        Aktifkan ({{ selectedIds.size }})
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="bulkSetActive(false)">
+                        Nonaktifkan ({{ selectedIds.size }})
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
             <Button @click="openCreate">
                 <Plus class="size-4" />
                 Tambah Ekspedisi
@@ -109,6 +155,8 @@ function executeDelete(): void {
         <DataTable
             :data="couriers"
             :columns="columns"
+            selectable
+            v-model:selected-ids="selectedIds"
             empty-title="Belum ada ekspedisi"
             empty-description="Tambahkan ekspedisi yang tersedia untuk pengiriman."
         >
@@ -127,6 +175,10 @@ function executeDelete(): void {
             <template #cell-aksi="{ row }">
                 <DataTableActions
                     :actions="[
+                        {
+                            label: row.is_active ? 'Nonaktifkan' : 'Aktifkan',
+                            onClick: () => toggleActive(row),
+                        },
                         {
                             label: 'Edit',
                             onClick: () => openEdit(row),

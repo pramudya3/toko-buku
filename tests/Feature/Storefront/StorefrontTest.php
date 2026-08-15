@@ -539,7 +539,7 @@ it('moves incomplete bundle books to regular group with normal price', function 
 
 it('returns shipping costs for the cart destination', function (): void {
     createLocalVillages();
-    fakeRajaOngkirApi();
+    fakeBiteshipApi();
 
     $book = Book::factory()->withStock(malang: 3)->create(['aktif' => true, 'berat_gr' => 500]);
     session(['cart' => [$book->id => 2]]);
@@ -555,7 +555,7 @@ it('returns shipping costs for the cart destination', function (): void {
 
 it('calculates shipping costs only for the selected groups', function (): void {
     createLocalVillages();
-    fakeRajaOngkirApi();
+    fakeBiteshipApi();
 
     $bookA = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 100000]);
     $bookB = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 50000]);
@@ -626,7 +626,7 @@ it('rejects removing an unknown cart group', function (): void {
 
 it('saves shipping cost and courier when placing the order', function (): void {
     createLocalVillages();
-    fakeRajaOngkirApi();
+    fakeBiteshipApi();
 
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'berat_gr' => 1000, 'harga' => 50000]);
     session(['cart' => [$book->id => 1]]);
@@ -642,14 +642,14 @@ it('saves shipping cost and courier when placing the order', function (): void {
 
     expect($order->shipping_cost)->toBe(12000)
         ->and($order->ekspedisi)->toBe('jne')
-        ->and($order->ongkir_estimasi)->toBe('1-2')
+        ->and($order->ongkir_estimasi)->toBe('1 - 2 days')
         ->and($order->kode_pos)->toBe('65144')
         ->and($order->total)->toBe(62000); // 50.000 + ongkir 12.000
 });
 
 it('rejects invalid courier when placing the order', function (): void {
     createLocalVillages();
-    fakeRajaOngkirApi();
+    fakeBiteshipApi();
 
     $book = Book::factory()->withStock(malang: 5)->create(['aktif' => true, 'berat_gr' => 500]);
     session(['cart' => [$book->id => 1]]);
@@ -775,7 +775,7 @@ it('hides checkout success page from strangers', function (): void {
 
 it('saves whatsapp number when admin creates an order', function (): void {
     createLocalVillages();
-    fakeRajaOngkirApi();
+    fakeBiteshipApi();
 
     $admin = User::factory()->create(['is_admin' => true]);
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true]);

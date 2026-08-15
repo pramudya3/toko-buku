@@ -5,7 +5,6 @@ use App\Models\District;
 use App\Models\Province;
 use App\Models\Village;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Inertia\Response as InertiaResponse;
@@ -52,47 +51,41 @@ expect()->extend('toBeOne', function () {
 
 /**
  * Mock respons api.co.id: resolve desa + daftar ongkir.
- */ /** Mock respons RajaOngkir (Komerce) — search lokasi + calculate ongkir. */
-function fakeRajaOngkirApi(): void
+ */ /**
+ * Mock respons Biteship Rates API (v1/rates/couriers — pricing di root).
+ */
+function fakeBiteshipApi(): void
 {
     Http::fake([
-        // Resolve kode pos → id lokasi.
-        'rajaongkir.komerce.id/api/v1/destination/domestic-destination*' => function (Request $request) {
-            $postal = (string) ($request['search'] ?? '00000');
-
-            return Http::response([
-                'meta' => ['message' => 'Success Get Domestic Destinations', 'code' => 200, 'status' => 'success'],
-                'data' => [[
-                    'id' => (int) ('7000'.substr($postal, -3)),
-                    'label' => 'Test '.$postal,
-                    'province_name' => 'JAWA TIMUR',
-                    'city_name' => 'KOTA MALANG',
-                    'district_name' => 'KLOJEN',
-                    'subdistrict_name' => 'BARENG',
-                    'zip_code' => $postal,
-                ]],
-            ]);
-        },
-        // Tarif per kurir — data[]: {name, code, service, description, cost, etd}.
-        'rajaongkir.komerce.id/api/v1/calculate/domestic-cost' => function (Request $request) {
-            $rates = [
-                'jne' => [
-                    ['name' => 'JNE', 'code' => 'jne', 'service' => 'REG', 'description' => 'Reguler', 'cost' => 12000, 'etd' => '1-2'],
-                    ['name' => 'JNE', 'code' => 'jne', 'service' => 'YES', 'description' => 'Yakin Esok Sampai', 'cost' => 25000, 'etd' => '1'],
+        'api.biteship.com/*' => Http::response([
+            'success' => true,
+            'pricing' => [
+                [
+                    'courier_code' => 'jne',
+                    'courier_name' => 'JNE',
+                    'courier_service_code' => 'reg',
+                    'courier_service_name' => 'Reguler',
+                    'price' => 12000,
+                    'duration' => '1 - 2 days',
                 ],
-                'wahana' => [
-                    ['name' => 'Wahana Express', 'code' => 'wahana', 'service' => 'REG', 'description' => 'Reguler', 'cost' => 14000, 'etd' => '2-3'],
+                [
+                    'courier_code' => 'jne',
+                    'courier_name' => 'JNE',
+                    'courier_service_code' => 'yes',
+                    'courier_service_name' => 'YES',
+                    'price' => 25000,
+                    'duration' => '1 day',
                 ],
-                'sicepat' => [
-                    ['name' => 'SiCepat', 'code' => 'sicepat', 'service' => 'REG', 'description' => 'Reguler', 'cost' => 13000, 'etd' => '1-2'],
+                [
+                    'courier_code' => 'wahana',
+                    'courier_name' => 'Wahana',
+                    'courier_service_code' => 'deno',
+                    'courier_service_name' => 'Deno',
+                    'price' => 14000,
+                    'duration' => '2 - 3 days',
                 ],
-            ];
-
-            return Http::response([
-                'meta' => ['message' => 'Success Calculate Domestic Shipping cost', 'code' => 200, 'status' => 'success'],
-                'data' => $rates[(string) ($request['courier'] ?? '')] ?? [],
-            ]);
-        },
+            ],
+        ]),
     ]);
 }
 

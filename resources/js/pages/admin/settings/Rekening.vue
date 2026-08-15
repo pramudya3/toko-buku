@@ -64,6 +64,19 @@ function openEdit(account: BankAccount): void {
     dialogOpen.value = true;
 }
 
+function toggleActive(account: BankAccount): void {
+    router.put(
+        BankAccountController.update(account.id).url,
+        {
+            bank_name: account.bank_name,
+            account_number: account.account_number,
+            account_holder: account.account_holder,
+            is_active: account.is_active ? '0' : '1',
+        },
+        { preserveScroll: true },
+    );
+}
+
 function confirmDelete(account: BankAccount): void {
     deleting.value = account;
 }
@@ -129,6 +142,10 @@ function executeDelete(): void {
             <template #cell-aksi="{ row }">
                 <DataTableActions
                     :actions="[
+                        {
+                            label: row.is_active ? 'Nonaktifkan' : 'Aktifkan',
+                            onClick: () => toggleActive(row),
+                        },
                         {
                             label: 'Edit',
                             onClick: () => openEdit(row),

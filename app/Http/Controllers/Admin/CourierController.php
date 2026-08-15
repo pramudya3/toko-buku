@@ -63,6 +63,38 @@ class CourierController extends Controller
     }
 
     /**
+     * Aktifkan / nonaktifkan beberapa ekspedisi sekaligus.
+     */
+    public function bulkUpdate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'string', Rule::exists('couriers', 'id')],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $count = Courier::whereIn('id', $validated['ids'])->update([
+            'is_active' => $validated['is_active'],
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $validated['is_active']
+                ? "{$count} ekspedisi berhasil diaktifkan."
+                : "{$count} ekspedisi berhasil dinonaktifkan.",
+        ]);
+
+        ActivityLogger::log(
+            ActivityAction::SettingsUpdate,
+            $validated['is_active']
+                ? "{$count} ekspedisi diaktifkan (bulk)"
+                : "{$count} ekspedisi dinonaktifkan (bulk)"
+        );
+
+        return back();
+    }
+
+    /**
      * Hapus ekspedisi (soft delete).
      */
     public function destroy(Courier $courier): RedirectResponse

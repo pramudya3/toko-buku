@@ -9,7 +9,7 @@ defineOptions({
 });
 
 import { Form, Head, router } from '@inertiajs/vue3';
-import { Plus } from '@lucide/vue';
+import { ChevronDown, Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import PaymentMethodController from '@/actions/App/Http/Controllers/Admin/PaymentMethodController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
@@ -26,6 +26,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -44,6 +50,7 @@ defineProps<{
 const dialogOpen = ref(false);
 const editing = ref<PaymentMethodItem | null>(null);
 const deleting = ref<PaymentMethodItem | null>(null);
+const selectedIds = ref<Set<string>>(new Set());
 
 const columns: DataTableColumn[] = [
     { key: 'name', header: 'Nama', cellClass: 'font-medium' },
@@ -59,6 +66,35 @@ function openCreate(): void {
 function openEdit(method: PaymentMethodItem): void {
     editing.value = method;
     dialogOpen.value = true;
+}
+
+function toggleActive(method: PaymentMethodItem): void {
+    router.put(
+        PaymentMethodController.update(method.id).url,
+        {
+            name: method.name,
+            is_active: method.is_active ? '0' : '1',
+        },
+        { preserveScroll: true },
+    );
+}
+
+function bulkSetActive(isActive: boolean): void {
+    if (selectedIds.value.size === 0) {
+        return;
+    }
+
+    router.put(
+        PaymentMethodController.bulkUpdate().url,
+        {
+            ids: [...selectedIds.value],
+            is_active: isActive ? '1' : '0',
+        },
+        {
+            preserveScroll: true,
+            onSuccess: () => selectedIds.value.clear(),
+        },
+    );
 }
 
 function confirmDelete(method: PaymentMethodItem): void {
@@ -92,14 +128,23 @@ function executeDelete(): void {
             </p>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h2 class="text-base font-medium">Metode Pembayaran</h2>
-                <p class="text-sm text-muted-foreground">
-                    Metode aktif tampil di checkout storefront dan form pesanan
-                    admin
-                </p>
-            </div>
+        <div class="flex flex-wrap items-center justify-end gap-4">
+            <DropdownMenu v-if="selectedIds.size > 0">
+                <DropdownMenuTrigger as-child>
+                    <Button variant="outline">
+                        Ubah Status ({{ selectedIds.size }})
+                        <ChevronDown class="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem @click="bulkSetActive(true)">
+                        Aktifkan ({{ selectedIds.size }})
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="bulkSetActive(false)">
+                        Nonaktifkan ({{ selectedIds.size }})
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
             <Button @click="openCreate">
                 <Plus class="size-4" />
                 Tambah Metode
@@ -109,6 +154,8 @@ function executeDelete(): void {
         <DataTable
             :data="paymentMethods"
             :columns="columns"
+            selectable
+            v-model:selected-ids="selectedIds"
             empty-title="Belum ada metode pembayaran"
             empty-description="Tambahkan metode yang diterima toko."
         >
@@ -127,6 +174,10 @@ function executeDelete(): void {
             <template #cell-aksi="{ row }">
                 <DataTableActions
                     :actions="[
+                        {
+                            label: row.is_active ? 'Nonaktifkan' : 'Aktifkan',
+                            onClick: () => toggleActive(row),
+                        },
                         {
                             label: 'Edit',
                             onClick: () => openEdit(row),

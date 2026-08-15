@@ -21,7 +21,7 @@ use App\Services\BiteshipShippingService;
 use App\Services\InventoryService;
 use App\Services\OrderStatusService;
 use App\Services\PricingService;
-use App\Services\RajaOngkirCostService;
+use App\Services\ShippingCostService;
 use App\Support\StoreSettings;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -38,7 +38,7 @@ class OrderController extends Controller
         private readonly PricingService $pricing,
         private readonly OrderStatusService $statusService,
         private readonly InventoryService $inventoryService,
-        private readonly RajaOngkirCostService $shippingCost,
+        private readonly ShippingCostService $shippingCost,
         private readonly BiteshipShippingService $biteship,
     ) {}
 
@@ -146,7 +146,7 @@ class OrderController extends Controller
 
     /**
      * Cek ongkir utk order manual (admin) — alamat tujuan + berat items.
-     * Memakai RajaOngkirCostService yang sama dgn storefront → cache 24 jam shared.
+     * Memakai ShippingCostService yang sama dgn storefront → cache 24 jam shared.
      */
     public function checkOngkir(Request $request): JsonResponse
     {
@@ -264,6 +264,7 @@ class OrderController extends Controller
                             'sumber_pembelian' => $data['sumber_pembelian'] ?? null,
                             'total' => 0,
                             'ekspedisi' => $courierCode,
+                            'courier_service_code' => $data['courier_service_code'] ?? null,
                             'shipping_cost' => $shippingCost,
                             'ongkir_estimasi' => $shippingEstimation,
                             'is_dropship' => $isDropship,

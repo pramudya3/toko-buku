@@ -63,6 +63,38 @@ class SalesChannelController extends Controller
     }
 
     /**
+     * Aktifkan / nonaktifkan beberapa channel penjualan sekaligus.
+     */
+    public function bulkUpdate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'string', Rule::exists('sales_channels', 'id')],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $count = SalesChannel::whereIn('id', $validated['ids'])->update([
+            'is_active' => $validated['is_active'],
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $validated['is_active']
+                ? "{$count} sumber penjualan berhasil diaktifkan."
+                : "{$count} sumber penjualan berhasil dinonaktifkan.",
+        ]);
+
+        ActivityLogger::log(
+            ActivityAction::SettingsUpdate,
+            $validated['is_active']
+                ? "{$count} sumber penjualan diaktifkan (bulk)"
+                : "{$count} sumber penjualan dinonaktifkan (bulk)"
+        );
+
+        return back();
+    }
+
+    /**
      * Hapus channel penjualan (soft delete).
      */
     public function destroy(SalesChannel $salesChannel): RedirectResponse

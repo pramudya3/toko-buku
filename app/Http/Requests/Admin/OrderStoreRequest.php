@@ -47,6 +47,7 @@ class OrderStoreRequest extends FormRequest
                 'string',
                 'max:50',
             ],
+            'courier_service_code' => ['nullable', 'string', 'max:50'],
             'shipping_cost' => ['nullable', 'integer', 'min:0'],
             'ongkir_estimasi' => ['nullable', 'string', 'max:100'],
             'metode_pengambilan' => ['nullable', Rule::in(['kirim', 'ambil'])],

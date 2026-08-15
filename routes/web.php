@@ -258,16 +258,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Pengaturan toko: pilihan ekspedisi & metode pembayaran (CRUD, soft delete + undo).
     Route::get('settings/ekspedisi', [SettingController::class, 'ekspedisi'])->name('settings.ekspedisi');
     Route::post('settings/ekspedisi', [CourierController::class, 'store'])->name('settings.ekspedisi.store');
+    Route::put('settings/ekspedisi/bulk', [CourierController::class, 'bulkUpdate'])->name('settings.ekspedisi.bulk');
     Route::put('settings/ekspedisi/{courier}', [CourierController::class, 'update'])->name('settings.ekspedisi.update');
     Route::delete('settings/ekspedisi/{courier}', [CourierController::class, 'destroy'])->name('settings.ekspedisi.destroy');
     Route::post('settings/ekspedisi/{courier}/restore', [CourierController::class, 'restore'])->name('settings.ekspedisi.restore')->withTrashed();
     Route::get('settings/pembayaran', [SettingController::class, 'pembayaran'])->name('settings.pembayaran');
     Route::post('settings/pembayaran', [PaymentMethodController::class, 'store'])->name('settings.pembayaran.store');
+    Route::put('settings/pembayaran/bulk', [PaymentMethodController::class, 'bulkUpdate'])->name('settings.pembayaran.bulk');
     Route::put('settings/pembayaran/{paymentMethod}', [PaymentMethodController::class, 'update'])->name('settings.pembayaran.update');
     Route::delete('settings/pembayaran/{paymentMethod}', [PaymentMethodController::class, 'destroy'])->name('settings.pembayaran.destroy');
     Route::post('settings/pembayaran/{paymentMethod}/restore', [PaymentMethodController::class, 'restore'])->name('settings.pembayaran.restore')->withTrashed();
     Route::get('settings/sumber-penjualan', [SettingController::class, 'sumberPenjualan'])->name('settings.sumber-penjualan');
     Route::post('settings/sumber-penjualan', [SalesChannelController::class, 'store'])->name('settings.sumber-penjualan.store');
+    Route::put('settings/sumber-penjualan/bulk', [SalesChannelController::class, 'bulkUpdate'])->name('settings.sumber-penjualan.bulk');
     Route::put('settings/sumber-penjualan/{salesChannel}', [SalesChannelController::class, 'update'])->name('settings.sumber-penjualan.update');
     Route::delete('settings/sumber-penjualan/{salesChannel}', [SalesChannelController::class, 'destroy'])->name('settings.sumber-penjualan.destroy');
     Route::post('settings/sumber-penjualan/{salesChannel}/restore', [SalesChannelController::class, 'restore'])->name('settings.sumber-penjualan.restore')->withTrashed();

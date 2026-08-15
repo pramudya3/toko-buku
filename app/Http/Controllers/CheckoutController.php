@@ -12,7 +12,7 @@ use App\Models\BookEdition;
 use App\Models\Order;
 use App\Models\Promotion;
 use App\Services\PricingService;
-use App\Services\RajaOngkirCostService;
+use App\Services\ShippingCostService;
 use App\Support\StoreSettings;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +31,7 @@ class CheckoutController extends Controller
 {
     public function __construct(
         private readonly PricingService $pricing,
-        private readonly RajaOngkirCostService $shippingCost,
+        private readonly ShippingCostService $shippingCost,
     ) {}
 
     /**
