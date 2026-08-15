@@ -381,7 +381,7 @@ class CheckoutController extends Controller
                         }
 
                         return $serviceCode === null || $serviceCode === ''
-                            || strtolower((string) ($rate['service_code'] ?? '')) === strtolower((string) $serviceCode);
+                            || strtolower((string) $rate['service_code']) === strtolower((string) $serviceCode);
                     });
 
                 if ($matched === null) {

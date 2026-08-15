@@ -72,11 +72,13 @@ class OrderStoreRequest extends FormRequest
             'min:1',
             function (string $attribute, mixed $value, $fail): void {
                 $seen = [];
-                $bookIds = collect($value)
-                    ->pluck('book_id')
-                    ->filter()
-                    ->unique()
-                    ->all();
+                $rows = is_array($value) ? $value : [];
+                $bookIds = array_values(array_unique(array_filter(
+                    array_map(
+                        fn ($row): string => (string) ($row['book_id'] ?? ''),
+                        $rows,
+                    ),
+                )));
 
                 $stocks = Book::query()
                     ->whereIn('id', $bookIds)

@@ -217,7 +217,7 @@ class OrderController extends Controller
                         }
 
                         return $serviceCode === null || $serviceCode === ''
-                            || strtolower((string) ($rate['service_code'] ?? '')) === strtolower((string) $serviceCode);
+                            || strtolower((string) $rate['service_code']) === strtolower((string) $serviceCode);
                     });
 
                 if ($matched === null) {
@@ -286,7 +286,7 @@ class OrderController extends Controller
                         // Cash → langsung diproses: stok otomatis terpotong dari
                         // gudang default (menunggu konfirmasi hanya utk transfer).
                         if ($paymentStatus === PaymentStatus::Lunas) {
-                            $this->processCashOrder($order, $request->user()->id);
+                            $this->processCashOrder($order, (string) $request->user()->id);
                         }
 
                         return $order->fresh();
@@ -513,7 +513,7 @@ class OrderController extends Controller
     public function process(OrderProcessRequest $request, Order $order): RedirectResponse
     {
         try {
-            DB::transaction(fn () => $this->processOrder($order, $request->user()->id, $request->validated()));
+            DB::transaction(fn () => $this->processOrder($order, (string) $request->user()->id, $request->validated()));
 
             Inertia::flash('toast', ['type' => 'success', 'message' => "Order {$order->no_order} diproses."]);
         } catch (RuntimeException $exception) {
@@ -536,7 +536,8 @@ class OrderController extends Controller
             $order = DB::transaction(function () use ($request, $order): Order {
                 $lockedOrder = Order::query()
                     ->lockForUpdate()
-                    ->findOrFail($order->getKey());
+                    ->whereKey($order->getKey())
+                    ->firstOrFail();
 
                 // Konfirmasi pembayaran bila dicentang (gabung 1 langkah).
                 if ($lockedOrder->payment_status !== PaymentStatus::Lunas
@@ -546,7 +547,7 @@ class OrderController extends Controller
 
                 // Proses bila masih menunggu konfirmasi.
                 if ($lockedOrder->status === OrderStatus::MenungguKonfirmasi) {
-                    $this->processOrder($lockedOrder, $request->user()->id, $request->validated());
+                    $this->processOrder($lockedOrder, (string) $request->user()->id, $request->validated());
                 }
 
                 return $lockedOrder->fresh();
@@ -666,7 +667,8 @@ class OrderController extends Controller
         $lockedOrder = Order::query()
             ->lockForUpdate()
             ->with('items.book', 'items.edition', 'user')
-            ->findOrFail($order->getKey());
+            ->whereKey($order->getKey())
+            ->firstOrFail();
 
         if (! $this->statusService->canTransition($lockedOrder, OrderStatus::Diproses)) {
             throw new RuntimeException(
@@ -764,7 +766,7 @@ class OrderController extends Controller
         }
 
         try {
-            $this->statusService->transition($order, $target, $request->user()->id);
+            $this->statusService->transition($order, $target, (string) $request->user()->id);
 
             Inertia::flash('toast', [
                 'type' => 'success',

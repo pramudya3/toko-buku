@@ -226,6 +226,8 @@ final class RajaOngkirCostService
 
     /**
      * Ambil pesan error dari struktur meta RajaOngkir.
+     *
+     * @param  array<string, mixed>|null  $body
      */
     private function errorMessage(?array $body): ?string
     {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Order;
 use App\Support\StoreSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,19 +25,19 @@ class OrderProcessRequest extends FormRequest
     public function rules(): array
     {
         $order = $this->route('order');
+        // Ekspedisi wajib hanya untuk channel utama mode kirim; marketplace
+        // (pencatatan) & ambil sendiri opsional.
+        $isMainKirim = $order instanceof Order
+            && $order->isMainChannel()
+            && ($order->metode_pengambilan ?? 'kirim') !== 'ambil';
 
         return [
             // Ongkir memakai nilai tersimpan dari order (diisi saat create/
             // checkout) — tidak ditanyakan lagi di langkah proses.
             'shipping_cost' => ['nullable', 'integer', 'min:0'],
-            // Ekspedisi wajib hanya untuk channel utama mode kirim;
-            // marketplace (pencatatan) & ambil sendiri opsional.
             'ekspedisi' => [
                 'nullable',
-                Rule::requiredIf(
-                    $order?->isMainChannel() === true
-                        && ($order?->metode_pengambilan ?? 'kirim') !== 'ambil',
-                ),
+                Rule::requiredIf($isMainKirim),
                 Rule::in(StoreSettings::enabledCourierCodes() ?: ['__tidak_ada__']),
             ],
             'courier_service_code' => ['nullable', 'string', 'max:50'],

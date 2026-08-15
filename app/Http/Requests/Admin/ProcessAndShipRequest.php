@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\OrderStatus;
+use App\Models\Order;
 use App\Support\StoreSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,14 +31,17 @@ class ProcessAndShipRequest extends FormRequest
     public function rules(): array
     {
         $order = $this->route('order');
-        $needsProcess = $order?->status?->value === 'menunggu_konfirmasi';
-        $isWebsite = $order?->sumber_pembelian === 'website';
+        $needsProcess = $order instanceof Order
+            && $order->status === OrderStatus::MenungguKonfirmasi;
+        $isWebsite = $order instanceof Order && $order->sumber_pembelian === 'website';
+        $isKirim = $order instanceof Order
+            && ($order->metode_pengambilan ?? 'kirim') !== 'ambil';
 
         return [
             'konfirmasi_lunas' => ['nullable', 'boolean'],
             'shipping_cost' => [
                 // Ambil sendiri tanpa ongkir.
-                Rule::requiredIf($needsProcess && ($order?->metode_pengambilan ?? 'kirim') !== 'ambil'),
+                Rule::requiredIf($needsProcess && $isKirim),
                 'integer', 'min:0',
             ],
             'ekspedisi' => [
