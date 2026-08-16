@@ -18,7 +18,7 @@ class ArticleCategoryFactory extends Factory
      */
     public function definition(): array
     {
-        $nama = fake()->unique()->words(2, true);
+        $nama = rtrim(fake()->unique()->sentence(2, true), '.');
 
         return [
             'nama' => $nama,

@@ -73,6 +73,7 @@ class Article extends Model
     /**
      * Artikel yang tampil di storefront: aktif dan sudah terbit.
      *
+     * @param  Builder<Article>  $query
      * @return Builder<Article>
      */
     public function scopePublished(Builder $query): Builder
@@ -94,6 +95,8 @@ class Article extends Model
      * Isi artikel disimpan sebagai HTML — teks polos dikonversi & disaring
      * otomatis lewat ArticleSanitizer di setiap penyimpanan (controller,
      * factory, seeder).
+     *
+     * @return Attribute<string, string>
      */
     protected function isi(): Attribute
     {

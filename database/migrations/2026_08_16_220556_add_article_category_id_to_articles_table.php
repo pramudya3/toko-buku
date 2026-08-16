@@ -25,19 +25,19 @@ return new class extends Migration
         });
 
         foreach (Article::withTrashed()->get(['id', 'kategori']) as $article) {
-            if ($article->kategori === null || $article->kategori === '') {
+            if ($article->getAttribute('kategori') === null || $article->getAttribute('kategori') === '') {
                 continue;
             }
 
             // Buat kategori (bila belum ada) dari nilai lama, lalu tautkan.
             $category = ArticleCategory::withTrashed()
-                ->where('slug', Str::slug($article->kategori))
+                ->where('slug', Str::slug($article->getAttribute('kategori')))
                 ->first();
 
             if ($category === null) {
                 $category = ArticleCategory::create([
-                    'nama' => $article->kategori,
-                    'slug' => Str::slug($article->kategori),
+                    'nama' => $article->getAttribute('kategori'),
+                    'slug' => Str::slug($article->getAttribute('kategori')),
                 ]);
             }
 
