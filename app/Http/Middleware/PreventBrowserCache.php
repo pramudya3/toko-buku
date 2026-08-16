@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class PreventBrowserCache
+{
+    /**
+     * Cegah browser menyimpan respons di cache (data lama saat navigasi Inertia).
+     *
+     * @param  Closure(Request): (Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        $response = $next($request);
+
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        $response->headers->set('Pragma', 'no-cache');
+
+        return $response;
+    }
+}

@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
@@ -26,17 +27,26 @@ it('redirects guests away from checkout and shipping cost', function (): void {
 
 it('runs the full order lifecycle: cart → checkout → process → complete → sales report', function (): void {
     Http::fake([
-        'api.biteship.com/*' => Http::response([
-            'success' => true,
-            'pricing' => [[
-                'courier_code' => 'jne',
-                'courier_name' => 'JNE',
-                'courier_service_code' => 'reg',
-                'courier_service_name' => 'Reguler',
-                'price' => 12000,
-                'duration' => '1 - 2 days',
+        'rajaongkir.komerce.id/api/v1/destination/domestic-destination*' => Http::response([
+            'meta' => ['message' => 'ok', 'code' => 200, 'status' => 'success'],
+            'data' => [[
+                'id' => 700114,
+                'label' => 'Test 65144',
+                'province_name' => 'JAWA TIMUR',
+                'city_name' => 'KOTA MALANG',
+                'district_name' => 'KLOJEN',
+                'subdistrict_name' => 'BARENG',
+                'zip_code' => '65144',
             ]],
         ]),
+        'rajaongkir.komerce.id/api/v1/calculate/domestic-cost' => function (Request $request) {
+            return Http::response([
+                'meta' => ['message' => 'ok', 'code' => 200, 'status' => 'success'],
+                'data' => $request['courier'] === 'jne' ? [
+                    ['name' => 'JNE', 'code' => 'jne', 'service' => 'REG', 'description' => 'Reguler', 'cost' => 12000, 'etd' => '1-2'],
+                ] : [],
+            ]);
+        },
     ]);
 
     $book = Book::factory()->withStock(malang: 10)->create(['aktif' => true, 'harga' => 50000, 'berat_gr' => 1000]);
