@@ -44,7 +44,7 @@ it('returns full address (incl. kelurahan) in customer options', function (): vo
 
 it('creates a manual order and calculates prices via PricingService (ORD-03, ORD-08)', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
     $customer = User::factory()->create();
@@ -93,7 +93,7 @@ it('filters the order list by sales channel', function (): void {
 
 it('checks shipping cost from admin endpoint (cached shared)', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $this->actingAs($this->admin)
         ->post(route('admin.orders.check-ongkir'), [
@@ -108,7 +108,7 @@ it('checks shipping cost from admin endpoint (cached shared)', function (): void
 
 it('saves shipping cost and courier on manual order', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000, 'berat_gr' => 500]);
 
@@ -133,7 +133,7 @@ it('saves shipping cost and courier on manual order', function (): void {
     expect($order->shipping_cost)->toBe(12000)
         ->and($order->ekspedisi)->toBe('jne')
         ->and($order->courier_service_code)->toBe('REG')
-        ->and($order->ongkir_estimasi)->toBe('1 - 2 days')
+        ->and($order->ongkir_estimasi)->toBe('1-2')
         ->and($order->kode_pos)->toBe('65144')
         ->and($order->total)->toBe(112000);
 });
@@ -155,7 +155,7 @@ it('rejects an unknown sales channel on manual order', function (): void {
 
 it('generates a unique order number', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock()->create(['harga' => 10000]);
 
@@ -178,7 +178,7 @@ it('generates a unique order number', function (): void {
 
 it('creates dropship order with end-customer data (DROP-01)', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock()->create(['harga' => 10000]);
 
@@ -527,7 +527,7 @@ it('shows order detail with items and pricing breakdown (ORD-02)', function (): 
 
 it('captures HPP (harga beli cetakan) snapshot on order items for profit tracking', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $customer = User::factory()->customer()->create();
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 40000]);
@@ -1182,7 +1182,7 @@ it('keeps the stored shipping cost when processing without sending it', function
 
 it('defaults created orders to ambil sendiri', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
 
@@ -1277,7 +1277,7 @@ it('requires ekspedisi when the order is shipped (not ambil sendiri)', function 
 
 it('ignores ekspedisi and shipping cost when the order is ambil sendiri', function (): void {
     createLocalVillages();
-    fakeBiteshipApi();
+    fakeRajaOngkirApi();
 
     $book = Book::factory()->withStock(malang: 20)->create(['harga' => 50000]);
 
