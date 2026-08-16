@@ -142,9 +142,10 @@ it('prevents deleting a receivable with payments', function (): void {
 
     $this->actingAs($this->admin)
         ->delete(route('admin.receivables.destroy', $receivable))
-        ->assertStatus(500);
+        ->assertRedirect();
 
-    expect(Receivable::find($receivable->id))->not->toBeNull();
+    expect(Receivable::find($receivable->id))->not->toBeNull()
+        ->and(session('inertia.flash_data.toast.type'))->toBe('error');
 });
 
 it('deletes a receivable without payments', function (): void {

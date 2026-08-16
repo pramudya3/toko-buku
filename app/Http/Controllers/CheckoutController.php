@@ -5,14 +5,17 @@ namespace App\Http\Controllers;
 use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\PromotionType;
+use App\Enums\VoucherScope;
 use App\Http\Requests\Storefront\CheckoutRequest;
 use App\Models\BankAccount;
 use App\Models\Book;
 use App\Models\BookEdition;
 use App\Models\Order;
 use App\Models\Promotion;
+use App\Models\Voucher;
 use App\Services\PricingService;
 use App\Services\RajaOngkirCostService;
+use App\Services\VoucherService;
 use App\Support\StoreSettings;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +35,7 @@ class CheckoutController extends Controller
     public function __construct(
         private readonly PricingService $pricing,
         private readonly RajaOngkirCostService $shippingCost,
+        private readonly VoucherService $vouchers,
     ) {}
 
     /**
@@ -55,9 +59,25 @@ class CheckoutController extends Controller
 
         session(['checkout_selected_groups' => $selectedGroups]);
 
+        // Voucher yang bisa dipakai: aktif & dalam periode berlaku, dengan
+        // kuota (global & per user). Minimal belanja difilter di client
+        // (subtotal berubah saat grup dicentang) — divalidasi ulang di store.
+        $selectedSubtotal = 0;
+
+        foreach ($groups as $group) {
+            if (in_array($group['key'], $selectedGroups, true)) {
+                $selectedSubtotal += (int) $group['total'];
+            }
+        }
+
+        $vouchers = auth()->user() !== null
+            ? $this->vouchers->availableFor(auth()->user(), $selectedSubtotal)
+            : collect();
+
         return Inertia::render('storefront/Checkout', [
             'groups' => $groups,
             'selectedGroups' => $selectedGroups,
+            'vouchers' => $vouchers,
             'paymentOptions' => StoreSettings::enabledPaymentMethods(),
             'bankAccounts' => BankAccount::query()
                 ->where('is_active', true)
@@ -418,10 +438,11 @@ class CheckoutController extends Controller
         }
 
         $order = null;
+        $voucherId = $request->input('voucher_id');
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
-                $order = DB::transaction(function () use ($data, $cart, $courierCode, $shippingCost, $shippingEstimation, $fulfillment): Order {
+                $order = DB::transaction(function () use ($data, $cart, $courierCode, $shippingCost, $shippingEstimation, $fulfillment, $voucherId): Order {
                     // Lock baris buku + cetakan agar tidak oversell saat 2 checkout bersamaan.
                     $bookIds = $this->cartBookIds($cart);
                     $lockedBooks = Book::query()
@@ -468,6 +489,19 @@ class CheckoutController extends Controller
                         }
                     }
 
+                    // Voucher (opsional) — dipilih customer di halaman checkout.
+                    // Lock baris voucher agar kuota tidak overshoot saat 2
+                    // checkout bersamaan.
+                    $voucher = null;
+
+                    if ($voucherId !== null) {
+                        $voucher = Voucher::query()->whereKey($voucherId)->lockForUpdate()->first();
+
+                        if ($voucher === null) {
+                            throw new RuntimeException('Voucher tidak valid.');
+                        }
+                    }
+
                     $order = new Order([
                         'no_order' => $this->generateOrderNumber(),
                         'user_id' => auth()->id(),
@@ -482,6 +516,7 @@ class CheckoutController extends Controller
                         'kode_pos' => $data['kode_pos'] ?? null,
                         'metode_bayar' => $data['metode_bayar'],
                         'sumber_pembelian' => 'website',
+                        'voucher_id' => $voucher?->getKey(),
                         'total' => 0,
                         'ekspedisi' => $courierCode,
                         'courier_service_code' => $data['courier_service_code'] ?? null,
@@ -493,6 +528,19 @@ class CheckoutController extends Controller
                     ]);
 
                     $this->pricing->storeOrderWithItems($order, $this->cartToItems($cart));
+
+                    if ($voucher !== null) {
+                        // Validasi ulang di server dengan subtotal nyata order
+                        // (sudah termasuk promo/tier/bundle, belum dipotong voucher).
+                        $this->vouchers->assertUsable($voucher, $order->itemsTotal(), $order->user);
+
+                        // Voucher ongkir hanya berlaku bila order dikirim & ada ongkos kirim.
+                        if ($voucher->discount_scope === VoucherScope::Ongkir && $order->shipping_cost <= 0) {
+                            throw new RuntimeException('Voucher ongkir hanya berlaku untuk pengiriman berbayar.');
+                        }
+
+                        $this->vouchers->recordUsage($order, $voucher);
+                    }
 
                     return $order->fresh();
                 });

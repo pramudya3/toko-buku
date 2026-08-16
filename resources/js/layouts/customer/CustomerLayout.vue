@@ -678,6 +678,89 @@ const isProfilActive = computed(
                     </Link>
                 </template>
 
+                <!-- Notifikasi → menu dropdown — di luar v-for ber-key (stabil),
+                     tampil hanya untuk customer login (mobile). -->
+                <DropdownMenu v-if="user && !isAdmin">
+                    <DropdownMenuTrigger as-child>
+                        <button
+                            type="button"
+                            class="relative flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors"
+                            :class="
+                                notificationsCount > 0
+                                    ? 'rounded-lg bg-primary/10 text-primary'
+                                    : 'text-muted-foreground'
+                            "
+                        >
+                            <BellRing class="size-5" />
+                            <span>Notifikasi</span>
+                            <span
+                                v-if="notificationsCount > 0"
+                                class="absolute -top-0.5 right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
+                            >
+                                {{
+                                    notificationsCount > 9
+                                        ? '9+'
+                                        : notificationsCount
+                                }}
+                            </span>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        side="top"
+                        :side-offset="8"
+                        class="w-80"
+                    >
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between font-normal"
+                        >
+                            <span class="text-sm font-medium">Notifikasi</span>
+                            <button
+                                v-if="notificationsCount > 0"
+                                type="button"
+                                class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                                @click="markAllNotificationsRead"
+                            >
+                                <CheckCheck class="size-3.5" />
+                                Tandai dibaca
+                            </button>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <div
+                            v-if="notifications.length === 0"
+                            class="px-4 py-6 text-center"
+                        >
+                            <Bell
+                                class="mx-auto mb-2 size-6 text-muted-foreground/60"
+                            />
+                            <p class="text-sm text-muted-foreground">
+                                Belum ada notifikasi.
+                            </p>
+                        </div>
+                        <div v-else class="max-h-80 overflow-y-auto">
+                            <button
+                                v-for="notification in notifications"
+                                :key="notification.id"
+                                type="button"
+                                class="flex w-full flex-col gap-0.5 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted"
+                                :class="
+                                    notification.read_at
+                                        ? 'opacity-60'
+                                        : 'bg-primary/5'
+                                "
+                                @click="openNotification(notification)"
+                            >
+                                <span class="text-sm font-medium">
+                                    {{ notification.message }}
+                                </span>
+                                <span class="text-xs text-muted-foreground">
+                                    {{ timeAgoID(notification.created_at) }}
+                                </span>
+                            </button>
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
                 <!-- Profil → menu dropdown — di luar v-for ber-key (stabil) -->
                 <DropdownMenu>
                     <DropdownMenuTrigger as-child>

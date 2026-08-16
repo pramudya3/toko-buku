@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { ShoppingBag, Tag } from '@lucide/vue';
+import { ShoppingBag, Tag, TicketPercent } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
@@ -65,9 +65,25 @@ type Promo = {
     books: PromoBook[];
 };
 
+type Voucher = {
+    id: string;
+    nama: string;
+    kode: string | null;
+    voucher_type: 'percentage' | 'fixed';
+    discount_scope: 'item' | 'ongkir';
+    discount_percentage: number | null;
+    discount_value: number | null;
+    min_order_amount: number;
+    max_uses: number | null;
+    usages_count: number;
+    start_date: string;
+    end_date: string;
+};
+
 const props = defineProps<{
     bundles: Bundle[];
     promos: Promo[];
+    vouchers: Voucher[];
     filters: { search?: string };
 }>();
 
@@ -115,7 +131,10 @@ const filteredPromos = computed(() =>
 );
 
 const hasResults = computed(
-    () => filteredBundles.value.length > 0 || filteredPromos.value.length > 0,
+    () =>
+        filteredBundles.value.length > 0 ||
+        filteredPromos.value.length > 0 ||
+        props.vouchers.length > 0,
 );
 
 // Jumlah hari tersisa promo — untuk badge "berakhir dalam X hari".
@@ -141,6 +160,17 @@ function promoBadge(promo: Promo): string {
 function bundleOutOfStockCount(bundle: Bundle): number {
     return bundle.books.filter((book) => book.stok <= 0).length;
 }
+
+function voucherValueLabel(voucher: Voucher): string {
+    const value =
+        voucher.voucher_type === 'percentage'
+            ? `${voucher.discount_percentage}%`
+            : `Rp ${voucher.discount_value?.toLocaleString('id-ID')}`;
+
+    return voucher.discount_scope === 'ongkir'
+        ? `${value} ongkos kirim`
+        : `${value} semua buku`;
+}
 </script>
 
 <template>
@@ -155,7 +185,11 @@ function bundleOutOfStockCount(bundle: Bundle): number {
         </div>
 
         <EmptyState
-            v-if="!props.bundles.length && !props.promos.length"
+            v-if="
+                !props.bundles.length &&
+                !props.promos.length &&
+                !props.vouchers.length
+            "
             :lucide-icon="Tag"
             title="Belum ada promo aktif"
             description="Cek kembali nanti — promo baru segera hadir."
@@ -406,6 +440,58 @@ function bundleOutOfStockCount(bundle: Bundle): number {
                             class="text-xs text-muted-foreground"
                         >
                             Berlaku otomatis untuk semua buku di katalog.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- ── Voucher diskon ── -->
+            <div v-if="props.vouchers.length" class="flex flex-col gap-3">
+                <div class="flex items-center gap-2">
+                    <TicketPercent class="size-5 text-primary" />
+                    <h2 class="text-lg font-bold tracking-tight">Voucher</h2>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div
+                        v-for="voucher in props.vouchers"
+                        :key="voucher.id"
+                        class="flex flex-col gap-2 rounded-xl border p-4 transition-shadow hover:shadow-md"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="min-w-0 font-semibold">
+                                {{ voucher.nama }}
+                            </p>
+                            <span
+                                class="shrink-0 rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground"
+                            >
+                                {{ voucherValueLabel(voucher) }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            {{ countdownLabel(voucher.end_date) }}
+                            <template v-if="voucher.min_order_amount > 0">
+                                · min. belanja
+                                {{
+                                    voucher.min_order_amount.toLocaleString(
+                                        'id-ID',
+                                    )
+                                }}
+                            </template>
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            <template v-if="voucher.kode">
+                                Kode
+                                <code
+                                    class="rounded bg-muted px-1 py-0.5 font-mono font-medium"
+                                    >{{ voucher.kode }}</code
+                                >
+                            </template>
+                            <template v-if="voucher.max_uses !== null">
+                                · sisa
+                                {{ voucher.max_uses - voucher.usages_count }}
+                            </template>
+                        </p>
+                        <p class="mt-auto text-xs text-muted-foreground">
+                            Pilih di halaman Checkout saat belanja.
                         </p>
                     </div>
                 </div>

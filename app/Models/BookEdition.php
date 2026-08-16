@@ -59,6 +59,14 @@ class BookEdition extends Model
     }
 
     /**
+     * @return HasMany<InventoryMovement, $this>
+     */
+    public function inventoryMovements(): HasMany
+    {
+        return $this->hasMany(InventoryMovement::class);
+    }
+
+    /**
      * Stok normal cetakan ini (semua gudang sellable) — defect tidak pernah dihitung.
      */
     public function stockTotal(): int

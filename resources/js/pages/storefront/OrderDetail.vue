@@ -51,6 +51,9 @@ type Order = {
     metode_pengambilan: string | null;
     total: number;
     shipping_cost: number;
+    voucher_code_snapshot: string | null;
+    voucher_scope_snapshot: string;
+    voucher_discount_amount: number;
     ekspedisi: string | null;
     ongkir_estimasi: string | null;
     status: string;
@@ -83,6 +86,11 @@ defineOptions({
 const selectedFile = ref('');
 
 const subtotal = computed(() => props.order.total - props.order.shipping_cost);
+
+// Nilai produk sebelum potongan voucher (untuk tampilan transparan).
+const subtotalBeforeVoucher = computed(
+    () => subtotal.value + props.order.voucher_discount_amount,
+);
 
 const buktiUrl = computed(() =>
     props.order.bukti_transfer_path
@@ -362,7 +370,29 @@ function statusVariant(
                                     >Subtotal</span
                                 >
                                 <span class="tabular-nums"
-                                    ><Money :value="subtotal"
+                                    ><Money :value="subtotalBeforeVoucher"
+                                /></span>
+                            </div>
+                            <div
+                                v-if="order.voucher_discount_amount > 0"
+                                class="flex justify-between"
+                            >
+                                <span class="text-muted-foreground"
+                                    >Voucher
+                                    {{ order.voucher_code_snapshot ?? 'Diskon'
+                                    }}<template
+                                        v-if="
+                                            order.voucher_scope_snapshot ===
+                                            'ongkir'
+                                        "
+                                    >
+                                        (ongkir)</template
+                                    ></span
+                                >
+                                <span
+                                    class="font-medium text-destructive tabular-nums"
+                                    ><Money
+                                        :value="-order.voucher_discount_amount"
                                 /></span>
                             </div>
                             <div class="flex justify-between">

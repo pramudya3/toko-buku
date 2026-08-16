@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\SupplierReportController;
 use App\Http\Controllers\Admin\SupplierReturnController;
 use App\Http\Controllers\Admin\TierDiscountController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\BiteshipWebhookController;
 use App\Http\Controllers\CheckoutController;
@@ -157,6 +158,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('promotions/import', [PromotionController::class, 'importCsv'])->name('promotions.import');
     Route::patch('promotions/{promotion}/toggle', [PromotionController::class, 'toggle'])->name('promotions.toggle');
     Route::post('promotions/{promotion}/restore', [PromotionController::class, 'restore'])->name('promotions.restore')->withTrashed();
+
+    Route::resource('vouchers', VoucherController::class)->except(['show']);
+    Route::patch('vouchers/{voucher}/toggle', [VoucherController::class, 'toggle'])->name('vouchers.toggle');
+    Route::post('vouchers/{voucher}/restore', [VoucherController::class, 'restore'])->name('vouchers.restore')->withTrashed();
 
     Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::post('inventory/movements', [InventoryController::class, 'store'])->name('inventory.movements.store');

@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Enums\ActivityAction;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Models\VoucherUsage;
 use App\Notifications\OrderStatusNotification;
 use App\Support\ActivityLogger;
 use Illuminate\Support\Facades\DB;
@@ -91,6 +93,17 @@ final class OrderStatusService
             // Stok sudah di-reserve saat diproses — batal dari diproses mengembalikannya.
             if ($to === OrderStatus::Batal && $lockedOrder->status === OrderStatus::Diproses) {
                 app(InventoryService::class)->restoreForOrder($lockedOrder, $userId);
+            }
+
+            // Order lunas yang dibatalkan → refund otomatis dicatat di arus kas.
+            if ($to === OrderStatus::Batal && $lockedOrder->payment_status === PaymentStatus::Lunas) {
+                app(AccountingService::class)->recordOrderRefund($lockedOrder, $userId);
+            }
+
+            // Kuota voucher dikembalikan — order batal tidak pernah
+            // direalisasikan, pemakaian voucher dilepas.
+            if ($to === OrderStatus::Batal && $lockedOrder->voucher_id !== null) {
+                VoucherUsage::where('order_id', $lockedOrder->getKey())->delete();
             }
 
             $lockedOrder->update(['status' => $to]);

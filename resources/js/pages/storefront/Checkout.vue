@@ -95,9 +95,25 @@ type BankAccount = {
     account_holder: string;
 };
 
+type Voucher = {
+    id: string;
+    nama: string;
+    kode: string | null;
+    voucher_type: string;
+    discount_scope: string;
+    discount_percentage: number | null;
+    discount_value: number | null;
+    min_order_amount: number;
+    max_uses: number | null;
+    max_uses_per_user: number | null;
+    usages_count: number;
+    user_usages_count: number;
+};
+
 const props = defineProps<{
     groups: CartGroup[];
     selectedGroups: string[];
+    vouchers: Voucher[];
     paymentOptions: Record<string, string>;
     bankAccounts: BankAccount[];
     user: UserInfo | null;
@@ -189,14 +205,107 @@ const bundleDiscountsByName = computed(() => {
     return [...totals.entries()].map(([name, value]) => ({ name, value }));
 });
 
-const totalDiscount = computed(
+// Diskon tanpa voucher — voucher dihitung terakhir dari subtotal ini.
+const nonVoucherDiscount = computed(
     () =>
         promoDiscountTotal.value +
         bundleDiscountTotal.value +
         tierDiscountTotal.value,
 );
 
+const subtotalAfterDiscounts = computed(
+    () => subtotal.value - nonVoucherDiscount.value,
+);
+
+// ── Voucher diskon (level order, setelah promo/tier/bundle) ──
+const selectedVoucherId = ref('');
+
+const selectedVoucher = computed(
+    () => props.vouchers.find((v) => v.id === selectedVoucherId.value) ?? null,
+);
+
+// Base diskon voucher sesuai scope: item = subtotal produk setelah semua
+// diskon; ongkir = ongkos kirim terpilih (0 bila ambil sendiri / belum pilih).
+const voucherDiscount = computed(() => {
+    const voucher = selectedVoucher.value;
+
+    if (!voucher) {
+        return 0;
+    }
+
+    const base =
+        voucher.discount_scope === 'ongkir'
+            ? isAmbil.value
+                ? 0
+                : shippingCost.value
+            : subtotalAfterDiscounts.value;
+
+    return voucher.voucher_type === 'percentage'
+        ? Math.floor((base * (voucher.discount_percentage ?? 0)) / 100)
+        : Math.min(voucher.discount_value ?? 0, base);
+});
+
+const totalDiscount = computed(
+    () => nonVoucherDiscount.value + voucherDiscount.value,
+);
+
 const totalAfterDiscount = computed(() => subtotal.value - totalDiscount.value);
+
+function voucherQuotaLeft(v: Voucher): boolean {
+    if (v.max_uses !== null && v.usages_count >= v.max_uses) {
+        return false;
+    }
+
+    if (
+        v.max_uses_per_user !== null &&
+        v.user_usages_count >= v.max_uses_per_user
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+function voucherMinOrderMet(v: Voucher): boolean {
+    return subtotalAfterDiscounts.value >= v.min_order_amount;
+}
+
+// Voucher ongkir butuh pesanan yang benar-benar dikirim & berongkir.
+function voucherShippable(v: Voucher): boolean {
+    return (
+        v.discount_scope !== 'ongkir' ||
+        (!isAmbil.value && shippingCost.value > 0)
+    );
+}
+
+function voucherUsable(v: Voucher): boolean {
+    return voucherQuotaLeft(v) && voucherMinOrderMet(v) && voucherShippable(v);
+}
+
+function voucherReason(v: Voucher): string {
+    if (!voucherQuotaLeft(v)) {
+        return 'Kuota voucher sudah habis.';
+    }
+
+    if (!voucherMinOrderMet(v)) {
+        return `Min. belanja Rp ${v.min_order_amount.toLocaleString('id-ID')}.`;
+    }
+
+    if (!voucherShippable(v)) {
+        return 'Hanya berlaku untuk pengiriman berbayar.';
+    }
+
+    return '';
+}
+
+function voucherDiscountLabel(v: Voucher): string {
+    const value =
+        v.voucher_type === 'percentage'
+            ? `Diskon ${v.discount_percentage}%`
+            : `Diskon Rp ${v.discount_value?.toLocaleString('id-ID')}`;
+
+    return v.discount_scope === 'ongkir' ? `${value} ongkos kirim` : value;
+}
 
 // Tidak ada grup yang dipilih untuk diproses.
 const hasActiveGroup = computed(() => props.selectedGroups.length > 0);
@@ -295,6 +404,21 @@ const selectedServiceCode = computed(
 );
 
 const shippingCost = computed(() => selectedShippingOption.value?.price ?? 0);
+
+// Subtotal / ongkir / metode pengambilan berubah → voucher yang tak lagi
+// memenuhi syarat otomatis di-unselect.
+// Diletakkan setelah deklarasi shippingCost/isAmbil: getter watch dievaluasi
+// sinkron saat setup, const yang belum diinisialisasi memicu TDZ error.
+watch(
+    () => [subtotalAfterDiscounts.value, shippingCost.value, isAmbil.value],
+    () => {
+        const voucher = selectedVoucher.value;
+
+        if (voucher && !voucherUsable(voucher)) {
+            selectedVoucherId.value = '';
+        }
+    },
+);
 
 // Alamat / keranjang / pilihan grup berubah → hasil ongkir lama tidak berlaku.
 // Reset tanpa auto-fetch: hit API hanya saat tombol "Cek Ongkir" ditekan (hemat kuota).
@@ -843,6 +967,74 @@ function onFormError() {
                 <div
                     class="order-first h-fit lg:sticky lg:top-20 lg:order-last"
                 >
+                    <Card v-if="vouchers.length">
+                        <CardHeader>
+                            <CardTitle class="text-base font-medium"
+                                >Voucher Diskon</CardTitle
+                            >
+                        </CardHeader>
+                        <CardContent class="flex flex-col gap-2">
+                            <label
+                                v-for="voucher in vouchers"
+                                :key="voucher.id"
+                                class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition-colors"
+                                :class="[
+                                    selectedVoucherId === voucher.id
+                                        ? 'border-primary bg-primary/5'
+                                        : 'hover:bg-accent',
+                                    !voucherUsable(voucher) && 'opacity-60',
+                                ]"
+                            >
+                                <input
+                                    type="radio"
+                                    name="voucher_pick"
+                                    class="mt-0.5"
+                                    :value="voucher.id"
+                                    v-model="selectedVoucherId"
+                                    :disabled="!voucherUsable(voucher)"
+                                />
+                                <span class="min-w-0 flex-1">
+                                    <span class="block font-medium">
+                                        {{ voucher.nama }}
+                                    </span>
+                                    <span
+                                        class="block text-xs text-muted-foreground"
+                                    >
+                                        {{ voucherDiscountLabel(voucher) }}
+                                        <template
+                                            v-if="voucher.min_order_amount > 0"
+                                        >
+                                            · min. belanja
+                                            {{
+                                                voucher.min_order_amount.toLocaleString(
+                                                    'id-ID',
+                                                )
+                                            }}
+                                        </template>
+                                        <template v-if="voucher.max_uses">
+                                            · sisa
+                                            {{
+                                                voucher.max_uses -
+                                                voucher.usages_count
+                                            }}/{{ voucher.max_uses }}
+                                        </template>
+                                    </span>
+                                    <span
+                                        v-if="voucherReason(voucher)"
+                                        class="block text-xs font-medium text-destructive"
+                                    >
+                                        {{ voucherReason(voucher) }}
+                                    </span>
+                                </span>
+                            </label>
+                            <input
+                                type="hidden"
+                                name="voucher_id"
+                                :value="selectedVoucherId"
+                            />
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle class="text-base font-medium"
@@ -1096,6 +1288,26 @@ function onFormError() {
                                 >
                                 <Money
                                     :value="-tierDiscountTotal"
+                                    class="font-medium text-destructive"
+                                />
+                            </div>
+                            <div
+                                v-if="voucherDiscount > 0"
+                                class="flex items-center justify-between text-sm"
+                            >
+                                <span class="text-muted-foreground"
+                                    >Voucher {{ selectedVoucher?.nama
+                                    }}<template
+                                        v-if="
+                                            selectedVoucher?.discount_scope ===
+                                            'ongkir'
+                                        "
+                                    >
+                                        (ongkir)</template
+                                    ></span
+                                >
+                                <Money
+                                    :value="-voucherDiscount"
                                     class="font-medium text-destructive"
                                 />
                             </div>
