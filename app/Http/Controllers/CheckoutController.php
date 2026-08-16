@@ -102,7 +102,11 @@ class CheckoutController extends Controller
             }
         }
 
-        if ($book->stok <= 0) {
+        // Buku pre-order (new coming) boleh dipesan walau stok belum ada.
+        $isPreorder = $book->is_preorder;
+        $maxPreorderQty = (int) config('preorder.max_qty', 99);
+
+        if (! $isPreorder && $book->stok <= 0) {
             return back()->withErrors(['qty' => "{$book->judul} sedang stok habis."]);
         }
 
@@ -115,14 +119,17 @@ class CheckoutController extends Controller
 
         $capStock = $edition?->sellable_total ?? $book->stok;
 
-        if ($capStock <= 0) {
+        if (! $isPreorder && $capStock <= 0) {
             return back()->withErrors(['qty' => "{$book->judul} (cetakan terpilih) sedang stok habis."]);
         }
 
         // Satu buku boleh punya beberapa cetakan di keranjang: kunci = bookId:editionId.
         $key = $editionId !== null ? $bookId.':'.$editionId : (string) $bookId;
         $current = $this->cartEntry($cart, $bookId, $editionId);
-        $current['qty'] = min($current['qty'] + (int) $validated['qty'], (int) $capStock);
+        $current['qty'] = min(
+            $current['qty'] + (int) $validated['qty'],
+            $isPreorder ? $maxPreorderQty : (int) $capStock,
+        );
         $current['edition_id'] = $editionId;
         $cart[$key] = $current;
         session(['cart' => $cart]);
@@ -156,12 +163,15 @@ class CheckoutController extends Controller
 
         foreach ($validated['book_ids'] as $bookId) {
             $book = $books->get((string) $bookId);
-            if ($book === null || $book->stok <= 0) {
+            if ($book === null || (! $book->is_preorder && $book->stok <= 0)) {
                 continue;
             }
             $key = (string) $bookId;
             $cart[$key] = $this->cartEntry($cart, (string) $bookId, null);
-            $cart[$key]['qty'] = min(($cart[$key]['qty'] ?? 0) + 1, $book->stok);
+            $cart[$key]['qty'] = min(
+                ($cart[$key]['qty'] ?? 0) + 1,
+                $book->is_preorder ? (int) config('preorder.max_qty', 99) : $book->stok,
+            );
             $added++;
         }
 
@@ -273,9 +283,11 @@ class CheckoutController extends Controller
         $book = Book::find($bookId);
 
         // Update semua entri buku ini (bisa beberapa cetakan) dengan qty sama.
+        $capQty = $book?->is_preorder ? (int) config('preorder.max_qty', 99) : ($book?->stok ?? $qty);
+
         foreach (array_keys($cart) as $key) {
             if ($this->keyBookId($key) === $bookId) {
-                $cart[$key]['qty'] = min($qty, $book?->stok ?? $qty);
+                $cart[$key]['qty'] = min($qty, $capQty);
             }
         }
 
@@ -312,6 +324,9 @@ class CheckoutController extends Controller
                 ->withSum(['stocks as sellable_total' => fn ($q) => $q->whereHas('warehouse', fn ($w) => $w->sellable())], 'qty')
                 ->first()?->sellable_total
             : $book?->stok;
+
+        // Buku pre-order: batas qty tidak mengikuti stok.
+        $capStock = $book?->is_preorder ? (int) config('preorder.max_qty', 99) : $capStock;
 
         foreach (array_keys($cart) as $key) {
             if ($this->keyBookId($key) === $bookId) {
@@ -430,6 +445,15 @@ class CheckoutController extends Controller
 
                         if ($book === null || ! $book->aktif) {
                             throw new RuntimeException('Buku di keranjang sudah tidak tersedia.');
+                        }
+
+                        // Buku pre-order menunggu stok — batas qty memakai config.
+                        if ($book->is_preorder) {
+                            if ($qty > (int) config('preorder.max_qty', 99)) {
+                                throw new RuntimeException("Qty pre-order {$book->judul} melebihi batas.");
+                            }
+
+                            continue;
                         }
 
                         $editionId = $entry['edition_id'] ?? null;
@@ -611,7 +635,7 @@ class CheckoutController extends Controller
     {
         $books = Book::query()
             ->whereKey($this->cartBookIds($cart))
-            ->get(['id', 'judul', 'stok', 'aktif'])
+            ->get(['id', 'judul', 'stok', 'aktif', 'is_preorder'])
             ->keyBy('id');
 
         $editionIds = collect($cart)->pluck('edition_id')->filter()->unique()->values()->all();
@@ -626,6 +650,11 @@ class CheckoutController extends Controller
 
             if ($book === null || ! $book->aktif) {
                 return 'Buku di keranjang sudah tidak tersedia.';
+            }
+
+            // Buku pre-order menunggu stok — tidak dicek stok.
+            if ($book->is_preorder) {
+                continue;
             }
 
             $editionId = $entry['edition_id'] ?? null;
@@ -645,22 +674,31 @@ class CheckoutController extends Controller
 
     /**
      * @param  array<string, array{qty: int, edition_id: int|null}>  $cart
-     * @return array<int, array{book_id: int, qty: int, book_edition_id: int|null, edition_snapshot: string|null}>
+     * @return array<int, array{book_id: int, qty: int, book_edition_id: int|null, edition_snapshot: string|null, is_preorder: bool}>
      */
     private function cartToItems(array $cart): array
     {
         $items = [];
 
+        $preorderIds = Book::query()
+            ->whereKey($this->cartBookIds($cart))
+            ->where('is_preorder', true)
+            ->pluck('id')
+            ->map(static fn (mixed $id): string => (string) $id)
+            ->flip();
+
         foreach ($cart as $key => $entry) {
             $editionId = $entry['edition_id'] ?? null;
+            $bookId = $this->keyBookId($key);
 
             $items[] = [
-                'book_id' => $this->keyBookId($key),
+                'book_id' => $bookId,
                 'qty' => (int) $entry['qty'],
                 'book_edition_id' => $editionId,
                 'edition_snapshot' => $editionId !== null
                     ? 'Cetakan ke-'.(BookEdition::query()->whereKey($editionId)->value('cetakan_ke') ?? '?')
                     : null,
+                'is_preorder' => $preorderIds->has($bookId),
             ];
         }
 

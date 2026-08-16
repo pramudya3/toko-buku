@@ -27,6 +27,7 @@ import { invoice as invoiceRoute } from '@/routes/my-orders';
 type OrderItem = {
     id: string;
     judul_snapshot: string;
+    is_preorder: boolean;
     edition_snapshot: string | null;
     qty: number;
     price_original: number;
@@ -120,6 +121,9 @@ const ORDER_STEPS = [
 ] as const;
 
 const isCancelled = computed(() => props.order.status === 'batal');
+const hasPreorderItems = computed(() =>
+    props.order.items.some((item) => item.is_preorder),
+);
 
 const isAmbil = computed(
     () => (props.order.metode_pengambilan ?? 'kirim') === 'ambil',
@@ -205,6 +209,18 @@ function statusVariant(
                     Cetak Invoice
                 </a>
             </Button>
+        </div>
+
+        <div
+            v-if="hasPreorderItems && order.status === 'menunggu_konfirmasi'"
+            class="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800"
+        >
+            <Clock class="mt-0.5 size-4 shrink-0" />
+            <p>
+                Pesanan ini berisi item
+                <strong>Pre-Order</strong>. Pesanan akan diproses setelah stok
+                tersedia — Anda akan kami kabari saat stok tiba.
+            </p>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-3">
@@ -295,6 +311,12 @@ function statusVariant(
                                 <div class="min-w-0">
                                     <p class="text-sm font-medium">
                                         {{ item.judul_snapshot }}
+                                        <span
+                                            v-if="item.is_preorder"
+                                            class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
+                                        >
+                                            Pre-Order
+                                        </span>
                                     </p>
                                     <p class="text-xs text-muted-foreground">
                                         {{

@@ -399,6 +399,7 @@ final class PricingService
                 $order->items()->create([
                     'book_id' => $book->id,
                     'book_edition_id' => $edition?->id,
+                    'is_preorder' => $row['is_preorder'] ?? $book->is_preorder,
                     'judul_snapshot' => $book->judul,
                     'harga_snapshot' => $edition?->harga_jual ?? $book->harga,
                     'harga_beli_snapshot' => $edition?->harga_beli ?? 0,

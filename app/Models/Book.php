@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\DateOnly;
 use App\Observers\BookObserver;
 use Database\Factories\BookFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -31,6 +32,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $category_id
  * @property string|null $cover_url
  * @property bool $aktif
+ * @property bool $is_preorder
+ * @property string|null $preorder_eta
  * @property string|null $rating_umur
  * @property string|null $dimensi
  * @property string|null $kemasan
@@ -43,7 +46,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 #[Fillable([
     'kode_sku', 'judul', 'penulis', 'penterjemah', 'penerbit', 'tahun', 'isbn', 'sinopsis',
-    'harga', 'stok', 'category_id', 'cover_url', 'aktif',
+    'harga', 'stok', 'category_id', 'cover_url', 'aktif', 'is_preorder', 'preorder_eta',
     'rating_umur', 'dimensi', 'kemasan', 'berat_gr',
     'jumlah_halaman', 'jenis_kertas', 'cetakan', 'bahasa', 'jenis_cover',
 ])]
@@ -131,6 +134,8 @@ class Book extends Model
             'harga' => 'integer',
             'stok' => 'integer',
             'aktif' => 'boolean',
+            'is_preorder' => 'boolean',
+            'preorder_eta' => DateOnly::class,
             'berat_gr' => 'integer',
             'jumlah_halaman' => 'integer',
         ];

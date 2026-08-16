@@ -60,3 +60,33 @@ export function formatDateTimeID(
         ...options,
     });
 }
+
+/**
+ * Waktu relatif singkat ("baru saja", "5 menit lalu") dalam zona WIB.
+ */
+export function timeAgoID(value: string | number | Date): string {
+    const diffMs = Date.now() - new Date(value).getTime();
+    const minutes = Math.floor(diffMs / 60_000);
+
+    if (minutes < 1) {
+        return 'baru saja';
+    }
+
+    if (minutes < 60) {
+        return `${minutes} menit lalu`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+
+    if (hours < 24) {
+        return `${hours} jam lalu`;
+    }
+
+    const days = Math.floor(hours / 24);
+
+    if (days < 7) {
+        return `${days} hari lalu`;
+    }
+
+    return formatDateID(value);
+}

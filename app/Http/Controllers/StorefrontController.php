@@ -100,10 +100,10 @@ class StorefrontController extends Controller
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->string('category_id')->toString()))
             ->when($request->string('stok')->toString() === 'ready', fn ($query) => $query->where('stok', '>', 0))
-            ->when($request->string('stok')->toString() === 'empty', fn ($query) => $query->where('stok', '<=', 0))
-            // Stok tersedia tampil lebih dulu, stok habis di akhir — di kedua
-            // grup, urut abjad agar konsisten antar halaman load-more.
-            ->orderByRaw('stok <= 0')
+            ->when($request->string('stok')->toString() === 'preorder', fn ($query) => $query->where('is_preorder', true))
+            ->when($request->string('stok')->toString() === 'empty', fn ($query) => $query->where('stok', '<=', 0)->where('is_preorder', false))
+            // Urutan: tersedia → pre-order → habis; abjad di dalam tiap grup.
+            ->orderByRaw('(NOT is_preorder AND stok <= 0)')
             ->orderBy('judul');
     }
 

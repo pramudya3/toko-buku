@@ -30,7 +30,7 @@ class OrderStoreRequest extends FormRequest
                 Rule::exists('users', 'id')->where('is_admin', 0),
             ],
             'nama_pembeli' => ['required', 'string', 'max:255'],
-            'whatsapp_pembeli' => ['nullable', 'string', 'max:20'],
+            'whatsapp_pembeli' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'alamat' => ['nullable', 'string'],
             'provinsi' => ['nullable', 'string', 'max:100'],
             'kabupaten_kota' => ['nullable', 'string', 'max:100'],
@@ -53,7 +53,7 @@ class OrderStoreRequest extends FormRequest
             'metode_pengambilan' => ['nullable', Rule::in(['kirim', 'ambil'])],
             'is_dropship' => ['boolean'],
             'end_customer_name' => ['required_if:is_dropship,true', 'string', 'max:255'],
-            'end_customer_whatsapp' => ['nullable', 'string', 'max:20'],
+            'end_customer_whatsapp' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'end_customer_address' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.book_id' => [
@@ -83,7 +83,8 @@ class OrderStoreRequest extends FormRequest
 
                 $stocks = Book::query()
                     ->whereIn('id', $bookIds)
-                    ->pluck('stok', 'id');
+                    ->get(['id', 'stok', 'is_preorder'])
+                    ->keyBy('id');
 
                 foreach ($value as $row) {
                     $key = ((string) ($row['book_id'] ?? '')).':'.((string) ($row['book_edition_id'] ?? ''));
@@ -96,10 +97,15 @@ class OrderStoreRequest extends FormRequest
 
                     $seen[$key] = true;
 
-                    $stok = (int) ($stocks[(string) ($row['book_id'] ?? '')] ?? 0);
+                    $book = $stocks->get((string) ($row['book_id'] ?? ''));
 
-                    if ((int) ($row['qty'] ?? 0) > $stok) {
-                        $fail("Stok buku tidak mencukupi — maks {$stok}.");
+                    // Buku pre-order menunggu stok — batas memakai config.
+                    $cap = $book?->is_preorder
+                        ? (int) config('preorder.max_qty', 99)
+                        : (int) ($book?->stok ?? 0);
+
+                    if ((int) ($row['qty'] ?? 0) > $cap) {
+                        $fail("Stok buku tidak mencukupi — maks {$cap}.");
 
                         return;
                     }
@@ -119,6 +125,8 @@ class OrderStoreRequest extends FormRequest
             'nama_pembeli.required' => 'Nama pembeli wajib diisi.',
             'items.required' => 'Order minimal berisi 1 item buku.',
             'items.*.qty.min' => 'Qty minimal 1.',
+            'whatsapp_pembeli.regex' => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
+            'end_customer_whatsapp.regex' => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
         ];
     }
 }

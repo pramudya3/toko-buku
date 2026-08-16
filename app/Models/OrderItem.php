@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $order_id
  * @property int $book_id
  * @property int|null $book_edition_id
+ * @property bool $is_preorder
  * @property string $judul_snapshot
  * @property int $harga_snapshot
  * @property int|null $harga_beli_snapshot
@@ -25,8 +26,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $price_final
  */
 #[Fillable([
-    'order_id', 'book_id', 'book_edition_id', 'judul_snapshot', 'harga_snapshot',
-    'harga_beli_snapshot', 'edition_snapshot', 'qty', 'price_original',
+    'order_id', 'book_id', 'book_edition_id', 'is_preorder', 'judul_snapshot',
+    'harga_snapshot', 'harga_beli_snapshot', 'edition_snapshot', 'qty', 'price_original',
     'promo_discount_amount', 'tier_discount_amount', 'price_final',
 ])]
 class OrderItem extends Model
@@ -63,6 +64,7 @@ class OrderItem extends Model
     protected function casts(): array
     {
         return [
+            'is_preorder' => 'boolean',
             'qty' => 'integer',
             'price_original' => 'integer',
             'promo_discount_amount' => 'integer',

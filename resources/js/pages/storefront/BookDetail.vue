@@ -8,6 +8,16 @@ import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -15,6 +25,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import { formatDateID } from '@/lib/date';
 
 type BookEdition = {
     id: string;
@@ -43,6 +54,8 @@ type Book = {
     harga: number;
     stok: number;
     cover_url: string | null;
+    is_preorder: boolean;
+    preorder_eta: string | null;
     category: { id: string; nama: string } | null;
     rating_umur: string | null;
     dimensi: string | null;
@@ -76,6 +89,19 @@ defineOptions({
 // User login — tombol "Ajukan Stok" hanya untuk yang sudah login.
 const page = usePage();
 const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
+const userWhatsapp = computed<string | null>(() => {
+    const user = page.props.auth?.user as
+        { whatsapp_number?: string | null } | undefined;
+
+    return user?.whatsapp_number ?? null;
+});
+
+// Dialog konfirmasi nomor WhatsApp untuk pengajuan stok (waitlist).
+const stockDialogOpen = ref(false);
+
+function openStockRequestDialog(): void {
+    stockDialogOpen.value = true;
+}
 
 const qty = ref(1);
 
@@ -154,7 +180,15 @@ const selectedEdition = ref<BookEdition | null>(
 );
 
 // Maksimal qty = stok sellable cetakan terpilih (bukan total seluruh buku).
+// Buku pre-order menunggu stok → batas memakai config (bukan stok).
+const PREORDER_MAX_QTY = 99;
+const isPreorder = computed(() => props.book.is_preorder === true);
+
 const maxQty = computed(() => {
+    if (isPreorder.value) {
+        return PREORDER_MAX_QTY;
+    }
+
     if (selectedEdition.value) {
         return Math.max(selectedEdition.value.stok_sellable ?? 0, 0);
     }
@@ -211,9 +245,15 @@ const discountPercent = computed(() => {
     );
 });
 
-const stockHint = computed(() =>
-    maxQty.value === 0 ? 'Stok habis' : `Stok tersedia: ${maxQty.value} unit`,
-);
+const stockHint = computed(() => {
+    if (isPreorder.value) {
+        return 'Pre-order: diproses setelah stok tersedia.';
+    }
+
+    return maxQty.value === 0
+        ? 'Stok habis'
+        : `Stok tersedia: ${maxQty.value} unit`;
+});
 
 const specs = computed(() =>
     [
@@ -367,7 +407,49 @@ const specs = computed(() =>
                     </template>
                 </div>
 
-                <p v-if="book.stok === 0" class="text-sm text-destructive">
+                <!-- Buku pre-order (new coming): badge + estimasi tersedia -->
+                <div
+                    v-if="book.is_preorder"
+                    class="flex flex-col gap-1 rounded-lg border border-sky-200 bg-sky-50 p-3"
+                >
+                    <p
+                        class="flex items-center gap-2 text-sm font-semibold text-sky-800"
+                    >
+                        <ShoppingCart class="size-4" />
+                        Pre-Order — Buku Baru Akan Datang
+                    </p>
+                    <p class="text-xs text-sky-700">
+                        Estimasi tersedia
+                        {{
+                            book.preorder_eta
+                                ? formatDateID(book.preorder_eta, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: '2-digit',
+                                  })
+                                : '(menyusul)'
+                        }}. Pesanan akan diproses setelah stok tiba.
+                    </p>
+                    <!-- Waitlist tanpa bayar: kabari saat stok tiba -->
+                    <Button
+                        v-if="isLoggedIn"
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        class="mt-1.5 border-sky-200 text-sky-700 hover:bg-sky-100"
+                        :disabled="requested"
+                        @click="openStockRequestDialog"
+                    >
+                        <BellRing class="size-3.5" />
+                        {{
+                            requested
+                                ? 'Sudah Diajukan'
+                                : 'Beri Tahu Saya Saat Tersedia'
+                        }}
+                    </Button>
+                </div>
+
+                <p v-else-if="book.stok === 0" class="text-sm text-destructive">
                     Stok habis
                     <template v-if="isLoggedIn">
                         — ajukan pemberitahuan, kami kabari saat tersedia.
@@ -376,33 +458,34 @@ const specs = computed(() =>
                 </p>
 
                 <!-- Stok habis + login → ajukan pemberitahuan stok -->
-                <Form
-                    v-if="book.stok === 0 && isLoggedIn"
-                    :action="StockRequestController.store(book.id).url"
-                    method="post"
-                    class="flex flex-col gap-2"
+                <Button
+                    v-if="book.stok === 0 && !book.is_preorder && isLoggedIn"
+                    type="button"
+                    size="lg"
+                    :disabled="requested"
+                    class="w-full"
+                    @click="openStockRequestDialog"
                 >
-                    <Button
-                        type="submit"
-                        size="lg"
-                        :disabled="requested"
-                        class="w-full"
-                    >
-                        <BellRing class="size-4" />
-                        {{ requested ? 'Sudah Diajukan' : 'Ajukan Stok' }}
-                    </Button>
-                    <p class="text-xs text-muted-foreground">
-                        {{
-                            requested
-                                ? 'Anda sudah mengajukan pemberitahuan untuk buku ini.'
-                                : 'Kami kirim pemberitahuan saat stok kembali tersedia.'
-                        }}
-                    </p>
-                </Form>
+                    <BellRing class="size-4" />
+                    {{ requested ? 'Sudah Diajukan' : 'Ajukan Stok' }}
+                </Button>
+                <p
+                    v-if="book.stok === 0 && !book.is_preorder && isLoggedIn"
+                    class="text-xs text-muted-foreground"
+                >
+                    {{
+                        requested
+                            ? 'Anda sudah mengajukan pemberitahuan untuk buku ini.'
+                            : 'Kami kirim pemberitahuan saat stok kembali tersedia.'
+                    }}
+                </p>
 
                 <!-- Pilih cetakan: tiap cetakan punya harga sendiri -->
                 <div
-                    v-if="book.stok > 0 && editions.length > 1"
+                    v-if="
+                        (book.stok > 0 || book.is_preorder) &&
+                        editions.length > 1
+                    "
                     class="grid gap-2"
                 >
                     <label class="text-sm font-medium" for="edition-select">
@@ -452,7 +535,7 @@ const specs = computed(() =>
                 </div>
 
                 <Form
-                    v-if="book.stok > 0"
+                    v-if="book.stok > 0 || book.is_preorder"
                     :action="CartController.add().url"
                     method="post"
                     class="flex flex-col gap-3"
@@ -499,7 +582,11 @@ const specs = computed(() =>
                         v-if="maxQty > 0 && qty >= maxQty"
                         class="text-xs text-muted-foreground"
                     >
-                        Qty maksimal {{ maxQty }} sesuai stok tersedia.
+                        {{
+                            isPreorder
+                                ? `Qty maksimal ${maxQty} per pesanan.`
+                                : `Qty maksimal ${maxQty} sesuai stok tersedia.`
+                        }}
                     </p>
                     <p v-else class="text-xs text-muted-foreground">
                         {{ stockHint }}
@@ -541,4 +628,56 @@ const specs = computed(() =>
             </p>
         </div>
     </div>
+
+    <!-- Dialog konfirmasi nomor WhatsApp (pengajuan stok / waitlist) -->
+    <Dialog v-model:open="stockDialogOpen">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Konfirmasi Nomor WhatsApp</DialogTitle>
+                <DialogDescription>
+                    Kami akan mengirim pemberitahuan ke nomor ini saat stok buku
+                    tersedia.
+                </DialogDescription>
+            </DialogHeader>
+
+            <Form
+                :action="StockRequestController.store(book.id).url"
+                method="post"
+                class="grid gap-4"
+                v-slot="{ errors, processing }"
+                @success="stockDialogOpen = false"
+            >
+                <div class="grid gap-2">
+                    <Label for="whatsapp_number">Nomor WhatsApp *</Label>
+                    <Input
+                        id="whatsapp_number"
+                        name="whatsapp_number"
+                        type="tel"
+                        :default-value="userWhatsapp ?? undefined"
+                        required
+                        placeholder="08xxxxxxxxxx"
+                    />
+                    <p
+                        v-if="errors.whatsapp_number"
+                        class="text-sm text-destructive"
+                    >
+                        {{ errors.whatsapp_number }}
+                    </p>
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="stockDialogOpen = false"
+                    >
+                        Batal
+                    </Button>
+                    <Button type="submit" :disabled="processing">
+                        {{ processing ? 'Menyimpan...' : 'Konfirmasi' }}
+                    </Button>
+                </DialogFooter>
+            </Form>
+        </DialogContent>
+    </Dialog>
 </template>

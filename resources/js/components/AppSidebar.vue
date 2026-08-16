@@ -8,6 +8,7 @@ import {
     Boxes,
     Building2,
     CalendarDays,
+    CalendarClock,
     ChartColumn,
     ChartPie,
     ClipboardList,
@@ -20,6 +21,7 @@ import {
     // KeyRound, // API Key — disembunyikan sementara (lihat grup Pengaturan)
     Landmark,
     LayoutGrid,
+    MessageCircle,
     NotebookPen,
     PackageX,
     Scale,
@@ -57,18 +59,24 @@ import { index as inventoryAdjustmentsIndex } from '@/routes/admin/inventory-adj
 import { index as inventoryReportsIndex } from '@/routes/admin/inventory-reports';
 import { index as kasIndex } from '@/routes/admin/kas';
 import { laporan as kasLaporan } from '@/routes/admin/kas';
-import { index as ordersIndex } from '@/routes/admin/orders';
+import {
+    index as ordersIndex,
+    preorder as preorderIndex,
+} from '@/routes/admin/orders';
 import { index as promotionsIndex } from '@/routes/admin/promotions';
 import { index as purchasesIndex } from '@/routes/admin/purchases';
 import { index as receivablesIndex } from '@/routes/admin/receivables';
 import { index as salesReportsIndex } from '@/routes/admin/sales-reports';
 import { index as salesReturnsIndex } from '@/routes/admin/sales-returns';
 // import { apiKey as apiKeyRoute } from '@/routes/admin/settings'; // API Key — disembunyikan sementara
-import { ekspedisi as ekspedisiRoute } from '@/routes/admin/settings';
-import { lembaga as lembagaRoute } from '@/routes/admin/settings';
-import { pembayaran as pembayaranRoute } from '@/routes/admin/settings';
-import { rekening as rekeningRoute } from '@/routes/admin/settings';
-import { sumberPenjualan as sumberPenjualanRoute } from '@/routes/admin/settings';
+import {
+    ekspedisi as ekspedisiRoute,
+    lembaga as lembagaRoute,
+    pembayaran as pembayaranRoute,
+    rekening as rekeningRoute,
+    sumberPenjualan as sumberPenjualanRoute,
+    waTemplate as waTemplateRoute,
+} from '@/routes/admin/settings';
 import { index as stockRequestsIndex } from '@/routes/admin/stock-requests';
 import { index as supplierDebtsIndex } from '@/routes/admin/supplier-debts';
 import { index as supplierReportsIndex } from '@/routes/admin/supplier-reports';
@@ -82,6 +90,9 @@ import type { NavGroup, NavItem } from '@/types';
 const page = usePage();
 const pendingOrdersCount = computed<number>(() =>
     Number(page.props.pendingOrdersCount ?? 0),
+);
+const preorderPendingCount = computed<number>(() =>
+    Number(page.props.preorderPendingCount ?? 0),
 );
 
 // Item mandiri di atas — akses cepat ke menu yang paling sering dipakai.
@@ -151,6 +162,12 @@ const navGroups = computed<NavGroup[]>(() => [
                 href: ordersIndex(),
                 icon: ShoppingCart,
                 badge: pendingOrdersCount.value,
+            },
+            {
+                title: 'Pre-Order',
+                href: preorderIndex(),
+                icon: CalendarClock,
+                badge: preorderPendingCount.value,
             },
             {
                 title: 'Dropship',
@@ -276,6 +293,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Sumber Penjualan',
                 href: sumberPenjualanRoute(),
                 icon: Store,
+            },
+            {
+                title: 'WA Template',
+                href: waTemplateRoute(),
+                icon: MessageCircle,
             },
             {
                 title: 'Staf',

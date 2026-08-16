@@ -57,6 +57,7 @@ import {
 type OrderItem = {
     id: string;
     qty: number;
+    is_preorder: boolean;
     price_original: number;
     promo_discount_amount: number;
     tier_discount_amount: number;
@@ -787,6 +788,13 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
                                     <TableCell>
                                         <p class="font-medium">
                                             {{ item.book.judul }}
+                                            <span
+                                                v-if="item.is_preorder"
+                                                class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
+                                                title="Item pre-order menunggu stok"
+                                            >
+                                                Pre-Order
+                                            </span>
                                         </p>
                                         <p
                                             class="text-xs text-muted-foreground"

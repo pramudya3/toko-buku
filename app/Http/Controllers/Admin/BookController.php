@@ -712,6 +712,10 @@ class BookController extends Controller
             $data['aktif'] = $request->boolean('aktif');
         }
 
+        if ($request->has('is_preorder')) {
+            $data['is_preorder'] = $request->boolean('is_preorder');
+        }
+
         return $data;
     }
 

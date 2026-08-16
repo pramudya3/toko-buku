@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('books', function (Blueprint $table) {
+            $table->boolean('is_preorder')->default(false)->after('aktif');
+            $table->date('preorder_eta')->nullable()->after('is_preorder');
+        });
+
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->boolean('is_preorder')->default(false)->after('book_edition_id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('books', function (Blueprint $table) {
+            $table->dropColumn(['is_preorder', 'preorder_eta']);
+        });
+
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->dropColumn('is_preorder');
+        });
+    }
+};

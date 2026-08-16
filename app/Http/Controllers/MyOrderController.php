@@ -21,7 +21,7 @@ class MyOrderController extends Controller
     {
         $orders = Order::query()
             ->where('user_id', $request->user()->id)
-            ->withCount('items')
+            ->withCount(['items', 'items as preorder_items_count' => fn ($q) => $q->where('is_preorder', true)])
             ->orderByDesc('created_at')
             ->paginate(10)
             ->withQueryString();
@@ -42,7 +42,7 @@ class MyOrderController extends Controller
         }
 
         $order->load([
-            'items:id,order_id,book_id,judul_snapshot,edition_snapshot,qty,price_original,promo_discount_amount,tier_discount_amount,price_final',
+            'items:id,order_id,book_id,is_preorder,judul_snapshot,edition_snapshot,qty,price_original,promo_discount_amount,tier_discount_amount,price_final',
             'dropshipper',
         ]);
 

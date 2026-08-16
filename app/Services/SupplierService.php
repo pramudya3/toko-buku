@@ -79,6 +79,11 @@ final class SupplierService
                     userId: $userId,
                     notes: "Pembelian dari {$supplier->nama}",
                 );
+
+                // Stok pre-order tersedia → beri tahu customer yang menunggu.
+                if ($book->is_preorder) {
+                    app(PreorderReadyService::class)->handleStockArrival($book);
+                }
             }
 
             if ($paidAmount > 0) {

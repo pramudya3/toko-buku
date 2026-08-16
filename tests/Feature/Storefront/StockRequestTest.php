@@ -20,18 +20,51 @@ it('stores a stock request for a logged-in customer', function (): void {
     $book = Book::factory()->create(['stok' => 0, 'aktif' => true]);
 
     $this->actingAs($this->customer)
-        ->post(route('stock-requests.store', $book))
+        ->post(route('stock-requests.store', $book), [
+            'whatsapp_number' => '081234567890',
+        ])
         ->assertRedirect();
 
     expect(StockRequest::where('book_id', $book->id)->count())->toBe(1)
-        ->and(StockRequest::where('user_id', $this->customer->id)->exists())->toBeTrue();
+        ->and(StockRequest::where('user_id', $this->customer->id)->exists())->toBeTrue()
+        // Nomor WA tersimpan di profil user.
+        ->and($this->customer->fresh()->whatsapp_number)->toBe('081234567890');
+});
+
+it('replaces the profile WhatsApp number when it changes on request', function (): void {
+    $book = Book::factory()->create(['stok' => 0, 'aktif' => true]);
+    $this->customer->update(['whatsapp_number' => '081111111111']);
+
+    $this->actingAs($this->customer)
+        ->post(route('stock-requests.store', $book), [
+            'whatsapp_number' => '628999999999',
+        ])
+        ->assertRedirect();
+
+    expect($this->customer->fresh()->whatsapp_number)->toBe('628999999999');
+});
+
+it('requires a valid WhatsApp number for a stock request', function (): void {
+    $book = Book::factory()->create(['stok' => 0, 'aktif' => true]);
+
+    $this->actingAs($this->customer)
+        ->post(route('stock-requests.store', $book))
+        ->assertSessionHasErrors('whatsapp_number');
+
+    $this->actingAs($this->customer)
+        ->post(route('stock-requests.store', $book), [
+            'whatsapp_number' => 'salah-format',
+        ])
+        ->assertSessionHasErrors('whatsapp_number');
+
+    expect(StockRequest::where('book_id', $book->id)->count())->toBe(0);
 });
 
 it('keeps a single stock request per user per book', function (): void {
     $book = Book::factory()->create(['stok' => 0, 'aktif' => true]);
 
-    $this->actingAs($this->customer)->post(route('stock-requests.store', $book));
-    $this->actingAs($this->customer)->post(route('stock-requests.store', $book));
+    $this->actingAs($this->customer)->post(route('stock-requests.store', $book), ['whatsapp_number' => '081234567890']);
+    $this->actingAs($this->customer)->post(route('stock-requests.store', $book), ['whatsapp_number' => '081234567890']);
 
     expect(StockRequest::where('book_id', $book->id)->count())->toBe(1);
 });

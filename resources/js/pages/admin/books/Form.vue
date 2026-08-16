@@ -45,10 +45,11 @@ type Book = {
     isbn: string | null;
     sinopsis: string | null;
     harga: number;
-    stok: number;
     category_id: string | null;
     cover_url: string | null;
     aktif: boolean;
+    is_preorder: boolean;
+    preorder_eta: string | null;
     rating_umur: string | null;
     dimensi: string | null;
     kemasan: string | null;
@@ -93,6 +94,12 @@ const removedImages = ref<string[]>([]);
 const newPreviews = ref<{ url: string; file: File }[]>([]);
 const coverPreview = ref<string | null>(null);
 const removeCover = ref(false);
+const aktifValue = ref<string>(
+    props.book ? (props.book.aktif ? '1' : '0') : '1',
+);
+const isPreorderValue = ref<string>(
+    props.book ? (props.book.is_preorder ? '1' : '0') : '0',
+);
 const coverPreviewSrc = computed<string | undefined>(() => {
     if (coverPreview.value) {
         return coverPreview.value;
@@ -541,22 +548,9 @@ function onFormError() {
                             placeholder="2024"
                         />
                     </div>
-                    <div v-if="isEdit" class="grid gap-2">
-                        <Label>Stok Normal Saat Ini</Label>
-                        <p
-                            class="flex h-9 items-center rounded-md border bg-muted/50 px-3 text-sm tabular-nums"
-                        >
-                            {{ book?.stok ?? 0 }} unit
-                        </p>
-                    </div>
                     <div class="grid gap-2">
                         <Label for="aktif">Status</Label>
-                        <Select
-                            name="aktif"
-                            :default-value="
-                                book ? (book.aktif ? '1' : '0') : '1'
-                            "
-                        >
+                        <Select v-model="aktifValue">
                             <SelectTrigger id="aktif">
                                 <SelectValue placeholder="Pilih status" />
                             </SelectTrigger>
@@ -565,6 +559,45 @@ function onFormError() {
                                 <SelectItem value="0">Nonaktif</SelectItem>
                             </SelectContent>
                         </Select>
+                        <input type="hidden" name="aktif" :value="aktifValue" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="is_preorder">Buku Pre-Order</Label>
+                        <Select v-model="isPreorderValue">
+                            <SelectTrigger id="is_preorder">
+                                <SelectValue placeholder="Pilih" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1">
+                                    Ya — buku akan datang (new coming)
+                                </SelectItem>
+                                <SelectItem value="0">Tidak</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <input
+                            type="hidden"
+                            name="is_preorder"
+                            :value="isPreorderValue"
+                        />
+                    </div>
+
+                    <div v-if="isPreorderValue === '1'" class="grid gap-2">
+                        <Label
+                            for="penterjemah"
+                            class="inline-flex w-fit items-center gap-1"
+                        >
+                            Estimasi Tersedia
+                            <FieldHint
+                                text="Customer akan melihat perkiraan tanggal buku tersedia."
+                            />
+                        </Label>
+                        <Input
+                            id="preorder_eta"
+                            name="preorder_eta"
+                            type="date"
+                            :default-value="book?.preorder_eta ?? undefined"
+                        />
                     </div>
 
                     <div class="grid gap-2 md:col-span-2">

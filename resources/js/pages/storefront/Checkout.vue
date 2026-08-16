@@ -29,6 +29,8 @@ type CartBook = {
     kode_sku: string | null;
     harga: number;
     stok: number;
+    is_preorder: boolean;
+    preorder_eta: string | null;
 };
 
 type CartEdition = {
@@ -414,8 +416,10 @@ function updateQty(item: CartItem, delta: number) {
         return;
     }
 
-    // Qty maksimal = stok tersedia.
-    if (qty > item.book.stok) {
+    // Qty maksimal = stok tersedia (pre-order memakai batas config).
+    const capQty = item.book.is_preorder ? 99 : item.book.stok;
+
+    if (qty > capQty) {
         return;
     }
 
@@ -909,6 +913,12 @@ function onFormError() {
                                                 class="line-clamp-2 min-w-0 flex-1 text-sm font-medium"
                                             >
                                                 {{ item.book.judul }}
+                                                <span
+                                                    v-if="item.book.is_preorder"
+                                                    class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
+                                                >
+                                                    Pre-Order
+                                                </span>
                                             </p>
                                             <Button
                                                 v-if="group.key === 'regular'"
@@ -958,8 +968,10 @@ function onFormError() {
                                                             :key="edition.id"
                                                             :value="edition.id"
                                                             :disabled="
+                                                                !item.book
+                                                                    .is_preorder &&
                                                                 edition.stok <=
-                                                                0
+                                                                    0
                                                             "
                                                         >
                                                             Cetakan ke-{{
