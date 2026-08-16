@@ -197,7 +197,7 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category): RedirectResponse
     {
-        if ($category->books()->exists()) {
+        if ($category->books()->withTrashed()->exists()) {
             Inertia::flash('toast', [
                 'type' => 'error',
                 'message' => "Kategori {$category->nama} masih dipakai buku dan tidak dapat dihapus.",

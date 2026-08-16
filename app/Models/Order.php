@@ -33,6 +33,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $nama_penerima
  * @property PaymentMethod $metode_bayar
  * @property string|null $sumber_pembelian
+ * @property string|null $voucher_id
+ * @property string|null $voucher_code_snapshot
+ * @property string $voucher_scope_snapshot
+ * @property int $voucher_discount_amount
  * @property int $total
  * @property int $shipping_cost
  * @property bool $is_dropship
@@ -55,7 +59,8 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'no_order', 'user_id', 'nama_pembeli', 'no_hp', 'email_pembeli', 'alamat',
     'provinsi', 'kabupaten_kota', 'kecamatan', 'kelurahan', 'kode_pos', 'nama_penerima',
-    'metode_bayar', 'sumber_pembelian', 'total', 'shipping_cost', 'is_dropship', 'warehouse_origin',
+    'metode_bayar', 'sumber_pembelian', 'voucher_id', 'voucher_code_snapshot', 'voucher_scope_snapshot',
+    'voucher_discount_amount', 'total', 'shipping_cost', 'is_dropship', 'warehouse_origin',
     'status', 'payment_status', 'ekspedisi', 'ongkir_estimasi', 'courier_service_code',
     'shipping_collection_method',
     'metode_pengambilan',
@@ -103,10 +108,19 @@ class Order extends Model
         return $this->hasMany(CashFlow::class);
     }
 
+    /**
+     * @return BelongsTo<Voucher, $this>
+     */
+    public function voucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class);
+    }
+
     protected function casts(): array
     {
         return [
             // metode_bayar: string biasa — bisa berisi metode custom dari tabel.
+            'voucher_discount_amount' => 'integer',
             'total' => 'integer',
             'shipping_cost' => 'integer',
             'is_dropship' => 'boolean',
@@ -117,11 +131,19 @@ class Order extends Model
     }
 
     /**
-     * Subtotal produk (tanpa ongkir).
+     * Subtotal produk (tanpa ongkir, sudah neto diskon voucher).
      */
     public function subtotal(): int
     {
         return $this->total - $this->shipping_cost;
+    }
+
+    /**
+     * Nilai produk sebelum diskon voucher (untuk display & perhitungan).
+     */
+    public function itemsTotal(): int
+    {
+        return $this->subtotal() + $this->voucher_discount_amount;
     }
 
     /**

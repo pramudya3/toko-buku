@@ -53,6 +53,7 @@ class SalesReportController extends Controller
             'hpp' => 0,
             'laba' => 0,
             'shipping' => 0,
+            'voucher_discount' => 0,
             'item_count' => 0,
         ];
 
@@ -60,6 +61,12 @@ class SalesReportController extends Controller
 
         foreach ($orders as $order) {
             $summary['shipping'] += (int) $order->shipping_cost;
+
+            // Voucher (level order) mengurangi omzet riil — kecuali order
+            // batal: kuota voucher dikembalikan & diskon tidak direalisasikan.
+            if ($order->status !== OrderStatus::Batal) {
+                $summary['voucher_discount'] += (int) $order->voucher_discount_amount;
+            }
 
             foreach ($order->items as $item) {
                 $hpp = (int) ($item->harga_beli_snapshot ?? 0);
@@ -143,6 +150,9 @@ class SalesReportController extends Controller
 
         // Urutkan gabungan baris jual + retur dari terbaru (stabil di PHP 8+).
         usort($rows, fn (array $a, array $b): int => $b['sort_date'] <=> $a['sort_date']);
+
+        // Omzet riil = nilai item − diskon voucher (di luar order batal).
+        $summary['omzet'] -= $summary['voucher_discount'];
 
         $summary['laba'] = $summary['omzet'] - $summary['hpp'];
 

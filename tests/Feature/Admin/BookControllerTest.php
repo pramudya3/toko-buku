@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Book;
+use App\Models\BookEditionStock;
 use App\Models\BookImage;
 use App\Models\Category;
 use App\Models\InventoryMovement;
 use App\Models\OrderItem;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Services\InventoryService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -267,6 +269,105 @@ it('prevents deleting a book with order history', function (): void {
         ->assertRedirect();
 
     expect(Book::find($book->id))->not->toBeNull();
+});
+
+it('blocks removing an edition that was used in orders', function (): void {
+    $book = Book::factory()->create();
+    $edition2 = $book->editions()->create([
+        'cetakan_ke' => 2,
+        'harga_beli' => 40000,
+        'harga_jual' => 65000,
+        'is_active' => false,
+    ]);
+    OrderItem::factory()->create([
+        'book_id' => $book->id,
+        'book_edition_id' => $edition2->id,
+    ]);
+
+    // Form edit hanya mengirim cetakan 1 → cetakan 2 seharusnya tidak dihapus.
+    $this->actingAs($this->admin)
+        ->put(route('admin.books.update', $book), array_merge([
+            'judul' => $book->judul,
+            'penulis' => $book->penulis,
+            'aktif' => true,
+        ], bookPayload()))
+        ->assertRedirect();
+
+    expect(session('inertia.flash_data.toast.type'))->toBe('error')
+        ->and($book->fresh()->editions()->count())->toBe(2);
+});
+
+it('blocks removing an edition with inventory movements', function (): void {
+    $book = Book::factory()->create();
+    $edition2 = $book->editions()->create([
+        'cetakan_ke' => 2,
+        'harga_beli' => 40000,
+        'harga_jual' => 65000,
+        'is_active' => false,
+    ]);
+    InventoryMovement::factory()->create([
+        'book_id' => $book->id,
+        'book_edition_id' => $edition2->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.books.update', $book), array_merge([
+            'judul' => $book->judul,
+            'penulis' => $book->penulis,
+            'aktif' => true,
+        ], bookPayload()))
+        ->assertRedirect();
+
+    expect(session('inertia.flash_data.toast.type'))->toBe('error')
+        ->and($book->fresh()->editions()->count())->toBe(2);
+});
+
+it('blocks removing an edition that still has stock', function (): void {
+    $book = Book::factory()->create();
+    $edition2 = $book->editions()->create([
+        'cetakan_ke' => 2,
+        'harga_beli' => 40000,
+        'harga_jual' => 65000,
+        'is_active' => false,
+    ]);
+    BookEditionStock::create([
+        'book_edition_id' => $edition2->id,
+        'warehouse_id' => Warehouse::factory()->create()->id,
+        'qty' => 5,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.books.update', $book), array_merge([
+            'judul' => $book->judul,
+            'penulis' => $book->penulis,
+            'aktif' => true,
+        ], bookPayload()))
+        ->assertRedirect();
+
+    expect(session('inertia.flash_data.toast.type'))->toBe('error')
+        ->and($book->fresh()->editions()->count())->toBe(2);
+});
+
+it('allows removing an unused edition without stock', function (): void {
+    $book = Book::factory()->create();
+    $book->editions()->create([
+        'cetakan_ke' => 2,
+        'harga_beli' => 40000,
+        'harga_jual' => 65000,
+        'is_active' => false,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.books.update', $book), array_merge([
+            'judul' => $book->judul,
+            'penulis' => $book->penulis,
+            'aktif' => true,
+        ], bookPayload()))
+        ->assertRedirect(route('admin.books.index'));
+
+    expect(session('inertia.flash_data.toast.type'))->toBe('success')
+        ->and($book->fresh()->editions()->count())->toBe(1)
+        ->and($book->fresh()->editions()->first()->cetakan_ke)->toBe(1);
 });
 
 it('deletes a book without order history', function (): void {

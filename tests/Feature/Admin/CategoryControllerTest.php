@@ -39,6 +39,20 @@ it('prevents deleting a category that is still used by books', function (): void
     expect(Category::find($category->id))->not->toBeNull();
 });
 
+it('prevents deleting a category whose books are all soft-deleted', function (): void {
+    $category = Category::factory()->create();
+    $book = Book::factory()->withStock()->create(['category_id' => $category->id]);
+    $book->delete();
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.categories.destroy', $category))
+        ->assertRedirect();
+
+    // Kategori tetap ada — buku yang di-restore nanti tidak boleh kehilangan kategori.
+    expect(Category::find($category->id))->not->toBeNull()
+        ->and(session('inertia.flash_data.toast.type'))->toBe('error');
+});
+
 it('deletes an empty category', function (): void {
     $category = Category::factory()->create();
 

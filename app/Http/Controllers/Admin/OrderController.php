@@ -903,6 +903,15 @@ class OrderController extends Controller
             return back();
         }
 
+        if ($order->status === OrderStatus::Batal) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => "Order {$order->no_order} sudah batal — pembayaran tidak dapat dikonfirmasi.",
+            ]);
+
+            return back();
+        }
+
         $order->update(['payment_status' => PaymentStatus::Lunas]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Pembayaran order {$order->no_order} dikonfirmasi lunas."]);

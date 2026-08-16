@@ -59,6 +59,9 @@ enum ActivityAction: string
     case PromotionDelete = 'promotion.delete';
     case PromotionImport = 'promotion.import';
     case TierDiscountImport = 'tier_discount.import';
+    case VoucherCreate = 'voucher.create';
+    case VoucherUpdate = 'voucher.update';
+    case VoucherDelete = 'voucher.delete';
 
     /**
      * @return array<string, string>
@@ -116,6 +119,9 @@ enum ActivityAction: string
             self::PromotionDelete => 'Hapus Promosi',
             self::PromotionImport => 'Import Promosi',
             self::TierDiscountImport => 'Import Tier Discount',
+            self::VoucherCreate => 'Buat Voucher',
+            self::VoucherUpdate => 'Ubah Voucher',
+            self::VoucherDelete => 'Hapus Voucher',
         };
     }
 }

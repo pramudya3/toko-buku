@@ -19,6 +19,10 @@ type Order = {
     no_order: string;
     nama_pembeli: string;
     total: number;
+    shipping_cost: number;
+    voucher_code_snapshot: string | null;
+    voucher_scope_snapshot: string;
+    voucher_discount_amount: number;
     metode_bayar: string;
     payment_status: string;
     items: OrderItem[];
@@ -66,6 +70,23 @@ defineOptions({
             <div class="mt-2 flex justify-between text-sm">
                 <span class="text-muted-foreground">Metode Bayar</span>
                 <span class="font-medium">{{ order.metode_bayar }}</span>
+            </div>
+            <div
+                v-if="order.voucher_discount_amount > 0"
+                class="mt-2 flex justify-between text-sm"
+            >
+                <span class="text-muted-foreground"
+                    >Voucher {{ order.voucher_code_snapshot ?? 'Diskon'
+                    }}<template
+                        v-if="order.voucher_scope_snapshot === 'ongkir'"
+                    >
+                        (ongkir)</template
+                    ></span
+                >
+                <Money
+                    :value="-order.voucher_discount_amount"
+                    class="font-medium text-destructive"
+                />
             </div>
             <div class="mt-2 flex justify-between text-sm">
                 <span class="text-muted-foreground">Total</span>

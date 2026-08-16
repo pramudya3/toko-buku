@@ -420,7 +420,9 @@ it('restores reserved stock when cancelling a processed order', function (): voi
     expect($order->fresh()->status)->toBe(OrderStatus::Batal)
         ->and($book->fresh()->stok)->toBe(10)
         ->and($book->fresh()->inventoryStocks()->sum('qty'))->toBe(10)
-        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0)
+        // Order lunas yang dibatalkan → refund otomatis dicatat di arus kas.
+        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'refund')->count())->toBe(1)
+        ->and(CashFlow::where('order_id', $order->id)->sum('amount'))->toBe(110000)
         // Ada mutasi masuk (restore) setelah mutasi keluar (reserve).
         ->and(InventoryMovement::where('book_id', $book->id)->where('type', 'in')->count())->toBe(1);
 });
@@ -481,9 +483,9 @@ it('confirms payment for an order (menunggu → lunas)', function (): void {
     expect($order->fresh()->payment_status->value)->toBe('lunas');
 });
 
-it('cancels an order without side effects (CF-04)', function (): void {
+it('cancels a paid order and records an automatic refund (CF-04)', function (): void {
     $book = Book::factory()->withStock(malang: 10)->create(['harga' => 50000]);
-    $order = Order::factory()->lunas()->create();
+    $order = Order::factory()->lunas()->create(['total' => 50000]);
     $order->items()->create([
         'book_id' => $book->id,
         'judul_snapshot' => $book->judul,
@@ -501,7 +503,34 @@ it('cancels an order without side effects (CF-04)', function (): void {
 
     expect($order->fresh()->status)->toBe(OrderStatus::Batal)
         ->and($book->fresh()->stok)->toBe(10)
+        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'refund')->count())->toBe(1)
+        ->and(CashFlow::where('order_id', $order->id)->sum('amount'))->toBe(50000);
+});
+
+it('does not record a refund when cancelling an unpaid order', function (): void {
+    $order = Order::factory()->create(['total' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Batal->value])
+        ->assertRedirect();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Batal)
         ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0);
+});
+
+it('rejects confirming payment on a cancelled order', function (): void {
+    $order = Order::factory()->create(['total' => 50000]);
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.status', $order), ['status' => OrderStatus::Batal->value])
+        ->assertRedirect();
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.orders.payment', $order))
+        ->assertRedirect();
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::Menunggu)
+        ->and(session('inertia.flash_data.toast.type'))->toBe('error');
 });
 
 it('shows order detail with items and pricing breakdown (ORD-02)', function (): void {

@@ -11,6 +11,7 @@ use App\Models\Category;
 use App\Models\Promotion;
 use App\Models\Setting;
 use App\Models\StockRequest;
+use App\Models\Voucher;
 use App\Services\PricingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -77,8 +78,45 @@ class StorefrontController extends Controller
         return Inertia::render('storefront/Promo', [
             'bundles' => $this->activeBundlesForStorefront(),
             'promos' => $this->activeUnitPromosForStorefront(bookLimit: 50, withPricing: true),
+            'vouchers' => $this->vouchersForStorefront(),
             'filters' => $request->only(['search']),
         ]);
+    }
+
+    /**
+     * Voucher aktif (periode berlaku) untuk halaman Promo — kuota & syarat
+     * ditampilkan informatif; pemakaian tetap dipilih & divalidasi di checkout.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function vouchersForStorefront(): array
+    {
+        $today = now()->toDateString();
+
+        return Voucher::query()
+            ->withCount('usages')
+            ->where('is_active', true)
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->orderBy('end_date')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (Voucher $voucher): array => [
+                'id' => $voucher->id,
+                'nama' => $voucher->nama,
+                'kode' => $voucher->kode,
+                'voucher_type' => $voucher->voucher_type->value,
+                'discount_scope' => $voucher->discount_scope->value,
+                'discount_percentage' => $voucher->discount_percentage,
+                'discount_value' => $voucher->discount_value,
+                'min_order_amount' => $voucher->min_order_amount,
+                'max_uses' => $voucher->max_uses,
+                'usages_count' => (int) $voucher->usages_count,
+                'start_date' => $voucher->start_date->toDateString(),
+                'end_date' => $voucher->end_date->toDateString(),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

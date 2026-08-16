@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CustomerTier;
 use App\Enums\PromotionType;
+use App\Enums\VoucherScope;
 use App\Models\Book;
 use App\Models\BookEdition;
 use App\Models\Order;
@@ -22,6 +23,10 @@ use RuntimeException;
  */
 final class PricingService
 {
+    public function __construct(
+        private readonly VoucherService $vouchers,
+    ) {}
+
     /**
      * @var array<string, Promotion|null>
      */
@@ -232,6 +237,33 @@ final class PricingService
         }
 
         $order->total = $total + $order->shipping_cost;
+
+        // Voucher diskon level order (BR-01): dihitung dari base sesuai scope
+        // — subtotal produk SETELAH promo/tier/bundle (scope item) atau ongkos
+        // kirim (scope ongkir). Hanya dihitung SEKALI saat order dibuat
+        // (snapshot belum ada); pemanggilan berikutnya (re-pricing saat
+        // diproses) memakai nilai tersimpan agar diskon yang disepakati
+        // customer tetap jujur walau voucher diubah/dihapus setelah checkout.
+        if ($order->voucher_id !== null) {
+            if ($order->voucher_code_snapshot !== null) {
+                $order->total = max(0, $order->total - $order->voucher_discount_amount);
+            } else {
+                $voucher = $order->voucher()->first();
+
+                if ($voucher !== null) {
+                    $base = $voucher->discount_scope === VoucherScope::Ongkir
+                        ? $order->shipping_cost
+                        : $total;
+
+                    $discount = $this->vouchers->discountAmount($voucher, $base);
+                    $order->voucher_discount_amount = $discount;
+                    $order->voucher_code_snapshot = $voucher->kode ?? $voucher->nama;
+                    $order->voucher_scope_snapshot = $voucher->discount_scope->value;
+                    $order->total = max(0, $order->total - $discount);
+                }
+            }
+        }
+
         $order->save();
     }
 

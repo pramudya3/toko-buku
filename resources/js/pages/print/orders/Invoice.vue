@@ -34,6 +34,9 @@ type OrderProps = {
     kode_pos: string | null;
     ekspedisi: string | null;
     shipping_cost: number;
+    voucher_code_snapshot: string | null;
+    voucher_scope_snapshot: string;
+    voucher_discount_amount: number;
     metode_bayar: string;
     payment_status: string;
     status: string;
@@ -107,7 +110,12 @@ const totalDiskon = computed(() =>
     ),
 );
 
-const total = computed(() => subtotal.value + props.order.shipping_cost);
+const total = computed(
+    () =>
+        subtotal.value +
+        props.order.shipping_cost -
+        props.order.voucher_discount_amount,
+);
 
 const columns: InvoiceColumn[] = [
     { key: 'no', label: 'No', align: 'center' },
@@ -222,6 +230,23 @@ const kirimLines = computed(() => [
                             label: 'Total Diskon',
                             value: `-${idr(totalDiskon)}`,
                         },
+                        ...(order.voucher_discount_amount > 0
+                            ? [
+                                  {
+                                      label: `Voucher ${
+                                          order.voucher_code_snapshot ?? ''
+                                      }${
+                                          order.voucher_scope_snapshot ===
+                                          'ongkir'
+                                              ? ' (ongkir)'
+                                              : ''
+                                      }`,
+                                      value: `-${idr(
+                                          order.voucher_discount_amount,
+                                      )}`,
+                                  },
+                              ]
+                            : []),
                         { label: 'Ongkir', value: idr(order.shipping_cost) },
                     ]"
                     total-label="TOTAL"

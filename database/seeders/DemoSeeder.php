@@ -8,6 +8,8 @@ use App\Enums\MovementType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PromotionType;
+use App\Enums\VoucherScope;
+use App\Enums\VoucherType;
 use App\Models\Book;
 use App\Models\BookEdition;
 use App\Models\CashFlow;
@@ -17,6 +19,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Promotion;
 use App\Models\User;
+use App\Models\Voucher;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
 use Illuminate\Database\Seeder;
@@ -164,6 +167,50 @@ class DemoSeeder extends Seeder
         $promotions[0]->books()->attach($books->take(5)->pluck('id')->all());
         $promotions[1]->books()->attach($books[3]->id);
         $promotions[2]->books()->attach($books->pluck('id')->all());
+
+        // Voucher diskon checkout — kombinasi tipe, kuota & minimal belanja.
+        // Tanpa events: observer tidak boleh mengirim notifikasi saat seeding.
+        Voucher::withoutEvents(function (): void {
+            collect([
+                Voucher::create([
+                    'nama' => 'Voucher 10% Semua Buku',
+                    'kode' => 'HEMAT10',
+                    'voucher_type' => VoucherType::Percentage,
+                    'discount_percentage' => 10,
+                    'min_order_amount' => 100000,
+                    'max_uses' => 100,
+                    'max_uses_per_user' => 1,
+                    'start_date' => now()->subDay()->toDateString(),
+                    'end_date' => now()->addDays(30)->toDateString(),
+                    'is_active' => true,
+                ]),
+                Voucher::create([
+                    'nama' => 'Potongan Rp 25.000',
+                    'kode' => 'MAJU25',
+                    'voucher_type' => VoucherType::Fixed,
+                    'discount_value' => 25000,
+                    'min_order_amount' => 200000,
+                    'max_uses' => 50,
+                    'max_uses_per_user' => 2,
+                    'start_date' => now()->subDay()->toDateString(),
+                    'end_date' => now()->addDays(14)->toDateString(),
+                    'is_active' => true,
+                ]),
+                Voucher::create([
+                    'nama' => 'Gratis Ongkir 50%',
+                    'kode' => 'ONKIR50',
+                    'voucher_type' => VoucherType::Percentage,
+                    'discount_scope' => VoucherScope::Ongkir,
+                    'discount_percentage' => 50,
+                    'min_order_amount' => 150000,
+                    'max_uses' => 100,
+                    'max_uses_per_user' => 3,
+                    'start_date' => now()->subDay()->toDateString(),
+                    'end_date' => now()->addDays(7)->toDateString(),
+                    'is_active' => true,
+                ]),
+            ]);
+        });
 
         $inventory = app(InventoryService::class);
 

@@ -52,6 +52,31 @@ final class AccountingService
         });
     }
 
+    /**
+     * Order batal yang sudah lunas → 1 entry refund (outflow) otomatis.
+     * Idempotent: entry refund hanya dibuat sekali per order.
+     */
+    public function recordOrderRefund(Order $order, ?string $userId = null): void
+    {
+        DB::transaction(function () use ($order): void {
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->getKey());
+
+            if ($lockedOrder->cashFlows()->where('flow_type', FlowType::Refund->value)->exists()) {
+                return;
+            }
+
+            $amount = (int) $lockedOrder->total;
+
+            if ($amount <= 0) {
+                return;
+            }
+
+            $this->createEntry($lockedOrder, FlowType::Refund, $amount, 'Refund order '.$lockedOrder->no_order.' (dibatalkan)');
+        });
+    }
+
     private function createEntry(Order $order, FlowType $type, int $amount, string $description): void
     {
         if ($amount < 0) {

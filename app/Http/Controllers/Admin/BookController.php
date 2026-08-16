@@ -146,6 +146,17 @@ class BookController extends Controller
         $editions = $data['editions'] ?? [];
         unset($data['editions']);
 
+        // Cetakan yang dihapus dari form tidak boleh punya riwayat pemakaian
+        // (order/mutasi) atau stok tersisa — kalau tidak, FK buntu → 500,
+        // atau stok lenyap tanpa jejak mutasi.
+        $blockedEdition = $this->findRemovedEditionInUse($book, $editions);
+
+        if ($blockedEdition !== null) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $blockedEdition['message']]);
+
+            return back();
+        }
+
         DB::transaction(function () use ($book, $data, $editions, $request): void {
             $book->update($data);
 
@@ -169,6 +180,45 @@ class BookController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => "Buku {$book->judul} berhasil diperbarui."]);
 
         return to_route('admin.books.index');
+    }
+
+    /**
+     * Cek cetakan yang akan dihapus dari form — kembalikan pesan blokir
+     * bila cetakan masih dipakai di pesanan/mutasi atau masih punya stok.
+     *
+     * @param  array<int, array{cetakan_ke: int}>  $editions
+     * @return array{message: string}|null
+     */
+    private function findRemovedEditionInUse(Book $book, array $editions): ?array
+    {
+        $keptCetakanKe = array_column($editions, 'cetakan_ke');
+        $removed = $book->editions()
+            ->whereNotIn('cetakan_ke', $keptCetakanKe)
+            ->get();
+
+        foreach ($removed as $edition) {
+            $label = $edition->nama ?? "Cetakan ke-{$edition->cetakan_ke}";
+
+            if ($edition->orderItems()->exists()) {
+                return [
+                    'message' => "{$label} sudah dipakai di pesanan — tidak bisa dihapus.",
+                ];
+            }
+
+            if ($edition->inventoryMovements()->exists()) {
+                return [
+                    'message' => "{$label} punya riwayat mutasi stok — tidak bisa dihapus.",
+                ];
+            }
+
+            if ($edition->stocks()->sum('qty') > 0) {
+                return [
+                    'message' => "{$label} masih menyimpan stok — opname/sesuaikan stoknya dulu.",
+                ];
+            }
+        }
+
+        return null;
     }
 
     /**

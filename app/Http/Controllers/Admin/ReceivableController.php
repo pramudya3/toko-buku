@@ -137,11 +137,17 @@ class ReceivableController extends Controller
      */
     public function destroy(Receivable $receivable): RedirectResponse
     {
-        if ($receivable->payments()->exists()) {
-            throw new RuntimeException('Piutang dengan riwayat pembayaran tidak dapat dihapus.');
-        }
+        try {
+            if ($receivable->payments()->exists()) {
+                throw new RuntimeException('Piutang dengan riwayat pembayaran tidak dapat dihapus.');
+            }
 
-        $receivable->delete();
+            $receivable->delete();
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',

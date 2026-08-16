@@ -30,6 +30,7 @@ import {
     ShoppingCart,
     Store,
     Tags,
+    TicketPercent,
     Truck,
     Undo2,
     Users,
@@ -84,6 +85,7 @@ import { index as supplierReturnsIndex } from '@/routes/admin/supplier-returns';
 import { index as suppliersIndex } from '@/routes/admin/suppliers';
 import { index as tierDiscountsIndex } from '@/routes/admin/tier-discounts';
 import { index as usersIndex } from '@/routes/admin/users';
+import { index as vouchersIndex } from '@/routes/admin/vouchers';
 import { index as warehousesIndex } from '@/routes/admin/warehouses';
 import type { NavGroup, NavItem } from '@/types';
 
@@ -146,6 +148,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Tier Discount',
                 href: tierDiscountsIndex(),
                 icon: BadgePercent,
+            },
+            {
+                title: 'Voucher',
+                href: vouchersIndex(),
+                icon: TicketPercent,
             },
             {
                 title: 'Pengajuan Stok',

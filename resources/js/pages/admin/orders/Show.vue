@@ -89,6 +89,9 @@ type Order = {
     metode_pengambilan: string | null;
     total: number;
     shipping_cost: number;
+    voucher_code_snapshot: string | null;
+    voucher_scope_snapshot: string;
+    voucher_discount_amount: number;
     is_dropship: boolean;
     warehouse_origin: string | null;
     status: string;
@@ -894,6 +897,27 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
                                 <span>Total Diskon</span>
                                 <span class="tabular-nums"
                                     >-<Money :value="totalDiscount"
+                                /></span>
+                            </div>
+                            <div
+                                v-if="order.voucher_discount_amount > 0"
+                                class="flex items-baseline justify-between gap-4 text-destructive"
+                            >
+                                <span
+                                    >Voucher
+                                    {{ order.voucher_code_snapshot ?? 'Diskon'
+                                    }}<template
+                                        v-if="
+                                            order.voucher_scope_snapshot ===
+                                            'ongkir'
+                                        "
+                                    >
+                                        (ongkir)</template
+                                    ></span
+                                >
+                                <span class="tabular-nums"
+                                    >-<Money
+                                        :value="order.voucher_discount_amount"
                                 /></span>
                             </div>
                             <div

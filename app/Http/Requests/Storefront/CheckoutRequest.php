@@ -49,6 +49,7 @@ class CheckoutRequest extends FormRequest
                 Rule::in(['kirim', 'ambil']),
             ],
             'courier_service_code' => ['nullable', 'string', 'max:50'],
+            'voucher_id' => ['nullable', 'string', 'exists:vouchers,id'],
             'selected_groups' => ['nullable', 'array'],
             'selected_groups.*' => ['string', 'max:50'],
         ];
