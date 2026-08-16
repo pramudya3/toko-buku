@@ -31,7 +31,6 @@
 
 /* Checklist (task list) & spidol (highlight) — editor admin + isi artikel. */
 @layer components {
-
     /* Cegah focus ring browser (border menyala) saat area tulis editor diklik. */
     .ProseMirror,
     .ProseMirror:focus {
