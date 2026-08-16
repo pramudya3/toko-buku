@@ -113,9 +113,7 @@ const isUsed = (voucher: Voucher) => voucher.usages_count > 0;
 
 function editVoucher(voucher: Voucher) {
     if (isUsed(voucher)) {
-        toast.error(
-            "Voucher sudah dipakai di pesanan — tidak bisa diubah.",
-        );
+        toast.error('Voucher sudah dipakai di pesanan — tidak bisa diubah.');
 
         return;
     }
@@ -126,7 +124,7 @@ function editVoucher(voucher: Voucher) {
 function toggleVoucher(voucher: Voucher) {
     if (isUsed(voucher)) {
         toast.error(
-            "Voucher sudah dipakai di pesanan — status tidak bisa diubah.",
+            'Voucher sudah dipakai di pesanan — status tidak bisa diubah.',
         );
 
         return;
@@ -155,9 +153,7 @@ const quotaLabel = (voucher: Voucher) => {
 
 function confirmDelete(voucher: Voucher) {
     if (isUsed(voucher)) {
-        toast.error(
-            "Voucher sudah dipakai di pesanan — tidak bisa dihapus.",
-        );
+        toast.error('Voucher sudah dipakai di pesanan — tidak bisa dihapus.');
 
         return;
     }

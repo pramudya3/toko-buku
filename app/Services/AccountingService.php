@@ -60,8 +60,9 @@ final class AccountingService
     {
         DB::transaction(function () use ($order): void {
             $lockedOrder = Order::query()
+                ->whereKey($order->getKey())
                 ->lockForUpdate()
-                ->findOrFail($order->getKey());
+                ->firstOrFail();
 
             if ($lockedOrder->cashFlows()->where('flow_type', FlowType::Refund->value)->exists()) {
                 return;

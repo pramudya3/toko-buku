@@ -753,12 +753,8 @@ const isProfilActive = computed(
                                 <span class="text-sm font-medium">
                                     {{ notification.message }}
                                 </span>
-                                <span
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    {{
-                                        timeAgoID(notification.created_at)
-                                    }}
+                                <span class="text-xs text-muted-foreground">
+                                    {{ timeAgoID(notification.created_at) }}
                                 </span>
                             </button>
                         </div>
