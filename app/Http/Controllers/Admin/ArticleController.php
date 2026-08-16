@@ -42,7 +42,7 @@ class ArticleController extends Controller
                 'judul' => $article->judul,
                 'slug' => $article->slug,
                 'article_category_id' => $article->article_category_id,
-                'kategori_label' => $article->category?->nama ?? 'Tanpa kategori',
+                'kategori_label' => $article->category->nama ?? 'Tanpa kategori',
                 'penulis' => $article->penulis,
                 'ringkasan' => $article->ringkasan,
                 'isi' => $article->isi,

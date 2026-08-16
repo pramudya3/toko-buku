@@ -255,7 +255,7 @@ class StorefrontController extends Controller
             'judul' => $article->judul,
             'slug' => $article->slug,
             'kategori_id' => $article->article_category_id,
-            'kategori_label' => $article->category?->nama ?? 'Tanpa kategori',
+            'kategori_label' => $article->category->nama ?? 'Tanpa kategori',
             'penulis' => $article->penulis,
             'ringkasan' => $article->ringkasan,
             'published_at' => $article->published_at,
