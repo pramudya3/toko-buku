@@ -78,10 +78,10 @@ defineProps<{
                             <code class="rounded bg-muted px-1"
                                 >{"{keterangan}"}</code
                             >
-                            (<em>opsional</em> — bila disertakan, terisi otomatis
-                            sesuai konteks pesanan/waitlist; bila tidak, tulis
-                            kalimat lengkap Anda sendiri). Baris baru akan
-                            dipertahankan di WhatsApp.
+                            (<em>opsional</em> — bila disertakan, terisi
+                            otomatis sesuai konteks pesanan/waitlist; bila
+                            tidak, tulis kalimat lengkap Anda sendiri). Baris
+                            baru akan dipertahankan di WhatsApp.
                         </p>
                         <p
                             v-if="errors.wa_template_ready"
