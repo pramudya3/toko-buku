@@ -366,7 +366,7 @@ final class PricingService
     /**
      * Simpan order beserta item-nya dengan perhitungan harga otomatis, dalam 1 transaksi.
      *
-     * @param  array<int, array{book_id: int, qty: int, book_edition_id?: int|null, edition_snapshot?: string|null}>  $items
+     * @param  array<int, array{book_id: int, qty: int, book_edition_id?: int|null, edition_snapshot?: string|null, is_preorder?: bool}>  $items
      */
     public function storeOrderWithItems(Order $order, array $items): Order
     {
