@@ -5,7 +5,6 @@ namespace App\Notifications;
 use App\Models\Book;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Mail\Message;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -39,10 +38,7 @@ class StockRequestReadyNotification extends Notification implements ShouldQueue
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function toMail(object $notifiable): Message
+    public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
             ->subject("Stok {$this->book->judul} telah tersedia")

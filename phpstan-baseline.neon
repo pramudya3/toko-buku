@@ -421,7 +421,7 @@ parameters:
 			path: app/Http/Controllers/CheckoutController.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\CheckoutController\:\:cartToItems\(\) should return array\<int, array\{book_id\: int, qty\: int, book_edition_id\: int\|null, edition_snapshot\: string\|null\}\> but returns list\<array\{book_id\: string, qty\: int, book_edition_id\: int\|null, edition_snapshot\: non\-falsy\-string\|null\}\>\.$#'
+			message: '#^Method App\\Http\\Controllers\\CheckoutController\:\:cartToItems\(\) should return array\<int, array\{book_id\: int, qty\: int, book_edition_id\: int\|null, edition_snapshot\: string\|null, is_preorder\: bool\}\> but returns list\<array\{book_id\: string, qty\: int, book_edition_id\: int\|null, edition_snapshot\: non\-falsy\-string\|null, is_preorder\: bool\}\>\.$#'
 			identifier: return.type
 			count: 1
 			path: app/Http/Controllers/CheckoutController.php
@@ -447,7 +447,7 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$cart of method App\\Http\\Controllers\\CheckoutController\:\:cartBookIds\(\) expects array\<string, array\{qty\: int, edition_id\: string\|null\}\>, array\<string, array\{qty\: int, edition_id\: int\|null\}\> given\.$#'
 			identifier: argument.type
-			count: 1
+			count: 2
 			path: app/Http/Controllers/CheckoutController.php
 
 		-
@@ -851,54 +851,6 @@ parameters:
 			identifier: argument.type
 			count: 2
 			path: app/Services/InventoryService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:\$no_order\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Anonymous function should return App\\Models\\Order but returns App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Call to an undefined method App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:update\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\AccountingService\:\:recordOrderCompleted\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\InventoryService\:\:restoreForOrder\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\OrderStatusService\:\:canTransition\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/OrderStatusService.php
-
-		-
-			message: '#^Parameter \#3 \$subject of static method App\\Support\\ActivityLogger\:\:log\(\) expects Illuminate\\Database\\Eloquent\\Model\|null, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/OrderStatusService.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>harga_beli" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'

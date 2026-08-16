@@ -73,6 +73,7 @@ final class OrderStatusService
     public function transition(Order $order, OrderStatus $to, ?string $userId = null): Order
     {
         return DB::transaction(function () use ($order, $to, $userId): Order {
+            /** @var Order $lockedOrder */
             $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->getKey());
 
             if (! $this->canTransition($lockedOrder, $to)) {

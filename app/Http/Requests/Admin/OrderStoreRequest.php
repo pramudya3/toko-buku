@@ -100,9 +100,11 @@ class OrderStoreRequest extends FormRequest
                     $book = $stocks->get((string) ($row['book_id'] ?? ''));
 
                     // Buku pre-order menunggu stok — batas memakai config.
-                    $cap = $book?->is_preorder
+                    // $book tidak mungkin null: items.*.book_id sudah
+                    // divalidasi exists + aktif di rules di atas.
+                    $cap = $book->is_preorder
                         ? (int) config('preorder.max_qty', 99)
-                        : (int) ($book?->stok ?? 0);
+                        : (int) $book->stok;
 
                     if ((int) ($row['qty'] ?? 0) > $cap) {
                         $fail("Stok buku tidak mencukupi — maks {$cap}.");
