@@ -20,6 +20,7 @@ import {
     History,
     // KeyRound, // API Key — disembunyikan sementara (lihat grup Pengaturan)
     Landmark,
+    Layers,
     LayoutGrid,
     MessageCircle,
     NotebookPen,
@@ -50,6 +51,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes/admin';
 import { index as aktivitasIndex } from '@/routes/admin/aktivitas';
+import { index as articleCategoriesIndex } from '@/routes/admin/article-categories';
+import { index as articlesIndex } from '@/routes/admin/articles';
 import { index as booksIndex } from '@/routes/admin/books';
 import { index as categoriesIndex } from '@/routes/admin/categories';
 import { index as customersIndex } from '@/routes/admin/customers';
@@ -126,6 +129,21 @@ const footerItems = computed<NavItem[]>(() => [
 ]);
 
 const navGroups = computed<NavGroup[]>(() => [
+    {
+        label: 'Konten',
+        items: [
+            {
+                title: 'Artikel',
+                href: articlesIndex(),
+                icon: NotebookPen,
+            },
+            {
+                title: 'Kategori',
+                href: articleCategoriesIndex(),
+                icon: Layers,
+            },
+        ],
+    },
     {
         label: 'Katalog',
         items: [

@@ -39,6 +39,23 @@ class CheckoutController extends Controller
     ) {}
 
     /**
+     * Nama komponen Inertia yang dirender — subclass (mis. storefront proto-d)
+     * menimpa ini untuk memakai alur yang sama dengan halaman berbeda.
+     */
+    protected function page(string $name): string
+    {
+        return "storefront/{$name}";
+    }
+
+    /**
+     * Nama route halaman sukses — subclass menimpa untuk memakai halaman sendiri.
+     */
+    protected function successRoute(): string
+    {
+        return 'checkout.success';
+    }
+
+    /**
      * Halaman checkout: item keranjang dikelompokkan per paket bundle,
      * item di luar bundle masuk grup terpisah "Item Lainnya".
      */
@@ -74,7 +91,7 @@ class CheckoutController extends Controller
             ? $this->vouchers->availableFor(auth()->user(), $selectedSubtotal)
             : collect();
 
-        return Inertia::render('storefront/Checkout', [
+        return Inertia::render($this->page('Checkout'), [
             'groups' => $groups,
             'selectedGroups' => $selectedGroups,
             'vouchers' => $vouchers,
@@ -566,7 +583,7 @@ class CheckoutController extends Controller
         // Simpan no_order ke session agar halaman sukses hanya bisa diakses pembuatnya.
         session()->push('checkout_orders', $order->no_order);
 
-        return redirect()->route('checkout.success', ['no_order' => $order->no_order]);
+        return redirect()->route($this->successRoute(), ['no_order' => $order->no_order]);
     }
 
     /**
@@ -589,7 +606,7 @@ class CheckoutController extends Controller
             ->with(['items.book:id,judul', 'user:id,name'])
             ->firstOrFail();
 
-        return Inertia::render('storefront/CheckoutSuccess', [
+        return Inertia::render($this->page('CheckoutSuccess'), [
             'order' => $order,
             'bankAccounts' => BankAccount::query()
                 ->where('is_active', true)

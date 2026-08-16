@@ -26,6 +26,12 @@ enum ActivityAction: string
     case CategoryUpdate = 'category.update';
     case CategoryDelete = 'category.delete';
     case CategoryImport = 'category.import';
+    case ArticleCreate = 'article.create';
+    case ArticleUpdate = 'article.update';
+    case ArticleDelete = 'article.delete';
+    case ArticleCategoryCreate = 'article_category.create';
+    case ArticleCategoryUpdate = 'article_category.update';
+    case ArticleCategoryDelete = 'article_category.delete';
 
     // Penjualan
     case OrderCreate = 'order.create';
@@ -94,6 +100,12 @@ enum ActivityAction: string
             self::CategoryUpdate => 'Ubah Kategori',
             self::CategoryDelete => 'Hapus Kategori',
             self::CategoryImport => 'Import Kategori',
+            self::ArticleCreate => 'Buat Artikel',
+            self::ArticleUpdate => 'Ubah Artikel',
+            self::ArticleDelete => 'Hapus Artikel',
+            self::ArticleCategoryCreate => 'Buat Kategori Konten',
+            self::ArticleCategoryUpdate => 'Ubah Kategori Konten',
+            self::ArticleCategoryDelete => 'Hapus Kategori Konten',
             self::OrderCreate => 'Buat Pesanan',
             self::OrderStatus => 'Ubah Status Pesanan',
             self::OrderProcess => 'Proses Pesanan',

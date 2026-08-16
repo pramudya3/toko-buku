@@ -10,6 +10,8 @@ use App\Enums\PaymentMethod;
 use App\Enums\PromotionType;
 use App\Enums\VoucherScope;
 use App\Enums\VoucherType;
+use App\Models\Article;
+use App\Models\ArticleCategory;
 use App\Models\Book;
 use App\Models\BookEdition;
 use App\Models\CashFlow;
@@ -24,6 +26,7 @@ use App\Models\Warehouse;
 use App\Services\InventoryService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Data demo: 1 admin + customer tiap tier, kategori, buku + stok gudang,
@@ -306,6 +309,53 @@ class DemoSeeder extends Seeder
         $inventory->move($books[1], MovementType::In, 5, to: $malangWarehouse, userId: $admin->id, notes: 'Stok masuk demo');
         $inventory->move($books[1], MovementType::Transfer, 3, $malangWarehouse, $sidoarjoWarehouse, userId: $admin->id, notes: 'Transfer demo');
         $inventory->move($books[2], MovementType::Defect, 1, $malangWarehouse, $defectWarehouse, userId: $admin->id, notes: 'Barang cacat demo');
+
+        // Kategori konten demo + artikel — menu Artikel di storefront (aktif & terbit).
+        $articleCategories = collect(['esai', 'rekomendasi', 'penerbitan'])
+            ->map(fn (string $nama) => ArticleCategory::firstOrCreate(
+                ['slug' => Str::slug($nama)],
+                ['nama' => $nama],
+            ));
+
+        // Artikel demo — konten menu Artikel di storefront (aktif & terbit).
+        Article::factory()->create([
+            'judul' => 'Membaca di Tengah Gempuran Layar: Mengapa Buku Tetap Relevan',
+            'article_category_id' => $articleCategories[0]->id,
+            'ringkasan' => 'Di era notifikasi yang tak pernah berhenti, buku menawarkan ruang hening yang semakin langka. Tapi apakah itu cukup untuk membuatnya bertahan?',
+            'isi' => implode("\n", [
+                '<p>Ada sebuah ironi di tahun 2026: kita memiliki akses bacaan paling luas dalam sejarah manusia, namun perhatian kita justru paling terpecah. Notifikasi datang silih berganti, layar menyala dalam genggaman, dan "membaca" perlahan berubah menjadi "memindai".</p>',
+                '<p>Buku cetak menawarkan perlawanan yang tenang. Tanpa tautan yang menggodanya, tanpa algoritma yang membajaknya, buku memaksa kita duduk lebih lama pada satu gagasan — dan di situlah letak kekuatannya.</p>',
+                '<blockquote>"Buku adalah ruang hening yang kita bawa ke mana pun — satu-satunya layar yang tidak pernah berkedip."</blockquote>',
+                '<p>Maka ketika Anda menutup buku malam ini, ingatlah: Anda sedang melatih sesuatu yang langka. Kesabaran. Dan kesabaran, seperti halnya membaca, adalah keterampilan yang tumbuh pelan-pelan — lalu bertahan seumur hidup.</p>',
+            ]),
+            'motif' => 'lamp',
+            'published_at' => now()->subDays(2)->toDateString(),
+        ]);
+        Article::factory()->create([
+            'judul' => '5 Buku Fiksi yang Membentuk Cara Kita Berpikir',
+            'article_category_id' => $articleCategories[1]->id,
+            'ringkasan' => 'Dari dystopia hingga realisme magis, lima judul yang meninggalkan jejak panjang di cara kita memandang dunia.',
+            'isi' => implode("\n", [
+                '<p>Fiksi kerap dianggap pelarian, padahal ia salah satu latihan berpikir paling serius yang ada. Lewat dunia rekaan, kita berlatih menempatkan diri di kepala orang lain — dan pulang dengan cara pandang yang sedikit berubah.</p>',
+                '<p>Dari dystopia yang mengingatkan kita pada harga kebebasan, hingga realisme magis yang mengajarkan bahwa kenyataan tidak pernah satu lapis, kelima judul ini meninggalkan jejak panjang di cara kita memandang dunia.</p>',
+                '<blockquote>"Buku yang baik tidak memberi jawaban; ia mengubah pertanyaan yang kita ajukan."</blockquote>',
+                '<p>Kelima judul tersedia di toko kami — fisik dan e-book.</p>',
+            ]),
+            'motif' => 'stack',
+            'published_at' => now()->subDays(4)->toDateString(),
+        ]);
+        Article::factory()->create([
+            'judul' => 'Dari Naskah ke Rak: Perjalanan Sebuah Buku Terbit',
+            'article_category_id' => $articleCategories[2]->id,
+            'ringkasan' => 'Penyuntingan, desain sampul, hingga cetak — proses panjang yang jarang terlihat oleh pembaca.',
+            'isi' => implode("\n", [
+                '<p>Sebelum sebuah buku sampai ke rak, ia melewati meja penyunting, meja desainer, dan mesin cetak. Di penerbit kecil seperti kami, tiga meja itu sering kali berada dalam satu ruangan.</p>',
+                '<p>Penyuntingan adalah tahap yang paling tidak terlihat dan paling menentukan. Menyisir logika bab, meluruskan kalimat yang berbelit, dan memastikan suara penulis tetap utuh — semua dilakukan sebelum satu huruf pun dicetak.</p>',
+                '<p>Setelah itu, desain sampul. Sampul bukan hiasan: ia janji pertama kepada pembaca. Lalu cetak, jilid, dan distribusi. Proses panjang yang jarang terlihat — tapi hasilnya bisa Anda rasakan setiap kali membuka halamannya.</p>',
+            ]),
+            'motif' => 'manuscript',
+            'published_at' => now()->subDays(7)->toDateString(),
+        ]);
 
         $this->command->info('Demo data selesai: admin@tokobuku.test / password');
     }

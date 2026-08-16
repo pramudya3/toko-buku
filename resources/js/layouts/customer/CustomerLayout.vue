@@ -44,6 +44,7 @@ import { timeAgoID } from '@/lib/date';
 import { about, home, logout } from '@/routes';
 import { edit as editAddress } from '@/routes/address';
 import { dashboard as adminDashboard } from '@/routes/admin';
+import { index as articlesIndex } from '@/routes/articles';
 import { catalog as catalogUrl } from '@/routes/books';
 import { promo as promoRoute } from '@/routes/books';
 import {
@@ -194,6 +195,7 @@ type DesktopNavItem = {
 
 const desktopNavItems = computed<DesktopNavItem[]>(() => {
     const items: DesktopNavItem[] = [
+        { label: 'Artikel', href: articlesIndex().url },
         { label: 'Promo', href: promoRoute().url },
     ];
 
@@ -541,6 +543,12 @@ const isProfilActive = computed(
                                         Tentang Kami
                                     </Link>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem as-child>
+                                    <Link :href="articlesIndex()">
+                                        <BookOpen class="size-4" />
+                                        Artikel
+                                    </Link>
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <div class="hidden lg:block">
                                     <DropdownMenuLabel
@@ -793,6 +801,12 @@ const isProfilActive = computed(
                             <Link :href="about()">
                                 <Info class="size-4" />
                                 Tentang Kami
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem as-child>
+                            <Link :href="articlesIndex()">
+                                <BookOpen class="size-4" />
+                                Artikel
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem v-if="isAdmin" as-child>
