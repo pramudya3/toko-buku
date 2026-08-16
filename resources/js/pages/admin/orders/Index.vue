@@ -39,6 +39,7 @@ type Order = {
     is_dropship: boolean;
     created_at: string;
     items_count: number;
+    preorder_items_count: number;
 };
 
 type Props = {
@@ -55,6 +56,7 @@ type Props = {
         status?: string;
         dropship?: string;
         sumber_pembelian?: string;
+        preorder?: string;
     };
     statusOptions: Record<string, string>;
     salesChannels: Record<string, string>;
@@ -82,6 +84,7 @@ const allSources = '__all_sources__';
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? allStatuses);
 const dropship = ref(props.filters.dropship === '1');
+const preorder = ref(props.filters.preorder === '1');
 const sumberPembelian = ref(props.filters.sumber_pembelian ?? allSources);
 
 const hasActiveFilters = computed(
@@ -89,6 +92,7 @@ const hasActiveFilters = computed(
         search.value !== '' ||
         status.value !== allStatuses ||
         dropship.value !== false ||
+        preorder.value !== false ||
         sumberPembelian.value !== allSources,
 );
 
@@ -103,6 +107,7 @@ function applyFilters() {
                 search: search.value || undefined,
                 status: status.value === allStatuses ? undefined : status.value,
                 dropship: dropship.value ? '1' : undefined,
+                preorder: preorder.value ? '1' : undefined,
                 sumber_pembelian:
                     sumberPembelian.value === allSources
                         ? undefined
@@ -120,11 +125,12 @@ function resetFilters() {
     search.value = '';
     status.value = allStatuses;
     dropship.value = false;
+    preorder.value = false;
     sumberPembelian.value = allSources;
     applyFilters();
 }
 
-watch([search, status, dropship, sumberPembelian], applyFilters);
+watch([search, status, dropship, preorder, sumberPembelian], applyFilters);
 
 const statusVariant: Record<
     string,
@@ -229,6 +235,12 @@ const statusVariant: Record<
                     Dropship
                 </Label>
             </div>
+            <div class="md:flex md:items-center">
+                <Label class="flex h-11 items-center gap-2 px-3 text-sm md:h-9">
+                    <Checkbox v-model="preorder" />
+                    Pre-Order
+                </Label>
+            </div>
             <button
                 v-if="hasActiveFilters"
                 type="button"
@@ -254,6 +266,13 @@ const statusVariant: Record<
                 <span v-if="row.is_dropship" class="ml-1 text-xs text-blue-600"
                     >(dropship)</span
                 >
+                <span
+                    v-if="row.preorder_items_count > 0"
+                    class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
+                    title="Mengandung item pre-order yang menunggu stok"
+                >
+                    PO
+                </span>
             </template>
             <template #cell-total="{ row }">
                 <Money :value="row.total" />

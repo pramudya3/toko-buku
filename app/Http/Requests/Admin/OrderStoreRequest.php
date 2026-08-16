@@ -83,7 +83,8 @@ class OrderStoreRequest extends FormRequest
 
                 $stocks = Book::query()
                     ->whereIn('id', $bookIds)
-                    ->pluck('stok', 'id');
+                    ->get(['id', 'stok', 'is_preorder'])
+                    ->keyBy('id');
 
                 foreach ($value as $row) {
                     $key = ((string) ($row['book_id'] ?? '')).':'.((string) ($row['book_edition_id'] ?? ''));
@@ -96,10 +97,15 @@ class OrderStoreRequest extends FormRequest
 
                     $seen[$key] = true;
 
-                    $stok = (int) ($stocks[(string) ($row['book_id'] ?? '')] ?? 0);
+                    $book = $stocks->get((string) ($row['book_id'] ?? ''));
 
-                    if ((int) ($row['qty'] ?? 0) > $stok) {
-                        $fail("Stok buku tidak mencukupi — maks {$stok}.");
+                    // Buku pre-order menunggu stok — batas memakai config.
+                    $cap = $book?->is_preorder
+                        ? (int) config('preorder.max_qty', 99)
+                        : (int) ($book?->stok ?? 0);
+
+                    if ((int) ($row['qty'] ?? 0) > $cap) {
+                        $fail("Stok buku tidak mencukupi — maks {$cap}.");
 
                         return;
                     }

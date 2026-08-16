@@ -32,6 +32,20 @@ function bookPayload(array $overrides = []): array
     ];
 }
 
+it('stores a pre-order flag and ETA', function (): void {
+    $this->actingAs($this->admin)
+        ->post(route('admin.books.store'), array_merge([
+            'judul' => 'Buku New Coming',
+            'is_preorder' => '1',
+            'preorder_eta' => '2026-10-15',
+        ], bookPayload()));
+
+    $book = Book::where('judul', 'Buku New Coming')->firstOrFail();
+
+    expect($book->is_preorder)->toBeTrue()
+        ->and($book->preorder_eta->toDateString())->toBe('2026-10-15');
+});
+
 it('creates a book with auto-generated SKU when empty', function (): void {
     $this->actingAs($this->admin)
         ->post(route('admin.books.store'), [

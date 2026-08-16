@@ -15,6 +15,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import { formatDateID } from '@/lib/date';
 
 type BookEdition = {
     id: string;
@@ -43,6 +44,8 @@ type Book = {
     harga: number;
     stok: number;
     cover_url: string | null;
+    is_preorder: boolean;
+    preorder_eta: string | null;
     category: { id: string; nama: string } | null;
     rating_umur: string | null;
     dimensi: string | null;
@@ -154,7 +157,15 @@ const selectedEdition = ref<BookEdition | null>(
 );
 
 // Maksimal qty = stok sellable cetakan terpilih (bukan total seluruh buku).
+// Buku pre-order menunggu stok → batas memakai config (bukan stok).
+const PREORDER_MAX_QTY = 99;
+const isPreorder = computed(() => props.book.is_preorder === true);
+
 const maxQty = computed(() => {
+    if (isPreorder.value) {
+        return PREORDER_MAX_QTY;
+    }
+
     if (selectedEdition.value) {
         return Math.max(selectedEdition.value.stok_sellable ?? 0, 0);
     }
@@ -211,9 +222,15 @@ const discountPercent = computed(() => {
     );
 });
 
-const stockHint = computed(() =>
-    maxQty.value === 0 ? 'Stok habis' : `Stok tersedia: ${maxQty.value} unit`,
-);
+const stockHint = computed(() => {
+    if (isPreorder.value) {
+        return 'Pre-order: diproses setelah stok tersedia.';
+    }
+
+    return maxQty.value === 0
+        ? 'Stok habis'
+        : `Stok tersedia: ${maxQty.value} unit`;
+});
 
 const specs = computed(() =>
     [
@@ -367,7 +384,28 @@ const specs = computed(() =>
                     </template>
                 </div>
 
-                <p v-if="book.stok === 0" class="text-sm text-destructive">
+                <!-- Buku pre-order (new coming): badge + estimasi tersedia -->
+                <div
+                    v-if="book.is_preorder"
+                    class="flex flex-col gap-1 rounded-lg border border-sky-200 bg-sky-50 p-3"
+                >
+                    <p
+                        class="flex items-center gap-2 text-sm font-semibold text-sky-800"
+                    >
+                        <ShoppingCart class="size-4" />
+                        Pre-Order — Buku Baru Akan Datang
+                    </p>
+                    <p class="text-xs text-sky-700">
+                        Estimasi tersedia
+                        {{
+                            book.preorder_eta
+                                ? formatDateID(book.preorder_eta)
+                                : '(menyusul)'
+                        }}. Pesanan akan diproses setelah stok tiba.
+                    </p>
+                </div>
+
+                <p v-else-if="book.stok === 0" class="text-sm text-destructive">
                     Stok habis
                     <template v-if="isLoggedIn">
                         — ajukan pemberitahuan, kami kabari saat tersedia.
@@ -377,7 +415,7 @@ const specs = computed(() =>
 
                 <!-- Stok habis + login → ajukan pemberitahuan stok -->
                 <Form
-                    v-if="book.stok === 0 && isLoggedIn"
+                    v-if="book.stok === 0 && !book.is_preorder && isLoggedIn"
                     :action="StockRequestController.store(book.id).url"
                     method="post"
                     class="flex flex-col gap-2"
@@ -402,7 +440,10 @@ const specs = computed(() =>
 
                 <!-- Pilih cetakan: tiap cetakan punya harga sendiri -->
                 <div
-                    v-if="book.stok > 0 && editions.length > 1"
+                    v-if="
+                        (book.stok > 0 || book.is_preorder) &&
+                        editions.length > 1
+                    "
                     class="grid gap-2"
                 >
                     <label class="text-sm font-medium" for="edition-select">
@@ -452,7 +493,7 @@ const specs = computed(() =>
                 </div>
 
                 <Form
-                    v-if="book.stok > 0"
+                    v-if="book.stok > 0 || book.is_preorder"
                     :action="CartController.add().url"
                     method="post"
                     class="flex flex-col gap-3"
@@ -499,7 +540,11 @@ const specs = computed(() =>
                         v-if="maxQty > 0 && qty >= maxQty"
                         class="text-xs text-muted-foreground"
                     >
-                        Qty maksimal {{ maxQty }} sesuai stok tersedia.
+                        {{
+                            isPreorder
+                                ? `Qty maksimal ${maxQty} per pesanan.`
+                                : `Qty maksimal ${maxQty} sesuai stok tersedia.`
+                        }}
                     </p>
                     <p v-else class="text-xs text-muted-foreground">
                         {{ stockHint }}

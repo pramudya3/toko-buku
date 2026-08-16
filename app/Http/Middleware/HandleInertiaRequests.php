@@ -100,6 +100,24 @@ class HandleInertiaRequests extends Middleware
                     ])
                     ->count()
                 : 0,
+            // Notifikasi customer (lonceng storefront) — 5 terbaru + jumlah belum dibaca.
+            'notifications' => fn (): array => $request->user()?->is_admin
+                ? []
+                : $request->user()
+                    ?->notifications()
+                    ->latest()
+                    ->limit(5)
+                    ->get(['id', 'data', 'read_at', 'created_at'])
+                    ->map(fn ($notification): array => [
+                        'id' => $notification->getKey(),
+                        'message' => $notification->data['message'] ?? '',
+                        'read_at' => $notification->read_at,
+                        'created_at' => $notification->created_at,
+                    ])
+                    ->all() ?? [],
+            'notificationsCount' => fn (): int => $request->user()?->is_admin
+                ? 0
+                : (int) $request->user()?->unreadNotifications()->count() ?? 0,
         ];
     }
 }

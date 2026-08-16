@@ -19,6 +19,7 @@ import DataTableActions from '@/components/DataTableActions.vue';
 import ImportCsvDialog from '@/components/ImportCsvDialog.vue';
 import Money from '@/components/Money.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -40,6 +41,8 @@ type Book = {
     stok: number;
     cover_url: string | null;
     aktif: boolean;
+    is_preorder: boolean;
+    preorder_eta: string | null;
     category: { id: string; nama: string } | null;
     order_items_count: number;
 };
@@ -329,6 +332,14 @@ function executeDelete() {
                     :variant="row.aktif ? 'success' : 'danger'"
                     :label="row.aktif ? 'Aktif' : 'Nonaktif'"
                 />
+                <Badge
+                    v-if="row.is_preorder"
+                    variant="outline"
+                    class="ml-1 border-sky-200 bg-sky-100 text-sky-800"
+                    title="Buku new coming — boleh dipesan sebelum stok tiba"
+                >
+                    Pre-Order
+                </Badge>
             </template>
             <template #cell-aksi="{ row }">
                 <DataTableActions

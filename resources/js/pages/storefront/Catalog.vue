@@ -25,6 +25,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import { formatDateID } from '@/lib/date';
 import { bookShowUrl } from '@/lib/slug';
 import {
     catalog as catalogUrl,
@@ -39,6 +40,8 @@ type Book = {
     harga: number;
     stok: number;
     cover_url: string | null;
+    is_preorder: boolean;
+    preorder_eta: string | null;
     category: { id: string; nama: string } | null;
     price_breakdown?: {
         original_price: number;
@@ -114,8 +117,10 @@ const activeBundle = ref<Bundle | null>(null);
 
 // Search & kategori hidup di header (CustomerLayout) — halaman ini hanya
 // mengelola filter stok. Nilai search/kategori dibaca dari props server.
-const stokFilter = ref<'all' | 'ready' | 'empty'>(
-    props.filters.stok === 'ready' || props.filters.stok === 'empty'
+const stokFilter = ref<'all' | 'ready' | 'preorder' | 'empty'>(
+    props.filters.stok === 'ready' ||
+        props.filters.stok === 'preorder' ||
+        props.filters.stok === 'empty'
         ? props.filters.stok
         : 'all',
 );
@@ -242,12 +247,23 @@ const emptyStateDescription = computed(() => {
 
     if (stokFilter.value === 'ready') {
         parts.push('dengan stok tersedia');
+    } else if (stokFilter.value === 'preorder') {
+        parts.push('yang bisa dipesan pre-order');
     } else if (stokFilter.value === 'empty') {
         parts.push('dengan stok habis');
     }
 
     return `Tidak ada buku ${parts.join(' ')} — coba ubah filter atau cari kata lain.`;
 });
+
+// Buku "habis" = stok kosong DAN bukan pre-order (pre-order = orderable).
+function isEmptyStock(book: Book): boolean {
+    return book.stok <= 0 && !book.is_preorder;
+}
+
+function preorderEtaLabel(book: Book): string {
+    return book.preorder_eta ? formatDateID(book.preorder_eta) : '';
+}
 
 function resetFilters(): void {
     clearTimeout(timer);
@@ -418,6 +434,7 @@ function loadMore() {
                     v-for="option in [
                         { value: 'all', label: 'Semua' },
                         { value: 'ready', label: 'Tersedia' },
+                        { value: 'preorder', label: 'Pre-Order' },
                         { value: 'empty', label: 'Habis' },
                     ]"
                     :key="option.value"
@@ -429,7 +446,8 @@ function loadMore() {
                             : 'text-muted-foreground hover:text-foreground'
                     "
                     @click="
-                        stokFilter = option.value as 'all' | 'ready' | 'empty'
+                        stokFilter = option.value as
+                            'all' | 'ready' | 'preorder' | 'empty'
                     "
                 >
                     {{ option.label }}
@@ -788,7 +806,7 @@ function loadMore() {
                 :key="book.id"
                 :href="showRoute.url(bookShowUrl(book))"
                 class="flex items-center gap-4 rounded-xl border p-3 transition-shadow hover:shadow-md"
-                :class="book.stok <= 0 && 'opacity-60 saturate-50'"
+                :class="isEmptyStock(book) && 'opacity-60 saturate-50'"
             >
                 <div
                     class="relative size-14 shrink-0 overflow-hidden rounded-md border bg-muted sm:size-16"
@@ -799,12 +817,18 @@ function loadMore() {
                     >
                         -{{ discountPercent(book) }}%
                     </span>
+                    <span
+                        v-if="book.is_preorder"
+                        class="absolute top-1 left-1 z-10 rounded-md bg-sky-600 px-1 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                    >
+                        Pre-Order
+                    </span>
                     <img
                         v-if="book.cover_url"
                         :src="book.cover_url"
                         :alt="book.judul"
                         class="h-full w-full object-cover"
-                        :class="book.stok <= 0 && 'grayscale'"
+                        :class="isEmptyStock(book) && 'grayscale'"
                     />
                     <BookCoverPlaceholder
                         v-else
@@ -834,6 +858,13 @@ function loadMore() {
                             class="font-semibold"
                         />
                     </div>
+                    <p
+                        v-if="book.is_preorder"
+                        class="mt-0.5 text-xs font-medium text-sky-700"
+                    >
+                        Estimasi tersedia
+                        {{ preorderEtaLabel(book) || '(menyusul)' }}
+                    </p>
                 </div>
                 <span
                     v-if="book.stok > 0"
@@ -842,7 +873,7 @@ function loadMore() {
                     Stok {{ book.stok }}
                 </span>
                 <span
-                    v-else
+                    v-else-if="isEmptyStock(book)"
                     class="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500"
                 >
                     Habis
@@ -860,7 +891,7 @@ function loadMore() {
                 :key="book.id"
                 :href="showRoute.url(bookShowUrl(book))"
                 class="flex flex-col overflow-hidden rounded-xl border transition-shadow hover:shadow-md"
-                :class="book.stok <= 0 && 'opacity-60 saturate-50'"
+                :class="isEmptyStock(book) && 'opacity-60 saturate-50'"
             >
                 <div
                     class="relative flex aspect-[2/3] items-center justify-center overflow-hidden bg-muted text-4xl"
@@ -871,12 +902,18 @@ function loadMore() {
                     >
                         -{{ discountPercent(book) }}%
                     </span>
+                    <span
+                        v-if="book.is_preorder"
+                        class="absolute top-2 left-2 rounded-md bg-sky-600 px-1.5 py-0.5 text-xs font-bold text-white shadow-sm"
+                    >
+                        Pre-Order
+                    </span>
                     <img
                         v-if="book.cover_url"
                         :src="book.cover_url"
                         :alt="book.judul"
                         class="h-full w-full object-contain"
-                        :class="book.stok <= 0 && 'grayscale'"
+                        :class="isEmptyStock(book) && 'grayscale'"
                     />
                     <BookCoverPlaceholder
                         v-else
@@ -890,6 +927,12 @@ function loadMore() {
                     </p>
                     <p class="truncate text-xs text-muted-foreground">
                         {{ book.penulis ?? '—' }}
+                    </p>
+                    <p
+                        v-if="book.is_preorder"
+                        class="truncate text-[11px] font-medium text-sky-700"
+                    >
+                        Estimasi {{ preorderEtaLabel(book) || '(menyusul)' }}
                     </p>
                     <div class="mt-auto flex flex-col gap-1.5 pt-2">
                         <div class="flex flex-wrap items-baseline gap-x-1.5">
@@ -919,7 +962,7 @@ function loadMore() {
                             Stok {{ book.stok }}
                         </span>
                         <span
-                            v-else
+                            v-else-if="isEmptyStock(book)"
                             class="self-start rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500"
                         >
                             Habis

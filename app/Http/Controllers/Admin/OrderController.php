@@ -61,13 +61,15 @@ class OrderController extends Controller
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->boolean('dropship'), fn ($query) => $query->where('is_dropship', true))
             ->when($request->filled('sumber_pembelian'), fn ($query) => $query->where('sumber_pembelian', $request->string('sumber_pembelian')->toString()))
+            ->when($request->boolean('preorder'), fn ($query) => $query->whereHas('items', fn ($q) => $q->where('is_preorder', true)))
+            ->withCount(['items', 'items as preorder_items_count' => fn ($q) => $q->where('is_preorder', true)])
             ->orderByDesc('created_at')
             ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('admin/orders/Index', [
             'orders' => $orders,
-            'filters' => $request->only(['search', 'status', 'dropship', 'sumber_pembelian']),
+            'filters' => $request->only(['search', 'status', 'dropship', 'sumber_pembelian', 'preorder']),
             'statusOptions' => OrderStatus::options(),
             'salesChannels' => StoreSettings::allSalesChannels(),
         ]);
@@ -319,6 +321,12 @@ class OrderController extends Controller
      */
     private function processCashOrder(Order $order, string $userId): void
     {
+        // Order berisi item pre-order menunggu stok — jangan auto-proses,
+        // admin memproses manual setelah stok tiba (pembayaran tetap lunas).
+        if ($order->items()->where('is_preorder', true)->exists()) {
+            return;
+        }
+
         $warehouse = Warehouse::query()
             ->sellable()
             ->orderBy('kode')

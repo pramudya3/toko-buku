@@ -6,6 +6,7 @@ use App\Enums\ActivityAction;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Notifications\OrderStatusNotification;
 use App\Support\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -92,6 +93,11 @@ final class OrderStatusService
             }
 
             $lockedOrder->update(['status' => $to]);
+
+            // Notifikasi ke customer pemilik pesanan (lonceng storefront).
+            if ($lockedOrder->user_id !== null && $lockedOrder->user !== null) {
+                $lockedOrder->user->notify(new OrderStatusNotification($lockedOrder, $to));
+            }
 
             ActivityLogger::log(
                 ActivityAction::OrderStatus,

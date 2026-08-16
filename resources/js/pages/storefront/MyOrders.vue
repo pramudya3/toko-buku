@@ -20,6 +20,7 @@ type Order = {
     biteship_courier_link: string | null;
     created_at: string;
     items_count: number;
+    preorder_items_count: number;
 };
 
 defineProps<{
@@ -100,6 +101,12 @@ function formatDate(createdAt: string): string {
                         <p class="mt-0.5 text-xs text-muted-foreground">
                             {{ order.items_count }} item ·
                             {{ formatDate(order.created_at) }}
+                        </p>
+                        <p
+                            v-if="order.preorder_items_count > 0"
+                            class="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
+                        >
+                            Pre-Order — menunggu stok
                         </p>
                     </div>
                     <StatusBadge

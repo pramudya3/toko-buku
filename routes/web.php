@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\BiteshipWebhookController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\MyOrderController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicAddressController;
 use App\Http\Controllers\StockRequestController;
 use App\Http\Controllers\StorefrontController;
@@ -72,6 +73,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('pesanan-saya/{order}/invoice', [MyOrderController::class, 'invoice'])->name('my-orders.invoice');
     Route::post('pesanan-saya/{order}/bukti', [MyOrderController::class, 'uploadBukti'])->name('my-orders.upload-bukti');
     Route::post('stok/ajukan/{book}', [StockRequestController::class, 'store'])->name('stock-requests.store');
+
+    Route::post('notifikasi/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('notifikasi/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 });
 
 // Keranjang tetap publik — guest boleh mengisi keranjang (session), login saat checkout.

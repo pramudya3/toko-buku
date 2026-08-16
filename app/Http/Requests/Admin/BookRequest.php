@@ -43,6 +43,8 @@ class BookRequest extends FormRequest
             'removed_images' => ['nullable', 'array'],
             'removed_images.*' => ['uuid'],
             'aktif' => ['boolean'],
+            'is_preorder' => ['boolean'],
+            'preorder_eta' => ['nullable', 'date'],
             'rating_umur' => ['nullable', 'string', 'max:50'],
             'dimensi' => ['nullable', 'string', 'max:100'],
             'kemasan' => ['nullable', 'string', 'max:100'],
