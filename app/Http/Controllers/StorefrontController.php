@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PromotionType;
+use App\Models\Article;
 use App\Models\BankAccount;
 use App\Models\Book;
 use App\Models\BookEdition;
@@ -27,8 +28,17 @@ use Inertia\Response;
 class StorefrontController extends Controller
 {
     public function __construct(
-        private readonly PricingService $pricing,
+        protected readonly PricingService $pricing,
     ) {}
+
+    /**
+     * Nama komponen Inertia yang dirender — subclass storefront (mis. proto-d)
+     * menimpa ini untuk memakai data yang sama dengan halaman berbeda.
+     */
+    protected function page(string $name): string
+    {
+        return "storefront/{$name}";
+    }
 
     /**
      * Katalog buku — hanya buku aktif, dengan search & filter kategori.
@@ -42,14 +52,14 @@ class StorefrontController extends Controller
         $bookIds = $paginator->getCollection()->pluck('id');
         $bookPromos = $this->eagerLoadPromotions($bookIds);
 
-        return Inertia::render('storefront/Catalog', [
+        return Inertia::render($this->page('Catalog'), [
             'books' => $paginator->through(
                 fn (Book $book) => $this->bookWithPricing($book, $bookPromos[$book->id] ?? null),
             ),
             'categories' => Category::orderBy('nama')->get(['id', 'nama']),
             'bundles' => $this->activeBundlesForStorefront(),
             'promos' => $this->activeUnitPromosForStorefront(),
-            'filters' => $request->only(['search', 'category_id', 'stok']),
+            'filters' => $request->only(['search', 'category_id', 'stok', 'sort']),
         ]);
     }
 
@@ -75,7 +85,7 @@ class StorefrontController extends Controller
      */
     public function promo(Request $request): Response
     {
-        return Inertia::render('storefront/Promo', [
+        return Inertia::render($this->page('Promo'), [
             'bundles' => $this->activeBundlesForStorefront(),
             'promos' => $this->activeUnitPromosForStorefront(bookLimit: 50, withPricing: true),
             'vouchers' => $this->vouchersForStorefront(),
@@ -122,7 +132,7 @@ class StorefrontController extends Controller
     /**
      * @return Builder<Book>
      */
-    private function filteredBooks(Request $request)
+    protected function filteredBooks(Request $request)
     {
         return Book::query()
             ->where('aktif', true)
@@ -140,9 +150,25 @@ class StorefrontController extends Controller
             ->when($request->string('stok')->toString() === 'ready', fn ($query) => $query->where('stok', '>', 0))
             ->when($request->string('stok')->toString() === 'preorder', fn ($query) => $query->where('is_preorder', true))
             ->when($request->string('stok')->toString() === 'empty', fn ($query) => $query->where('stok', '<=', 0)->where('is_preorder', false))
-            // Urutan: tersedia → pre-order → habis; abjad di dalam tiap grup.
-            ->orderByRaw('(NOT is_preorder AND stok <= 0)')
-            ->orderBy('judul');
+            ->when(
+                $request->filled('sort'),
+                // Urutan eksplisit (sort) — dipakai storefront proto-d.
+                function ($query) use ($request): void {
+                    $sort = $request->string('sort')->toString();
+
+                    $query->orderBy(match ($sort) {
+                        'newest' => 'created_at',
+                        'cheapest' => 'harga',
+                        'expensive' => 'harga',
+                        default => 'judul',
+                    }, $sort === 'cheapest' ? 'asc' : 'desc');
+                },
+                // Urutan default: tersedia → pre-order → habis; abjad di dalam tiap grup.
+                function ($query): void {
+                    $query->orderByRaw('(NOT is_preorder AND stok <= 0)')
+                        ->orderBy('judul');
+                },
+            );
     }
 
     /**
@@ -174,7 +200,7 @@ class StorefrontController extends Controller
             return $edition;
         }));
 
-        return Inertia::render('storefront/BookDetail', [
+        return Inertia::render($this->page('BookDetail'), [
             'book' => $this->bookWithPricing($book, $this->pricing->activePromotion($book)),
             // Apakah user login sudah mengajukan stok untuk buku ini.
             'requested' => $request->user()
@@ -186,11 +212,85 @@ class StorefrontController extends Controller
     }
 
     /**
+     * Daftar artikel storefront — hanya yang aktif & sudah terbit.
+     */
+    public function articles(Request $request): Response
+    {
+        $articles = Article::published()
+            ->with('category:id,nama')
+            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->paginate(9)
+            ->withQueryString()
+            ->through(fn (Article $article): array => $this->articleCard($article));
+
+        return Inertia::render($this->page('ArticleList'), [
+            'articles' => $articles,
+        ]);
+    }
+
+    /**
+     * Detail artikel — 404 bila nonaktif atau belum terbit.
+     */
+    public function articleShow(Article $article): Response
+    {
+        abort_unless(Article::published()->whereKey($article->getKey())->exists(), 404);
+
+        $article->load('category:id,nama');
+
+        return Inertia::render($this->page('ArticleDetail'), [
+            'article' => $this->articleDetail($article),
+        ]);
+    }
+
+    /**
+     * Kartu artikel untuk daftar — tanpa isi (badan artikel berat).
+     *
+     * @return array<string, mixed>
+     */
+    protected function articleCard(Article $article): array
+    {
+        return [
+            'id' => $article->id,
+            'judul' => $article->judul,
+            'slug' => $article->slug,
+            'kategori_id' => $article->article_category_id,
+            'kategori_label' => $article->category?->nama ?? 'Tanpa kategori',
+            'penulis' => $article->penulis,
+            'ringkasan' => $article->ringkasan,
+            'published_at' => $article->published_at,
+            'motif' => $article->motif,
+            'cover_url' => $article->cover_url,
+            'menit' => $this->readingMinutes($article->isi),
+        ];
+    }
+
+    /**
+     * Detail artikel lengkap (termasuk isi untuk halaman baca).
+     *
+     * @return array<string, mixed>
+     */
+    protected function articleDetail(Article $article): array
+    {
+        return $this->articleCard($article) + ['isi' => $article->isi];
+    }
+
+    /**
+     * Estimasi lama baca (~200 kata per menit).
+     */
+    protected function readingMinutes(string $isi): int
+    {
+        $words = str_word_count(strip_tags($isi));
+
+        return max(1, (int) ceil($words / 200));
+    }
+
+    /**
      * Halaman tentang kami — konten dari pengaturan Lembaga.
      */
     public function about(): Response
     {
-        return Inertia::render('storefront/About', [
+        return Inertia::render($this->page('About'), [
             'nama_lembaga' => Setting::get('store_nama_lembaga', ''),
             'logo_url' => Setting::get('store_logo_url', ''),
             'tagline' => Setting::get('store_tagline', ''),
@@ -216,7 +316,7 @@ class StorefrontController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function activeBundlesForStorefront(): array
+    protected function activeBundlesForStorefront(): array
     {
         $today = now()->toDateString();
 
@@ -262,7 +362,7 @@ class StorefrontController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function activeUnitPromosForStorefront(int $bookLimit = 4, bool $withPricing = false): array
+    protected function activeUnitPromosForStorefront(int $bookLimit = 4, bool $withPricing = false): array
     {
         $today = now()->toDateString();
 
@@ -306,7 +406,7 @@ class StorefrontController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function promoBookWithPricing(Book $book, Promotion $promo): array
+    protected function promoBookWithPricing(Book $book, Promotion $promo): array
     {
         $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1);
 
@@ -331,7 +431,7 @@ class StorefrontController extends Controller
      * @param  Collection<int, int>  $bookIds
      * @return array<int, Promotion|null>
      */
-    private function eagerLoadPromotions($bookIds): array
+    protected function eagerLoadPromotions($bookIds): array
     {
         $today = now()->toDateString();
 
@@ -371,7 +471,7 @@ class StorefrontController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function bookWithPricing(Book $book, ?Promotion $promo): array
+    protected function bookWithPricing(Book $book, ?Promotion $promo): array
     {
         $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1);
         $data = $book->toArray();

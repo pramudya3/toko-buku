@@ -2,6 +2,9 @@
 
 @import 'tw-animate-css';
 
+/* Plugin tipografi untuk isi artikel (prose). */
+@plugin '@tailwindcss/typography';
+
 /* Nota/invoice print: ukuran kertas A4. */
 @page {
     size: A4;
@@ -13,10 +16,102 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Isi artikel (v-html dari CMS): sentuhan warna sesuai storefront. */
+@layer components {
+    .pcd-prose blockquote {
+        border-left-color: var(--color-pcd-accent);
+        color: var(--color-pcd-ink);
+        font-weight: 500;
+    }
+
+    .pcd-prose strong {
+        color: var(--color-pcd-ink);
+    }
+}
+
+/* Checklist (task list) & spidol (highlight) — editor admin + isi artikel. */
+@layer components {
+
+    /* Cegah focus ring browser (border menyala) saat area tulis editor diklik. */
+    .ProseMirror,
+    .ProseMirror:focus {
+        outline: none;
+    }
+
+    .article-editor::selection,
+    .ProseMirror ::selection,
+    .ProseMirror::selection {
+        background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    }
+
+    /* Gambar di dalam isi artikel (editor + storefront). */
+    .article-inline-image,
+    .article-body img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        margin: 1rem auto;
+    }
+
+    .article-editor ul[data-type='taskList'],
+    .article-body ul[data-type='taskList'] {
+        list-style: none;
+        padding: 0;
+    }
+
+    .article-editor ul[data-type='taskList'] li,
+    .article-body ul[data-type='taskList'] li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .article-editor ul[data-type='taskList'] li label,
+    .article-body ul[data-type='taskList'] li label {
+        flex-shrink: 0;
+        margin-top: 0.35em;
+        cursor: pointer;
+    }
+
+    .article-editor ul[data-type='taskList'] li input[type='checkbox'],
+    .article-body ul[data-type='taskList'] li input[type='checkbox'] {
+        accent-color: var(--color-pcd-accent, var(--color-primary));
+    }
+
+    .article-editor li[data-type='taskItem'][data-checked='true'] p,
+    .article-body li[data-type='taskItem'][data-checked='true'] p {
+        color: var(--color-muted-foreground);
+        text-decoration: line-through;
+    }
+
+    .article-editor mark,
+    .article-body mark {
+        background: #fde68a;
+        border-radius: 0.15em;
+        padding: 0 0.15em;
+    }
+
+    .pcd-prose mark {
+        background: #f3dfb8;
+    }
+}
+
 @theme inline {
     --font-sans:
         Inter, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
         'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: Lora, Georgia, 'Times New Roman', serif;
+
+    /* Toko proto-d (storefront-pcd): palet editorial hangat — diprefiks pcd- agar
+       tidak bentrok dengan token shadcn yang sudah ada. */
+    --color-pcd-paper: #faf8f4;
+    --color-pcd-surface: #ffffff;
+    --color-pcd-ink: #1c1917;
+    --color-pcd-muted: #5f5953;
+    --color-pcd-hairline: #e7e1d6;
+    --color-pcd-accent: #a16207;
+    --color-pcd-accent-strong: #854d0e;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);

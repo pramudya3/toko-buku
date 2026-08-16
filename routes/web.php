@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AddressController;
+use App\Http\Controllers\Admin\ArticleCategoryController;
+use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\BankAccountController;
 use App\Http\Controllers\Admin\BookController;
 use App\Http\Controllers\Admin\CashFlowController;
@@ -35,11 +37,13 @@ use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\BiteshipWebhookController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CheckoutPcdController;
 use App\Http\Controllers\MyOrderController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicAddressController;
 use App\Http\Controllers\StockRequestController;
 use App\Http\Controllers\StorefrontController;
+use App\Http\Controllers\StorefrontPcdController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'catalog'])->name('home');
@@ -51,6 +55,8 @@ Route::get('wilayah/villages', [PublicAddressController::class, 'villages'])->na
 
 Route::get('tentang-kami', [StorefrontController::class, 'about'])->name('about');
 Route::get('promo', [StorefrontController::class, 'promo'])->name('books.promo');
+Route::get('artikel', [StorefrontController::class, 'articles'])->name('articles.index');
+Route::get('artikel/{article:slug}', [StorefrontController::class, 'articleShow'])->name('articles.show');
 
 // Webhook Biteship — verifikasi X-Signature di controller.
 Route::post('webhooks/biteship', BiteshipWebhookController::class)->name('webhooks.biteship');
@@ -61,6 +67,35 @@ Route::get('buku/lainnya', [StorefrontController::class, 'loadMore'])->name('boo
 Route::get('buku/{bookUrl}', [StorefrontController::class, 'show'])
     ->where('bookUrl', '[a-f0-9-]{36}(-[a-z0-9-]+)?')
     ->name('books.show');
+
+/*
+|--------------------------------------------------------------------------
+| Storefront paralel proto-d /pcd/** — "Pustaka Cahaya Peradaban"
+|--------------------------------------------------------------------------
+|
+| Design alternatif (proto-d) yang memakai backend & data yang sama dengan
+| storefront utama. Halaman lama di /, /buku, /checkout, dst. tidak berubah.
+|
+*/
+Route::prefix('pcd')->name('pcd.')->group(function () {
+    Route::get('/', [StorefrontPcdController::class, 'home'])->name('home');
+    Route::get('tentang', [StorefrontPcdController::class, 'about'])->name('about');
+
+    Route::get('buku', [StorefrontPcdController::class, 'catalog'])->name('books.catalog');
+    Route::get('buku/lainnya', [StorefrontPcdController::class, 'loadMore'])->name('books.load-more');
+    Route::get('buku/{bookUrl}', [StorefrontPcdController::class, 'show'])
+        ->where('bookUrl', '[a-f0-9-]{36}(-[a-z0-9-]+)?')
+        ->name('books.show');
+    Route::get('paket/{bundle}', [StorefrontPcdController::class, 'bundle'])->name('bundles.show');
+    Route::get('artikel/{article:slug}', [StorefrontPcdController::class, 'articleShow'])->name('articles.show');
+
+    // Checkout & ongkir — alur sama dengan storefront utama (auth wajib).
+    Route::middleware(['auth'])->group(function () {
+        Route::get('checkout', [CheckoutPcdController::class, 'index'])->name('checkout.index');
+        Route::post('checkout', [CheckoutPcdController::class, 'store'])->name('checkout.store')->middleware('throttle:5,1');
+        Route::get('checkout/sukses', [CheckoutPcdController::class, 'success'])->name('checkout.success');
+    });
+});
 
 // Checkout & ongkir (cek ongkir memakai API berbayar) hanya untuk user login.
 Route::middleware(['auth'])->group(function () {
@@ -121,6 +156,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::post('categories/import', [CategoryController::class, 'importCsv'])->name('categories.import');
     Route::post('categories/{category}/restore', [CategoryController::class, 'restore'])->name('categories.restore')->withTrashed();
+
+    Route::resource('articles', ArticleController::class)->except(['show']);
+    Route::post('articles/upload-image', [ArticleController::class, 'uploadImage'])->name('articles.upload-image');
+    Route::post('articles/{article}/restore', [ArticleController::class, 'restore'])->name('articles.restore')->withTrashed();
+    Route::patch('articles/{article}/toggle-active', [ArticleController::class, 'toggleActive'])->name('articles.toggle-active');
+
+    Route::resource('article-categories', ArticleCategoryController::class)->except(['show']);
+    Route::post('article-categories/{article_category}/restore', [ArticleCategoryController::class, 'restore'])->name('article-categories.restore')->withTrashed();
 
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('customers/create', [CustomerController::class, 'create'])->name('customers.create');
