@@ -73,6 +73,36 @@ it('blocks editing admin accounts from the customer page', function (): void {
         ->assertForbidden();
 });
 
+it('rejects invalid WhatsApp numbers when creating a customer', function (): void {
+    $this->actingAs($this->admin)
+        ->post(route('admin.customers.store'), [
+            'name' => 'Pelanggan WA',
+            'email' => 'wa@example.com',
+            'password' => 'rahasia123',
+            'status_pelanggan' => CustomerTier::Reguler->value,
+            'whatsapp_number' => '0812-3456-7890',
+        ])
+        ->assertSessionHasErrors('whatsapp_number');
+
+    expect(User::where('email', 'wa@example.com')->exists())->toBeFalse();
+});
+
+it('rejects invalid WhatsApp numbers when updating a customer', function (): void {
+    $customer = User::factory()->create(['whatsapp_number' => '081234567890']);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.customers.update', $customer), [
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'status_pelanggan' => CustomerTier::Reguler->value,
+            'whatsapp_number' => '+6281234567890',
+        ])
+        ->assertSessionHasErrors('whatsapp_number');
+
+    // Nomor lama tidak berubah saat update ditolak.
+    expect($customer->fresh()->whatsapp_number)->toBe('081234567890');
+});
+
 it('creates a new customer with active status', function (): void {
     $this->actingAs($this->admin)
         ->post(route('admin.customers.store'), [

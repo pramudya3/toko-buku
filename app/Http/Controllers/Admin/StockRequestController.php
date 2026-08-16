@@ -15,12 +15,13 @@ class StockRequestController extends Controller
 {
     /**
      * Daftar buku yang diajukan — per buku: stok saat ini, jumlah pengaju,
-     * dan pengajuan terakhir.
+     * dan pengajuan terakhir. Buku pre-order ditangani di halaman Pre-Order.
      */
     public function index(Request $request): Response
     {
         $requests = StockRequest::query()
-            ->with('book:id,judul,cover_url,stok')
+            ->whereHas('book', fn ($bookQuery) => $bookQuery->where('is_preorder', false))
+            ->with('book:id,judul,cover_url,stok,is_preorder')
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $query->whereHas('book', fn ($bookQuery) => $bookQuery->whereLike('judul', "%{$request->string('search')->toString()}%"));
             })

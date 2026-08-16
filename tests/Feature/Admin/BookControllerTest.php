@@ -43,7 +43,41 @@ it('stores a pre-order flag and ETA', function (): void {
     $book = Book::where('judul', 'Buku New Coming')->firstOrFail();
 
     expect($book->is_preorder)->toBeTrue()
-        ->and($book->preorder_eta->toDateString())->toBe('2026-10-15');
+        ->and($book->preorder_eta)->toBe('2026-10-15');
+});
+
+it('serializes preorder_eta as Y-m-d so date inputs work', function (): void {
+    $book = Book::factory()->create([
+        'aktif' => true,
+        'harga' => 50000,
+        'is_preorder' => true,
+        'preorder_eta' => '2026-10-15',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.books.edit', $book))
+        ->assertInertia(fn ($page) => $page
+            ->where('book.is_preorder', true)
+            ->where('book.preorder_eta', '2026-10-15'));
+});
+
+it('keeps the ETA when editing without touching it', function (): void {
+    $book = Book::factory()->create([
+        'aktif' => true,
+        'harga' => 50000,
+        'is_preorder' => true,
+        'preorder_eta' => '2026-10-15',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.books.update', $book), array_merge([
+            'judul' => 'Judul Diubah',
+            'penulis' => $book->penulis,
+            'aktif' => true,
+        ], bookPayload()))
+        ->assertRedirect(route('admin.books.index'));
+
+    expect($book->fresh()->preorder_eta)->toBe('2026-10-15');
 });
 
 it('creates a book with auto-generated SKU when empty', function (): void {

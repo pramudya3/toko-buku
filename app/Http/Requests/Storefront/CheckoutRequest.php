@@ -25,7 +25,7 @@ class CheckoutRequest extends FormRequest
     {
         return [
             'nama_pembeli' => ['required', 'string', 'max:255'],
-            'whatsapp_pembeli' => ['nullable', 'string', 'max:20'],
+            'whatsapp_pembeli' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'email_pembeli' => ['nullable', 'email', 'max:255'],
             'alamat' => ['nullable', 'string'],
             'provinsi' => ['nullable', 'string', 'max:100'],
@@ -62,6 +62,7 @@ class CheckoutRequest extends FormRequest
         return [
             'nama_pembeli.required' => 'Nama lengkap wajib diisi.',
             'metode_bayar.required' => 'Pilih metode pembayaran.',
+            'whatsapp_pembeli.regex' => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
         ];
     }
 }

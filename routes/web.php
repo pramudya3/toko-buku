@@ -139,6 +139,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('orders/options/customers', [OrderController::class, 'customerOptions'])->name('orders.options.customers');
     Route::post('orders/cek-ongkir', [OrderController::class, 'checkOngkir'])->name('orders.check-ongkir');
     Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::get('orders/preorder', [OrderController::class, 'preorderIndex'])->name('orders.preorder');
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::patch('orders/{order}/process', [OrderController::class, 'process'])->name('orders.process');
@@ -273,6 +274,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('settings/pembayaran/{paymentMethod}', [PaymentMethodController::class, 'destroy'])->name('settings.pembayaran.destroy');
     Route::post('settings/pembayaran/{paymentMethod}/restore', [PaymentMethodController::class, 'restore'])->name('settings.pembayaran.restore')->withTrashed();
     Route::get('settings/sumber-penjualan', [SettingController::class, 'sumberPenjualan'])->name('settings.sumber-penjualan');
+    Route::get('settings/wa-template', [SettingController::class, 'waTemplate'])->name('settings.wa-template');
+    Route::put('settings/wa-template', [SettingController::class, 'updateWaTemplate'])->name('settings.wa-template.update');
     Route::post('settings/sumber-penjualan', [SalesChannelController::class, 'store'])->name('settings.sumber-penjualan.store');
     Route::put('settings/sumber-penjualan/bulk', [SalesChannelController::class, 'bulkUpdate'])->name('settings.sumber-penjualan.bulk');
     Route::put('settings/sumber-penjualan/{salesChannel}', [SalesChannelController::class, 'update'])->name('settings.sumber-penjualan.update');

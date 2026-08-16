@@ -27,7 +27,7 @@ class CustomerStoreRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'password' => ['required', 'string', 'min:8'],
-            'whatsapp_number' => ['nullable', 'string', 'max:20'],
+            'whatsapp_number' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'status_pelanggan' => ['required', Rule::enum(CustomerTier::class)],
             'is_active' => ['boolean'],
             'alamat' => ['nullable', 'string'],
@@ -47,6 +47,7 @@ class CustomerStoreRequest extends FormRequest
     {
         return [
             'status_pelanggan' => 'Status pelanggan tidak valid.',
+            'whatsapp_number.regex' => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
         ];
     }
 }

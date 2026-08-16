@@ -30,7 +30,7 @@ class OrderStoreRequest extends FormRequest
                 Rule::exists('users', 'id')->where('is_admin', 0),
             ],
             'nama_pembeli' => ['required', 'string', 'max:255'],
-            'whatsapp_pembeli' => ['nullable', 'string', 'max:20'],
+            'whatsapp_pembeli' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'alamat' => ['nullable', 'string'],
             'provinsi' => ['nullable', 'string', 'max:100'],
             'kabupaten_kota' => ['nullable', 'string', 'max:100'],
@@ -53,7 +53,7 @@ class OrderStoreRequest extends FormRequest
             'metode_pengambilan' => ['nullable', Rule::in(['kirim', 'ambil'])],
             'is_dropship' => ['boolean'],
             'end_customer_name' => ['required_if:is_dropship,true', 'string', 'max:255'],
-            'end_customer_whatsapp' => ['nullable', 'string', 'max:20'],
+            'end_customer_whatsapp' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'end_customer_address' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.book_id' => [
@@ -125,6 +125,8 @@ class OrderStoreRequest extends FormRequest
             'nama_pembeli.required' => 'Nama pembeli wajib diisi.',
             'items.required' => 'Order minimal berisi 1 item buku.',
             'items.*.qty.min' => 'Qty minimal 1.',
+            'whatsapp_pembeli.regex' => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
+            'end_customer_whatsapp.regex' => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
         ];
     }
 }

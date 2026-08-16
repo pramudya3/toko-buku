@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\DateOnly;
 use App\Observers\BookObserver;
 use Database\Factories\BookFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -134,7 +135,7 @@ class Book extends Model
             'stok' => 'integer',
             'aktif' => 'boolean',
             'is_preorder' => 'boolean',
-            'preorder_eta' => 'date',
+            'preorder_eta' => DateOnly::class,
             'berat_gr' => 'integer',
             'jumlah_halaman' => 'integer',
         ];

@@ -4,8 +4,10 @@ use App\Enums\OrderStatus;
 use App\Mail\PreorderReadyMail;
 use App\Models\Book;
 use App\Models\Order;
+use App\Models\StockRequest;
 use App\Models\User;
 use App\Notifications\PreorderReadyNotification;
+use App\Notifications\StockRequestReadyNotification;
 use App\Services\PreorderReadyService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
@@ -44,6 +46,19 @@ it('emails and notifies customers when pre-order stock arrives', function (): vo
     });
 
     Notification::assertSentTo($customer, PreorderReadyNotification::class);
+});
+
+it('notifies waitlist users (without paying) when stock arrives', function (): void {
+    Notification::fake();
+
+    $waiter = User::factory()->create(['email' => 'waiter@example.test']);
+    $book = Book::factory()->create(['aktif' => true, 'harga' => 50000, 'is_preorder' => true]);
+
+    StockRequest::create(['book_id' => $book->id, 'user_id' => $waiter->id]);
+
+    app(PreorderReadyService::class)->handleStockArrival($book);
+
+    Notification::assertSentTo($waiter, StockRequestReadyNotification::class);
 });
 
 it('skips orders whose status is no longer waiting', function (): void {

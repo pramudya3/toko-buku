@@ -14,6 +14,7 @@ use App\Http\Requests\Admin\ProcessAndShipRequest;
 use App\Models\Book;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\StockRequest;
 use App\Models\TierDiscount;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -72,6 +73,109 @@ class OrderController extends Controller
             'filters' => $request->only(['search', 'status', 'dropship', 'sumber_pembelian', 'preorder']),
             'statusOptions' => OrderStatus::options(),
             'salesChannels' => StoreSettings::allSalesChannels(),
+        ]);
+    }
+
+    /**
+     * Pusat penanganan pre-order: order menunggu (sudah bayar) + waitlist
+     * (belum bayar) + ringkasan per buku.
+     */
+    public function preorderIndex(Request $request): Response
+    {
+        // Grup 1 — order menunggu konfirmasi yang berisi item pre-order.
+        $orders = Order::query()
+            ->where('status', OrderStatus::MenungguKonfirmasi)
+            ->whereHas('items', fn ($query) => $query->where('is_preorder', true))
+            ->with(['user:id,name', 'items' => fn ($query) => $query
+                ->where('is_preorder', true)
+                ->with('book:id,judul,preorder_eta,is_preorder')])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (Order $order): array {
+                $items = $order->items;
+
+                return [
+                    'id' => $order->id,
+                    'no_order' => $order->no_order,
+                    'nama_pembeli' => $order->nama_pembeli,
+                    'no_hp' => $order->no_hp,
+                    'payment_status' => $order->payment_status->value,
+                    'total_qty' => (int) $items->sum('qty'),
+                    'eta' => $items->pluck('book.preorder_eta')->filter()->min(),
+                    'books' => $items->pluck('book.judul')->unique()->values(),
+                    'created_at' => $order->created_at,
+                    'detail_url' => route('admin.orders.show', $order),
+                ];
+            });
+
+        // Grup 2 — waitlist buku pre-order (tanpa bayar).
+        $waitlist = StockRequest::query()
+            ->whereHas('book', fn ($query) => $query->where('is_preorder', true))
+            ->with(['book:id,judul,preorder_eta,is_preorder', 'user:id,name,whatsapp_number'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (StockRequest $request): array => [
+                'id' => $request->id,
+                'nama' => $request->user->name,
+                'whatsapp_number' => $request->user->whatsapp_number,
+                'book' => [
+                    'judul' => $request->book->judul,
+                    'eta' => $request->book->preorder_eta,
+                ],
+                'created_at' => $request->created_at,
+            ]);
+
+        // Ringkasan per buku: qty dipesan + jumlah pembeli + jumlah waitlist.
+        $summary = collect();
+        $orders->each(function (array $order) use ($summary): void {
+            foreach ($order['books'] as $judul) {
+                $current = $summary->get($judul) ?? [
+                    'eta' => null,
+                    'qty_dipesan' => 0,
+                    'jumlah_pembeli' => 0,
+                    'jumlah_waitlist' => 0,
+                ];
+
+                $summary->put($judul, [
+                    'eta' => $this->earliestEta($current['eta'], $order['eta']),
+                    'qty_dipesan' => $current['qty_dipesan'] + $order['total_qty'],
+                    'jumlah_pembeli' => $current['jumlah_pembeli'] + 1,
+                    'jumlah_waitlist' => $current['jumlah_waitlist'],
+                ]);
+            }
+        });
+        $waitlist->each(function (array $entry) use ($summary): void {
+            $current = $summary->get($entry['book']['judul']) ?? [
+                'eta' => null,
+                'qty_dipesan' => 0,
+                'jumlah_pembeli' => 0,
+                'jumlah_waitlist' => 0,
+            ];
+
+            $summary->put($entry['book']['judul'], [
+                'eta' => $this->earliestEta($current['eta'], $entry['book']['eta']),
+                'qty_dipesan' => $current['qty_dipesan'],
+                'jumlah_pembeli' => $current['jumlah_pembeli'],
+                'jumlah_waitlist' => $current['jumlah_waitlist'] + 1,
+            ]);
+        });
+
+        return Inertia::render('admin/orders/Preorder', [
+            'orders' => $orders->values(),
+            'waitlist' => $waitlist->values(),
+            'summary' => $summary
+                ->map(fn (array $row, string $judul): array => [
+                    'judul' => $judul,
+                    'eta' => $row['eta'],
+                    'qty_dipesan' => (int) $row['qty_dipesan'],
+                    'jumlah_pembeli' => (int) $row['jumlah_pembeli'],
+                    'jumlah_waitlist' => (int) $row['jumlah_waitlist'],
+                ])
+                ->sortByDesc('qty_dipesan')
+                ->values(),
+            'wa_template_ready' => Setting::get('wa_template_ready', config('whatsapp.template_ready')),
+            'nama_lembaga' => Setting::get('store_nama_lembaga', ''),
+            'filters' => $request->only(['search']),
         ]);
     }
 
@@ -879,5 +983,22 @@ class OrderController extends Controller
         $sequence = $last ? ((int) substr($last, -4)) + 1 : 1;
 
         return $prefix.'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * ETA paling awal dari dua nilai (string Y-m-d), null-safe.
+     * min(null, '...') mengembalikan null di PHP — hindari itu.
+     */
+    private function earliestEta(?string $a, ?string $b): ?string
+    {
+        if ($a === null) {
+            return $b;
+        }
+
+        if ($b === null) {
+            return $a;
+        }
+
+        return min($a, $b);
     }
 }

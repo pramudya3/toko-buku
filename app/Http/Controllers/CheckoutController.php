@@ -874,7 +874,7 @@ class CheckoutController extends Controller
 
             $group = $groups[$key] ?? [
                 'key' => $key,
-                'name' => $promo?->promo_name ?? 'Item Pesanan',
+                'name' => $promo?->promo_name ?? 'Item Lainnya',
                 'discount_percent' => $promo?->discount_percentage ?? null,
                 'items' => [],
                 'subtotal' => 0,

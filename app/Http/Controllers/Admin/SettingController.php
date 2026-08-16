@@ -141,11 +141,42 @@ class SettingController extends Controller
     public function sumberPenjualan(): Response
     {
         return Inertia::render('admin/settings/SumberPenjualan', [
-            'salesChannels' => SalesChannel::query()
-                ->orderBy('sort_order')
+            'salesChannels' => SalesChannel::query()->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(['id', 'code', 'name', 'is_active']),
         ]);
+    }
+
+    /**
+     * Halaman pengaturan — template pesan WhatsApp (wa.me) untuk info
+     * stok pre-order tersedia.
+     */
+    public function waTemplate(): Response
+    {
+        return Inertia::render('admin/settings/WaTemplate', [
+            'wa_template_ready' => Setting::get('wa_template_ready', config('whatsapp.template_ready')),
+        ]);
+    }
+
+    /**
+     * Simpan template pesan WhatsApp.
+     */
+    public function updateWaTemplate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'wa_template_ready' => ['required', 'string', 'max:2000'],
+        ]);
+
+        Setting::set('wa_template_ready', $validated['wa_template_ready']);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Template WhatsApp berhasil disimpan.',
+        ]);
+
+        ActivityLogger::log(ActivityAction::SettingsUpdate, 'Template WhatsApp diperbarui');
+
+        return back();
     }
 
     /**

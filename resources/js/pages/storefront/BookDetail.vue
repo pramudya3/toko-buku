@@ -8,6 +8,16 @@ import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -79,6 +89,19 @@ defineOptions({
 // User login — tombol "Ajukan Stok" hanya untuk yang sudah login.
 const page = usePage();
 const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
+const userWhatsapp = computed<string | null>(() => {
+    const user = page.props.auth?.user as
+        { whatsapp_number?: string | null } | undefined;
+
+    return user?.whatsapp_number ?? null;
+});
+
+// Dialog konfirmasi nomor WhatsApp untuk pengajuan stok (waitlist).
+const stockDialogOpen = ref(false);
+
+function openStockRequestDialog(): void {
+    stockDialogOpen.value = true;
+}
 
 const qty = ref(1);
 
@@ -399,10 +422,31 @@ const specs = computed(() =>
                         Estimasi tersedia
                         {{
                             book.preorder_eta
-                                ? formatDateID(book.preorder_eta)
+                                ? formatDateID(book.preorder_eta, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: '2-digit',
+                                  })
                                 : '(menyusul)'
                         }}. Pesanan akan diproses setelah stok tiba.
                     </p>
+                    <!-- Waitlist tanpa bayar: kabari saat stok tiba -->
+                    <Button
+                        v-if="isLoggedIn"
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        class="mt-1.5 border-sky-200 text-sky-700 hover:bg-sky-100"
+                        :disabled="requested"
+                        @click="openStockRequestDialog"
+                    >
+                        <BellRing class="size-3.5" />
+                        {{
+                            requested
+                                ? 'Sudah Diajukan'
+                                : 'Beri Tahu Saya Saat Tersedia'
+                        }}
+                    </Button>
                 </div>
 
                 <p v-else-if="book.stok === 0" class="text-sm text-destructive">
@@ -414,29 +458,27 @@ const specs = computed(() =>
                 </p>
 
                 <!-- Stok habis + login → ajukan pemberitahuan stok -->
-                <Form
+                <Button
                     v-if="book.stok === 0 && !book.is_preorder && isLoggedIn"
-                    :action="StockRequestController.store(book.id).url"
-                    method="post"
-                    class="flex flex-col gap-2"
+                    type="button"
+                    size="lg"
+                    :disabled="requested"
+                    class="w-full"
+                    @click="openStockRequestDialog"
                 >
-                    <Button
-                        type="submit"
-                        size="lg"
-                        :disabled="requested"
-                        class="w-full"
-                    >
-                        <BellRing class="size-4" />
-                        {{ requested ? 'Sudah Diajukan' : 'Ajukan Stok' }}
-                    </Button>
-                    <p class="text-xs text-muted-foreground">
-                        {{
-                            requested
-                                ? 'Anda sudah mengajukan pemberitahuan untuk buku ini.'
-                                : 'Kami kirim pemberitahuan saat stok kembali tersedia.'
-                        }}
-                    </p>
-                </Form>
+                    <BellRing class="size-4" />
+                    {{ requested ? 'Sudah Diajukan' : 'Ajukan Stok' }}
+                </Button>
+                <p
+                    v-if="book.stok === 0 && !book.is_preorder && isLoggedIn"
+                    class="text-xs text-muted-foreground"
+                >
+                    {{
+                        requested
+                            ? 'Anda sudah mengajukan pemberitahuan untuk buku ini.'
+                            : 'Kami kirim pemberitahuan saat stok kembali tersedia.'
+                    }}
+                </p>
 
                 <!-- Pilih cetakan: tiap cetakan punya harga sendiri -->
                 <div
@@ -586,4 +628,56 @@ const specs = computed(() =>
             </p>
         </div>
     </div>
+
+    <!-- Dialog konfirmasi nomor WhatsApp (pengajuan stok / waitlist) -->
+    <Dialog v-model:open="stockDialogOpen">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Konfirmasi Nomor WhatsApp</DialogTitle>
+                <DialogDescription>
+                    Kami akan mengirim pemberitahuan ke nomor ini saat stok buku
+                    tersedia.
+                </DialogDescription>
+            </DialogHeader>
+
+            <Form
+                :action="StockRequestController.store(book.id).url"
+                method="post"
+                class="grid gap-4"
+                v-slot="{ errors, processing }"
+                @success="stockDialogOpen = false"
+            >
+                <div class="grid gap-2">
+                    <Label for="whatsapp_number">Nomor WhatsApp *</Label>
+                    <Input
+                        id="whatsapp_number"
+                        name="whatsapp_number"
+                        type="tel"
+                        :default-value="userWhatsapp ?? undefined"
+                        required
+                        placeholder="08xxxxxxxxxx"
+                    />
+                    <p
+                        v-if="errors.whatsapp_number"
+                        class="text-sm text-destructive"
+                    >
+                        {{ errors.whatsapp_number }}
+                    </p>
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="stockDialogOpen = false"
+                    >
+                        Batal
+                    </Button>
+                    <Button type="submit" :disabled="processing">
+                        {{ processing ? 'Menyimpan...' : 'Konfirmasi' }}
+                    </Button>
+                </DialogFooter>
+            </Form>
+        </DialogContent>
+    </Dialog>
 </template>

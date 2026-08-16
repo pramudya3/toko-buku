@@ -262,7 +262,13 @@ function isEmptyStock(book: Book): boolean {
 }
 
 function preorderEtaLabel(book: Book): string {
-    return book.preorder_eta ? formatDateID(book.preorder_eta) : '';
+    return book.preorder_eta
+        ? formatDateID(book.preorder_eta, {
+              year: 'numeric',
+              month: 'short',
+              day: '2-digit',
+          })
+        : '';
 }
 
 function resetFilters(): void {

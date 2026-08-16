@@ -60,6 +60,41 @@ it('requires the origin postal code', function (): void {
     expect(Setting::count())->toBe(0);
 });
 
+it('shows the wa template page with the default template', function (): void {
+    $this->actingAs($this->admin)
+        ->get(route('admin.settings.wa-template'))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/settings/WaTemplate')
+            ->where('wa_template_ready', config('whatsapp.template_ready')));
+});
+
+it('persists the wa template and returns it on the page', function (): void {
+    $template = "Assalamualaikum,\n\nBuku {judul} {keterangan}\n\nJazakumullah Khoiron";
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.wa-template.update'), [
+            'wa_template_ready' => $template,
+        ])
+        ->assertRedirect();
+
+    expect(Setting::get('wa_template_ready'))->toBe($template);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.settings.wa-template'))
+        ->assertInertia(fn ($page) => $page->where('wa_template_ready', $template));
+});
+
+it('requires a non-empty wa template', function (): void {
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.wa-template.update'), [
+            'wa_template_ready' => '',
+        ])
+        ->assertSessionHasErrors('wa_template_ready');
+
+    expect(Setting::count())->toBe(0);
+});
+
 it('blocks customers from store settings', function (): void {
     $customer = User::factory()->customer()->create();
 
