@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PromotionType;
+use App\Http\Requests\Storefront\ArticleHomeRequest;
 use App\Models\Article;
+use App\Models\ArticleCategory;
 use App\Models\BankAccount;
 use App\Models\Book;
 use App\Models\BookEdition;
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,6 +41,220 @@ class StorefrontController extends Controller
     protected function page(string $name): string
     {
         return "storefront/{$name}";
+    }
+
+    /**
+     * Query artikel storefront dengan filter pencarian & facet.
+     *
+     * Filter dipakai bersama oleh storefront utama (limit 20) dan proto-d
+     * (paginate + load-more). Pencarian mencakup judul, ringkasan, dan isi.
+     * Kategori jamak memakai logika OR (whereIn) — artikel cocok bila masuk
+     * salah satu kategori terpilih.
+     *
+     * @return Builder<Article>
+     */
+    protected function articleFeedQuery(Request $request): Builder
+    {
+        return Article::published()
+            ->with('category:id,nama')
+            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->when($request->filled('search'), function (Builder $query) use ($request): void {
+                $search = $request->string('search')->toString();
+                $query->where(function (Builder $q) use ($search): void {
+                    $q->whereLike('judul', "%{$search}%")
+                        ->orWhereLike('ringkasan', "%{$search}%")
+                        ->orWhereLike('isi', "%{$search}%");
+                });
+            })
+            ->when($request->filled('penulis'), fn (Builder $query) => $query->where('penulis', $request->string('penulis')->toString()))
+            ->when($request->filled('category_id'), fn (Builder $query) => $query->where('article_category_id', $request->string('category_id')->toString()))
+            ->when(
+                $request->filled('categories'),
+                fn (Builder $query) => $query->whereIn('article_category_id', $request->input('categories')),
+            )
+            ->when($request->filled('month'), fn (Builder $query) => $query->whereMonth('published_at', $request->integer('month')))
+            ->when($request->filled('year'), fn (Builder $query) => $query->whereYear('published_at', $request->integer('year')));
+    }
+
+    /**
+     * Facet sidebar artikel: kategori (dengan jumlah terbit) + daftar
+     * bulan/tahun (dengan jumlah artikel per bulan). Di-cache 1 jam dan
+     * dihapus lewat observer Article/ArticleCategory saat konten berubah.
+     *
+     * @return array{articleCategories: array<int, array{id: string, nama: string, articles_count: int}>, dateFacets: array<int, array{year: int, month: int, count: int}>}
+     */
+    protected function articleFacets(): array
+    {
+        return Cache::remember('storefront.article_facets', 3600, function (): array {
+            $articleCategories = ArticleCategory::query()
+                ->withCount(['articles' => fn (Builder $query) => $query->published()])
+                ->orderBy('nama')
+                ->get(['id', 'nama'])
+                ->map(fn (ArticleCategory $category): array => [
+                    'id' => $category->id,
+                    'nama' => $category->nama,
+                    'articles_count' => (int) $category->articles_count,
+                ])
+                ->all();
+
+            $dateFacets = Article::published()
+                ->whereNotNull('published_at')
+                ->pluck('published_at')
+                ->map(fn (string $date): array => [
+                    'year' => (int) substr($date, 0, 4),
+                    'month' => (int) substr($date, 5, 2),
+                ])
+                ->countBy(fn (array $ym): string => $ym['year'].'-'.$ym['month'])
+                ->map(function (int $count, string $ym): array {
+                    [$year, $month] = explode('-', $ym);
+
+                    return [
+                        'year' => (int) $year,
+                        'month' => (int) $month,
+                        'count' => $count,
+                    ];
+                })
+                ->sortByDesc(fn (array $facet): string => $facet['year'].'-'.str_pad((string) $facet['month'], 2, '0', STR_PAD_LEFT))
+                ->values()
+                ->all();
+
+            return compact('articleCategories', 'dateFacets');
+        });
+    }
+
+    /**
+     * Beranda editorial artikel — halaman utama "/".
+     *
+     * Layout: Artikel Unggulan (featured, pilihan admin) → Artikel Terbaru
+     * (5 terbaru upload) → feed semua artikel (filter kategori + pencarian) →
+     * Buku Pilihan (iklan kecil dari toko). Saat ada filter pencarian/kategori,
+     * hero unggulan & section Terbaru disembunyikan — feed menampilkan semua
+     * artikel yang cocok.
+     */
+    public function home(ArticleHomeRequest $request): Response
+    {
+        $filtered = $request->filled('search') || $request->filled('category_id');
+
+        // Saat ada filter pencarian/kategori, hero unggulan disembunyikan
+        // agar hasil pencarian fokus (konsisten dengan beranda proto-d /pcd).
+        $featured = $filtered ? null : $this->featuredArticle();
+
+        // 5 artikel terbaru upload (created_at desc) — tanpa unggulan.
+        // Saat ada filter pencarian/kategori, section "Terbaru" disembunyikan
+        // dan feed menampilkan SEMUA artikel yang cocok (tanpa eksklusi terbaru).
+        $recentModels = ! $filtered
+            ? Article::published()
+                ->with('category:id,nama')
+                ->when($featured, fn (Builder $query) => $query->whereKeyNot($featured['id']))
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get()
+            : collect();
+        $recent = $recentModels
+            ->map(fn (Article $article): array => $this->articleCard($article))
+            ->values()
+            ->all();
+
+        // Feed SEMUA artikel (created_at desc) — arsip lengkap. Tidak mengecualikan
+        // unggulan/terbaru agar section "Semua Artikel" selalu menampilkan semua
+        // artikel terbit (termasuk bila hanya ada 1 artikel). Difilter oleh
+        // pencarian/kategori dari query bila ada.
+        $articles = $this->homeFeedQuery($request)->paginate(6)->withQueryString();
+
+        return Inertia::render($this->page('Home'), [
+            'featured' => $featured,
+            'recent' => $recent,
+            'articles' => $articles->through(fn (Article $article): array => $this->articleCard($article)),
+            'categories' => $this->articleCategoriesForStorefront(),
+            'books' => $this->featuredBooksForStorefront(),
+            'filters' => $request->only(['search', 'category_id']),
+            'tagline' => Setting::get('store_tagline') ?: 'Pustaka Cahaya Peradaban',
+        ]);
+    }
+
+    /**
+     * Artikel unggulan untuk beranda — artikel terbit dengan is_featured=true.
+     * Fallback: artikel terbit terbaru (created_at desc) bila belum ada yang
+     * ditandai. Return null bila tidak ada artikel terbit sama sekali.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function featuredArticle(): ?array
+    {
+        $article = Article::published()
+            ->featured()
+            ->orderByDesc('created_at')
+            ->with('category:id,nama')
+            ->first();
+
+        if ($article === null) {
+            $article = Article::published()
+                ->with('category:id,nama')
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        return $article ? $this->articleCard($article) : null;
+    }
+
+    /**
+     * Query feed artikel beranda — terbit, urut created_at desc, filter
+     * pencarian & kategori (kategori dropdown on-page).
+     *
+     * @return Builder<Article>
+     */
+    protected function homeFeedQuery(Request $request): Builder
+    {
+        return Article::published()
+            ->with('category:id,nama')
+            ->orderByDesc('created_at')
+            ->when($request->filled('search'), function (Builder $query) use ($request): void {
+                $search = $request->string('search')->toString();
+                $query->where(function (Builder $q) use ($search): void {
+                    $q->whereLike('judul', "%{$search}%")
+                        ->orWhereLike('ringkasan', "%{$search}%")
+                        ->orWhereLike('isi', "%{$search}%");
+                });
+            })
+            ->when($request->filled('category_id'), fn (Builder $query) => $query->where('article_category_id', $request->string('category_id')->toString()));
+    }
+
+    /**
+     * Muat halaman feed artikel beranda berikutnya (load-more) — JSON paginator.
+     */
+    public function homeLoadMore(ArticleHomeRequest $request): JsonResponse
+    {
+        // Konsisten dengan home(): feed arsip lengkap (semua artikel terbit),
+        // tanpa mengecualikan unggulan/terbaru, difilter oleh query bila ada.
+        $articles = $this->homeFeedQuery($request)
+            ->paginate(6);
+
+        return response()->json(
+            $articles->through(fn (Article $article): array => $this->articleCard($article)),
+        );
+    }
+
+    /**
+     * Kategori konten dengan jumlah artikel terbit — cache 1 jam, dibersihkan
+     * lewat observer Article/ArticleCategory.
+     *
+     * @return array<int, array{id: string, slug: string, nama: string, articles_count: int}>
+     */
+    protected function articleCategoriesForStorefront(): array
+    {
+        return Cache::remember('storefront.article_categories', 3600, function (): array {
+            return ArticleCategory::query()
+                ->withCount(['articles' => fn (Builder $query) => $query->published()])
+                ->get(['id', 'slug', 'nama'])
+                ->map(fn (ArticleCategory $category): array => [
+                    'id' => $category->id,
+                    'slug' => $category->slug,
+                    'nama' => $category->nama,
+                    'articles_count' => (int) $category->articles_count,
+                ])
+                ->all();
+        });
     }
 
     /**
@@ -212,24 +429,6 @@ class StorefrontController extends Controller
     }
 
     /**
-     * Daftar artikel storefront — hanya yang aktif & sudah terbit.
-     */
-    public function articles(Request $request): Response
-    {
-        $articles = Article::published()
-            ->with('category:id,nama')
-            ->orderByDesc('published_at')
-            ->orderByDesc('created_at')
-            ->paginate(9)
-            ->withQueryString()
-            ->through(fn (Article $article): array => $this->articleCard($article));
-
-        return Inertia::render($this->page('ArticleList'), [
-            'articles' => $articles,
-        ]);
-    }
-
-    /**
      * Detail artikel — 404 bila nonaktif atau belum terbit.
      */
     public function articleShow(Article $article): Response
@@ -238,9 +437,43 @@ class StorefrontController extends Controller
 
         $article->load('category:id,nama');
 
-        return Inertia::render($this->page('ArticleDetail'), [
+        return Inertia::render($this->page('ArticleDetail'), $this->articleDetailProps($article));
+    }
+
+    /**
+     * Properti Inertia untuk halaman detail artikel — subclass proto-d
+     * menambah data (mis. buku unggulan untuk slot iklan) di sini.
+     *
+     * @return array<string, mixed>
+     */
+    protected function articleDetailProps(Article $article): array
+    {
+        return [
             'article' => $this->articleDetail($article),
-        ]);
+        ];
+    }
+
+    /**
+     * Buku unggulan untuk storefront (4 aktif terbaru) dengan harga/promo.
+     * Dipakai di beranda & slot iklan artikel proto-d.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function featuredBooksForStorefront(): array
+    {
+        $books = Book::query()
+            ->where('aktif', true)
+            ->whereNotNull('harga')
+            ->with('category:id,nama')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $bookPromos = $this->eagerLoadPromotions($books->pluck('id'));
+
+        return $books->map(
+            fn (Book $book) => $this->bookWithPricing($book, $bookPromos[$book->id] ?? null),
+        )->values()->all();
     }
 
     /**

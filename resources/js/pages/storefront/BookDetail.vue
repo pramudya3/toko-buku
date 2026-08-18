@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { BellRing, Minus, Plus, ShoppingCart } from '@lucide/vue';
+import { BellRing, Check, Minus, Plus, ShoppingCart } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
 import StockRequestController from '@/actions/App/Http/Controllers/StockRequestController';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
@@ -24,7 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import { formatDateID } from '@/lib/date';
 
 type BookEdition = {
@@ -83,7 +84,7 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 // User login — tombol "Ajukan Stok" hanya untuk yang sudah login.
@@ -101,6 +102,29 @@ const stockDialogOpen = ref(false);
 
 function openStockRequestDialog(): void {
     stockDialogOpen.value = true;
+}
+
+// Animasi singkat saat buku berhasil masuk keranjang.
+const cartAnimating = ref(false);
+let cartAnimationTimer: ReturnType<typeof setTimeout> | undefined;
+
+function handleAddedToCart(): void {
+    cartAnimating.value = true;
+    clearTimeout(cartAnimationTimer);
+    cartAnimationTimer = setTimeout(() => {
+        cartAnimating.value = false;
+    }, 900);
+
+    toast.success('Buku masuk keranjang', {
+        description: `${props.book.judul} berhasil ditambahkan.`,
+        action: {
+            label: 'Lihat Keranjang',
+            onClick: () => {
+                window.location.href = '/checkout';
+            },
+        },
+        duration: 4000,
+    });
 }
 
 const qty = ref(1);
@@ -301,7 +325,8 @@ const specs = computed(() =>
         />
     </Head>
 
-    <div class="flex flex-col gap-8">
+    <div class="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        <div class="flex flex-col gap-8">
         <div class="grid gap-8 md:grid-cols-2">
             <div class="mx-auto flex w-full max-w-[360px] flex-col gap-3">
                 <div
@@ -539,6 +564,7 @@ const specs = computed(() =>
                     :action="CartController.add().url"
                     method="post"
                     class="flex flex-col gap-3"
+                    @success="handleAddedToCart"
                 >
                     <input type="hidden" name="book_id" :value="book.id" />
                     <input
@@ -573,9 +599,18 @@ const specs = computed(() =>
                                 <Plus class="size-3.5" />
                             </Button>
                         </div>
-                        <Button type="submit" :disabled="maxQty === 0">
-                            <ShoppingCart class="size-4" />
-                            Beli Sekarang
+                        <Button
+                            type="submit"
+                            :disabled="maxQty === 0"
+                            :class="cartAnimating && 'animate-bounce'"
+                        >
+                            <Check v-if="cartAnimating" class="size-4" />
+                            <ShoppingCart v-else class="size-4" />
+                            {{
+                                cartAnimating
+                                    ? 'Masuk Keranjang!'
+                                    : 'Beli Sekarang'
+                            }}
                         </Button>
                     </div>
                     <p
@@ -626,6 +661,7 @@ const specs = computed(() =>
             >
                 {{ book.sinopsis }}
             </p>
+        </div>
         </div>
     </div>
 

@@ -53,41 +53,41 @@ const contact = computed(() =>
 <template>
     <Head :title="`Tentang — ${nama_lembaga || 'Pustaka Cahaya Peradaban'}`" />
 
-    <div class="mx-auto max-w-2xl px-4 pt-16 pb-24 md:pt-24 md:pb-32">
+    <div class="mx-auto max-w-2xl px-4 pt-14 pb-24 md:pt-20 md:pb-32">
         <p
-            class="text-center text-xs font-semibold tracking-[0.16em] text-pcd-accent uppercase"
+            class="text-center text-xs font-semibold tracking-[0.16em] text-flat-primary uppercase"
         >
             Tentang
         </p>
         <h1
-            class="mt-3 text-center font-serif text-3xl font-semibold tracking-tight md:text-4xl"
+            class="mt-3 text-center text-3xl font-extrabold tracking-tight md:text-4xl"
         >
             {{ nama_lembaga || 'Pustaka Cahaya Peradaban' }}
         </h1>
         <p
             v-if="tagline"
-            class="mt-3 text-center text-[15px] leading-relaxed text-pcd-muted"
+            class="mt-3 text-center text-[15px] leading-relaxed text-gray-500"
         >
             {{ tagline }}
         </p>
 
         <div
             v-if="deskripsi"
-            class="mt-10 font-serif text-[17px] leading-[1.8] whitespace-pre-line text-pcd-ink/90"
+            class="mt-10 rounded-lg bg-flat-muted p-6 text-[17px] leading-[1.8] whitespace-pre-line text-flat-ink/90 md:p-8"
         >
             {{ deskripsi }}
         </div>
 
         <div
             v-if="visi || misiList.length > 0"
-            class="mt-12 border-t border-pcd-hairline pt-10"
+            class="mt-12 border-t-2 border-flat-border pt-10"
         >
-            <h2 class="font-serif text-2xl font-semibold tracking-tight">
+            <h2 class="text-2xl font-extrabold tracking-tight">
                 Visi &amp; Misi
             </h2>
             <p
                 v-if="visi"
-                class="mt-4 text-sm leading-[1.7] whitespace-pre-line text-pcd-muted"
+                class="mt-4 text-sm leading-[1.7] whitespace-pre-line text-gray-500"
             >
                 {{ visi }}
             </p>
@@ -95,10 +95,10 @@ const contact = computed(() =>
                 <li
                     v-for="misi in misiList"
                     :key="misi"
-                    class="flex items-start gap-3 text-sm leading-[1.7] text-pcd-muted"
+                    class="flex items-start gap-3 text-sm leading-[1.7] text-gray-500"
                 >
                     <span
-                        class="mt-2 size-1.5 shrink-0 rounded-full bg-pcd-accent"
+                        class="mt-2 size-2 shrink-0 rounded-full bg-flat-primary"
                         aria-hidden="true"
                     ></span>
                     {{ misi }}
@@ -108,9 +108,9 @@ const contact = computed(() =>
 
         <div
             v-if="contact.length > 0"
-            class="mt-12 border-t border-pcd-hairline pt-10"
+            class="mt-12 border-t-2 border-flat-border pt-10"
         >
-            <h2 class="font-serif text-2xl font-semibold tracking-tight">
+            <h2 class="text-2xl font-extrabold tracking-tight">
                 Hubungi Kami
             </h2>
             <dl class="mt-5 space-y-4">
@@ -120,10 +120,10 @@ const contact = computed(() =>
                     class="flex items-start gap-4 text-sm"
                 >
                     <item.icon
-                        class="mt-0.5 size-4 shrink-0 text-pcd-accent"
+                        class="mt-0.5 size-4 shrink-0 text-flat-primary"
                         aria-hidden="true"
                     />
-                    <dt class="w-32 shrink-0 text-pcd-muted">
+                    <dt class="w-32 shrink-0 text-gray-500">
                         {{ item.label }}
                     </dt>
                     <dd class="min-w-0 font-medium whitespace-pre-line">
@@ -135,25 +135,25 @@ const contact = computed(() =>
 
         <div
             v-if="bankAccounts.length > 0"
-            class="mt-12 border-t border-pcd-hairline pt-10"
+            class="mt-12 border-t-2 border-flat-border pt-10"
         >
             <h2
-                class="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight"
+                class="flex items-center gap-2 text-2xl font-extrabold tracking-tight"
             >
-                <Landmark class="size-5 text-pcd-accent" aria-hidden="true" />
+                <Landmark class="size-5 text-flat-primary" aria-hidden="true" />
                 Rekening Pembayaran
             </h2>
             <ul class="mt-5 space-y-3">
                 <li
                     v-for="bank in bankAccounts"
                     :key="bank.id"
-                    class="flex items-center justify-between rounded-lg border border-pcd-hairline bg-pcd-surface px-4 py-3 text-sm"
+                    class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-flat-muted px-4 py-3 text-sm"
                 >
-                    <span class="font-medium">{{ bank.bank_name }}</span>
+                    <span class="font-bold">{{ bank.bank_name }}</span>
                     <span class="font-mono text-xs tracking-wide">{{
                         bank.account_number
                     }}</span>
-                    <span class="text-pcd-muted"
+                    <span class="text-gray-500"
                         >a.n. {{ bank.account_holder }}</span
                     >
                 </li>
@@ -162,7 +162,7 @@ const contact = computed(() =>
 
         <p
             v-if="keamanan"
-            class="mt-12 border-t border-pcd-hairline pt-8 text-xs leading-relaxed whitespace-pre-line text-pcd-muted"
+            class="mt-12 border-t-2 border-flat-border pt-8 text-xs leading-relaxed whitespace-pre-line text-gray-500"
         >
             {{ keamanan }}
         </p>

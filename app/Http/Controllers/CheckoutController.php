@@ -173,15 +173,10 @@ class CheckoutController extends Controller
         // Keranjang berubah — reset pilihan grup ke default.
         session()->forget('checkout_selected_groups');
 
-        $label = $book?->judul ?? 'Buku';
-        $label .= $editionId !== null ? " (Cetakan ke-{$edition->cetakan_ke})" : '';
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => "{$label} ditambahkan ke keranjang.",
-        ]);
-
-        return redirect()->route('checkout.index');
+        // Tetap di halaman buku — animasi & toast "Lihat Keranjang" ditangani
+        // client (BookDetail @success), jadi tidak ada flash toast di sini
+        // untuk menghindari duplikat.
+        return back();
     }
 
     /**

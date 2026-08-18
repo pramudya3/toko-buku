@@ -404,6 +404,23 @@ onMounted(async () => {
         </div>
 
         <div class="grid gap-2">
+            <Label for="kelurahan">Kelurahan/Desa</Label>
+            <SearchableSelect
+                v-model="villageName"
+                :options="villageOptions"
+                name="kelurahan"
+                :placeholder="
+                    districtName ? 'Pilih kelurahan' : 'Pilih kecamatan dulu'
+                "
+                search-placeholder="Cari kelurahan/desa..."
+                :disabled="!villages.length || loadingVillages || hydrating"
+                @update:model-value="onVillageChange"
+            />
+            <!-- Kode kelurahan/desa — dikirim bersama form agar tersimpan. -->
+            <input type="hidden" name="village_code" :value="villageCode" />
+        </div>
+
+        <div class="grid gap-2">
             <Label for="kode_pos">Kode Pos</Label>
             <Input
                 id="kode_pos"
@@ -416,21 +433,6 @@ onMounted(async () => {
                         : 'Pilih kecamatan dulu'
                 "
                 maxlength="10"
-            />
-        </div>
-
-        <div class="grid gap-2">
-            <Label for="kelurahan">Kelurahan/Desa</Label>
-            <SearchableSelect
-                v-model="villageName"
-                :options="villageOptions"
-                name="kelurahan"
-                :placeholder="
-                    districtName ? 'Pilih kelurahan' : 'Pilih kecamatan dulu'
-                "
-                search-placeholder="Cari kelurahan/desa..."
-                :disabled="!villages.length || loadingVillages || hydrating"
-                @update:model-value="onVillageChange"
             />
         </div>
 

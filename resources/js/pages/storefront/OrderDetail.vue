@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import { invoice as invoiceRoute } from '@/routes/my-orders';
 
 type OrderItem = {
@@ -80,7 +80,7 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 const selectedFile = ref('');
@@ -183,7 +183,8 @@ function statusVariant(
 <template>
     <Head :title="`Order ${order.no_order}`" />
 
-    <div class="flex flex-col gap-6">
+    <div class="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        <div class="flex flex-col gap-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
                 <h1 class="font-mono text-2xl font-bold tracking-tight">
@@ -672,6 +673,7 @@ function statusVariant(
                     </Card>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 </template>

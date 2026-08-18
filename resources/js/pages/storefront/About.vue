@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { Building2, Clock, Landmark, Mail, Phone } from '@lucide/vue';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 
 type BankAccount = {
     id: string;
@@ -11,7 +11,7 @@ type BankAccount = {
 };
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 const props = defineProps<{
@@ -40,9 +40,11 @@ const syaratList = props.syarat
     .map((line) => line.trim())
     .filter(Boolean);
 
-const sectionClass = 'rounded-xl border p-6';
-const headingClass = 'font-semibold';
-const bodyClass = 'mt-2 text-sm leading-relaxed text-muted-foreground';
+const sectionClass =
+    'rounded-xl border border-article-border bg-article-surface p-6';
+const headingClass =
+    'font-serif text-lg font-bold tracking-tight text-article-ink';
+const bodyClass = 'mt-2 text-sm leading-relaxed text-article-muted';
 </script>
 
 <template>
@@ -56,24 +58,31 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-muted-foreground';
         />
     </Head>
 
-    <div class="mx-auto flex max-w-3xl flex-col gap-8">
-        <div class="flex flex-col items-center gap-3 text-center">
-            <img
-                v-if="props.logo_url"
-                :src="props.logo_url"
-                :alt="props.nama_lembaga || 'Logo'"
-                class="h-20 w-auto object-contain"
-            />
-            <div>
-                <h1 class="text-3xl font-bold tracking-tight">Tentang Kami</h1>
-                <p class="mt-2 text-muted-foreground">
-                    {{
-                        props.tagline ||
-                        'Toko buku yang berfokus menyediakan bacaan berkualitas untuk semua kalangan.'
-                    }}
-                </p>
+    <div class="mx-auto max-w-6xl px-4 pb-20 md:px-6 md:pb-28">
+        <div class="mx-auto flex max-w-3xl flex-col gap-8">
+            <div
+                class="flex flex-col items-center gap-3 pt-12 text-center md:pt-16"
+            >
+                <img
+                    v-if="props.logo_url"
+                    :src="props.logo_url"
+                    :alt="props.nama_lembaga || 'Logo'"
+                    class="h-20 w-auto object-contain"
+                />
+                <div>
+                    <h1
+                        class="font-serif text-3xl font-bold tracking-tight text-article-ink"
+                    >
+                        Tentang Kami
+                    </h1>
+                    <p class="mt-2 text-article-muted">
+                        {{
+                            props.tagline ||
+                            'Toko buku yang berfokus menyediakan bacaan berkualitas untuk semua kalangan.'
+                        }}
+                    </p>
+                </div>
             </div>
-        </div>
 
         <div class="flex flex-col gap-4">
             <section v-if="props.deskripsi" :class="sectionClass">
@@ -111,14 +120,14 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-muted-foreground';
 
             <section v-if="props.bankAccounts.length" :class="sectionClass">
                 <h2 :class="headingClass">Rekening Bank</h2>
-                <div class="mt-2 grid gap-1 text-sm text-muted-foreground">
+                <div class="mt-2 grid gap-1 text-sm text-article-muted">
                     <p
                         v-for="account in props.bankAccounts"
                         :key="account.id"
                         class="flex items-center gap-2"
                     >
                         <Landmark class="size-4 shrink-0" />
-                        <span class="font-medium text-foreground">
+                        <span class="font-medium text-article-ink">
                             {{ account.bank_name }}
                         </span>
                         <span class="font-mono">{{
@@ -131,22 +140,22 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-muted-foreground';
 
             <section :class="sectionClass">
                 <h2 :class="headingClass">Kontak</h2>
-                <div class="mt-2 grid gap-1 text-sm text-muted-foreground">
+                <div class="mt-2 grid gap-1 text-sm text-article-muted">
                     <p v-if="props.telepon" class="flex items-center gap-2">
                         <Phone class="size-4 shrink-0" />
-                        <span class="font-medium text-foreground">
+                        <span class="font-medium text-article-ink">
                             {{ props.telepon }}
                         </span>
                     </p>
                     <p v-if="props.email" class="flex items-center gap-2">
                         <Mail class="size-4 shrink-0" />
-                        <span class="font-medium text-foreground">
+                        <span class="font-medium text-article-ink">
                             {{ props.email }}
                         </span>
                     </p>
                     <p v-if="props.alamat" class="flex items-center gap-2">
                         <Building2 class="size-4 shrink-0" />
-                        <span class="font-medium text-foreground">
+                        <span class="font-medium text-article-ink">
                             {{ props.alamat }}
                         </span>
                     </p>
@@ -155,12 +164,13 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-muted-foreground';
                         class="flex items-center gap-2"
                     >
                         <Clock class="size-4 shrink-0" />
-                        <span class="font-medium text-foreground">
+                        <span class="font-medium text-article-ink">
                             {{ props.jam_operasional }}
                         </span>
                     </p>
                 </div>
             </section>
+            </div>
         </div>
     </div>
 </template>

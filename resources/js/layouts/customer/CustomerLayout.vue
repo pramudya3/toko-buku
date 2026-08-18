@@ -44,7 +44,6 @@ import { timeAgoID } from '@/lib/date';
 import { about, home, logout } from '@/routes';
 import { edit as editAddress } from '@/routes/address';
 import { dashboard as adminDashboard } from '@/routes/admin';
-import { index as articlesIndex } from '@/routes/articles';
 import { catalog as catalogUrl } from '@/routes/books';
 import { promo as promoRoute } from '@/routes/books';
 import {
@@ -140,35 +139,53 @@ watch(
     { immediate: true },
 );
 
-// Perubahan input → request Inertia debounce (filter tetap terlihat saat scroll).
-// Target route mengikuti halaman aktif: katalog (search+kategori) atau promo (search).
-let headerTimer: ReturnType<typeof setTimeout> | undefined;
-
-watch([headerSearch, headerCategoryId], () => {
-    clearTimeout(headerTimer);
-    headerTimer = setTimeout(() => {
-        if (isPromoPage.value) {
-            router.get(
-                promoRoute().url,
-                { search: headerSearch.value || undefined },
-                { preserveState: true, replace: true },
-            );
-
-            return;
-        }
-
+// Pencarian hanya dijalankan saat Enter; kategori (katalog) langsung auto-apply.
+function submitHeaderSearch(): void {
+    if (isPromoPage.value) {
         router.get(
-            catalogUrl().url,
-            {
-                search: headerSearch.value || undefined,
-                category_id:
-                    headerCategoryId.value === allCategories
-                        ? undefined
-                        : headerCategoryId.value,
-            },
+            promoRoute().url,
+            { search: headerSearch.value || undefined },
             { preserveState: true, replace: true },
         );
-    }, 350);
+
+        return;
+    }
+
+    router.get(
+        catalogUrl().url,
+        {
+            search: headerSearch.value || undefined,
+            category_id:
+                headerCategoryId.value === allCategories
+                    ? undefined
+                    : headerCategoryId.value,
+        },
+        { preserveState: true, replace: true },
+    );
+}
+
+// Bersihkan pencarian — langsung fetch ulang tanpa perlu Enter.
+function clearHeaderSearch(): void {
+    headerSearch.value = '';
+    submitHeaderSearch();
+}
+
+watch(headerCategoryId, () => {
+    if (!isCatalogPage.value) {
+        return;
+    }
+
+    router.get(
+        catalogUrl().url,
+        {
+            search: headerSearch.value || undefined,
+            category_id:
+                headerCategoryId.value === allCategories
+                    ? undefined
+                    : headerCategoryId.value,
+        },
+        { preserveState: true, replace: true },
+    );
 });
 
 const initials = computed(() => {
@@ -195,7 +212,7 @@ type DesktopNavItem = {
 
 const desktopNavItems = computed<DesktopNavItem[]>(() => {
     const items: DesktopNavItem[] = [
-        { label: 'Artikel', href: articlesIndex().url },
+        { label: 'Beranda', href: home().url },
         { label: 'Promo', href: promoRoute().url },
     ];
 
@@ -320,10 +337,10 @@ const isProfilActive = computed(
 </script>
 
 <template>
-    <div class="flex min-h-svh flex-col bg-background">
+    <div class="flex min-h-svh flex-col bg-white" style="font-family: var(--font-flat)">
         <!-- ── Top bar (sticky: filter katalog selalu terlihat) ── -->
         <header
-            class="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+            class="sticky top-0 z-40 border-b border-flat-border bg-white"
         >
             <div class="mx-auto flex w-full max-w-6xl flex-col px-4">
                 <!-- Baris 1: logo + filter (desktop) + nav + avatar — disembunyikan di mobile -->
@@ -341,7 +358,7 @@ const isProfilActive = computed(
                             class="h-8 w-auto object-contain"
                         />
                         <AppLogoIcon v-else class="size-5 fill-current" />
-                        <span class="hidden text-sm font-semibold lg:inline">
+                        <span class="hidden text-sm font-bold text-flat-ink lg:inline">
                             {{ storeName }}
                         </span>
                     </Link>
@@ -362,6 +379,7 @@ const isProfilActive = computed(
                                     ? 'Cari promo / judul buku...'
                                     : 'Cari judul / penulis...'
                             "
+                            @keyup.enter="submitHeaderSearch"
                         />
                         <button
                             v-if="headerSearch"
@@ -369,7 +387,7 @@ const isProfilActive = computed(
                             class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
                             title="Hapus pencarian"
                             aria-label="Hapus pencarian"
-                            @click="headerSearch = ''"
+                            @click="clearHeaderSearch"
                         >
                             <X class="size-4" />
                         </button>
@@ -544,9 +562,9 @@ const isProfilActive = computed(
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem as-child>
-                                    <Link :href="articlesIndex()">
+                                    <Link :href="home()">
                                         <BookOpen class="size-4" />
-                                        Artikel
+                                        Beranda
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -628,6 +646,7 @@ const isProfilActive = computed(
                                     ? 'Cari promo / judul buku...'
                                     : 'Cari judul / penulis...'
                             "
+                            @keyup.enter="submitHeaderSearch"
                         />
                         <button
                             v-if="headerSearch"
@@ -635,7 +654,7 @@ const isProfilActive = computed(
                             class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
                             title="Hapus pencarian"
                             aria-label="Hapus pencarian"
-                            @click="headerSearch = ''"
+                            @click="clearHeaderSearch"
                         >
                             <X class="size-4" />
                         </button>
@@ -649,16 +668,16 @@ const isProfilActive = computed(
             <slot />
         </main>
 
-        <!-- ── Footer ── -->
-        <footer class="border-t py-6 pb-20 lg:pb-6">
-            <p class="text-center text-sm text-muted-foreground">
+        <!-- Footer -->
+        <footer class="border-t border-flat-border bg-flat-muted py-6 pb-20 lg:pb-6">
+            <p class="text-center text-sm font-semibold text-gray-500">
                 © {{ new Date().getFullYear() }} {{ storeName }}
             </p>
         </footer>
 
-        <!-- ── Bottom nav (mobile only) ── -->
+        <!-- Bottom nav (mobile only) -->
         <nav
-            class="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur lg:hidden"
+            class="fixed inset-x-0 bottom-0 z-40 border-t border-flat-border bg-white lg:hidden"
         >
             <div
                 class="mx-auto flex h-16 max-w-6xl items-center justify-around px-2"
@@ -804,9 +823,9 @@ const isProfilActive = computed(
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem as-child>
-                            <Link :href="articlesIndex()">
+                            <Link :href="home()">
                                 <BookOpen class="size-4" />
-                                Artikel
+                                Beranda
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem v-if="isAdmin" as-child>

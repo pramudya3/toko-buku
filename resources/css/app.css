@@ -16,16 +16,31 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Sembunyikan tombol hapus bawaan browser pada input search (WebKit) —
+   tombol X custom di komponen yang menangani aksi bersihkan. */
+@layer base {
+    input[type='search']::-webkit-search-cancel-button,
+    input[type='search']::-webkit-search-decoration {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    input[type='search'] {
+        -webkit-appearance: textfield;
+        appearance: textfield;
+    }
+}
+
 /* Isi artikel (v-html dari CMS): sentuhan warna sesuai storefront. */
 @layer components {
     .pcd-prose blockquote {
-        border-left-color: var(--color-pcd-accent);
-        color: var(--color-pcd-ink);
+        border-left-color: var(--color-flat-primary);
+        color: var(--color-flat-ink);
         font-weight: 500;
     }
 
     .pcd-prose strong {
-        color: var(--color-pcd-ink);
+        color: var(--color-flat-ink);
     }
 }
 
@@ -92,7 +107,7 @@
     }
 
     .pcd-prose mark {
-        background: #f3dfb8;
+        background: #fde68a;
     }
 }
 
@@ -111,6 +126,32 @@
     --color-pcd-hairline: #e7e1d6;
     --color-pcd-accent: #a16207;
     --color-pcd-accent-strong: #854d0e;
+
+    /* Flat Design Tokens — storefront utama */
+    --font-flat: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    --color-flat-primary: #3B82F6;
+    --color-flat-primary-dark: #2563EB;
+    --color-flat-secondary: #10B981;
+    --color-flat-secondary-dark: #059669;
+    --color-flat-accent: #F59E0B;
+    --color-flat-accent-dark: #D97706;
+    --color-flat-muted: #F3F4F6;
+    --color-flat-border: #E5E7EB;
+    --color-flat-ink: #111827;
+    --color-flat-bg: #FFFFFF;
+    --color-flat-surface: #F9FAFB;
+
+    /* Toko editorial (storefront utama — artikel): hangat & tenang —
+       prefix article- agar tidak bentrok dengan shadcn/flat. */
+    --color-article-bg: #FCFBF7;
+    --color-article-surface: #FFFFFF;
+    --color-article-ink: #1F2937;
+    --color-article-muted: #6B6B6B;
+    --color-article-primary: #166534;
+    --color-article-primary-dark: #14532d;
+    --color-article-accent: #B08D32;
+    --color-article-accent-strong: #8a6d1f;
+    --color-article-border: #E7E2D8;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);

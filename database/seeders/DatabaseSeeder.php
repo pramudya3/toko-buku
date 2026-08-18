@@ -22,9 +22,16 @@ class DatabaseSeeder extends Seeder
             PaymentMethodSeeder::class,
             SalesChannelSeeder::class,
             SuperAdminSeeder::class,
+            // Akun customer demo — untuk mencoba alur storefront sebagai pembeli.
+            CustomerSeeder::class,
             // Data referensi wilayah (provinsi/kabupaten/kecamatan/kelurahan + kode pos) —
             // wajib untuk AddressFields di checkout & pengaturan.
             WilayahSeeder::class,
+            // Artikel demo storefront editorial — kategori + artikel terbit
+            // (termasuk 1 unggulan untuk hero beranda).
+            ArticleSeeder::class,
+            // 20 buku demo storefront — kategori + edisi + stok gudang.
+            BookSeeder::class,
         ]);
     }
 }

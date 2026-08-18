@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PromotionType;
+use App\Http\Requests\Storefront\ArticleHomeRequest;
 use App\Models\Article;
-use App\Models\Book;
 use App\Models\Category;
 use App\Models\Promotion;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,36 +29,58 @@ class StorefrontPcdController extends StorefrontController
      * Beranda editorial proto-d: artikel nyata (aktif & terbit) + buku
      * unggulan + promo + paket aktif.
      */
-    public function home(): Response
+    public function home(ArticleHomeRequest $request): Response
     {
-        $books = Book::query()
-            ->where('aktif', true)
-            ->whereNotNull('harga')
-            ->with('category:id,nama')
-            ->orderByDesc('created_at')
-            ->limit(4)
-            ->get();
+        $filtered = $request->filled('search') || $request->filled('category_id')
+            || $request->filled('categories') || $request->filled('month')
+            || $request->filled('year');
 
-        $bookPromos = $this->eagerLoadPromotions($books->pluck('id'));
+        $featured = $filtered ? null : $this->featuredArticle();
 
-        $articles = Article::published()
-            ->with('category:id,nama')
-            ->orderByDesc('published_at')
-            ->orderByDesc('created_at')
-            ->limit(20)
-            ->get()
-            ->map(fn (Article $article): array => $this->articleCard($article))
-            ->values()
-            ->all();
+        $articles = $this->articleFeedQuery($request)
+            ->paginate(12)
+            ->withQueryString()
+            ->through(fn (Article $article): array => $this->articleCard($article));
 
         return Inertia::render($this->page('Home'), [
-            'books' => $books->map(
-                fn (Book $book) => $this->bookWithPricing($book, $bookPromos[$book->id] ?? null),
-            ),
+            'featured' => $featured,
+            'books' => $this->featuredBooksForStorefront(),
             'categories' => Category::orderBy('nama')->get(['id', 'nama']),
             'bundles' => $this->activeBundlesForStorefront(),
             'promos' => $this->activeUnitPromosForStorefront(),
             'articles' => $articles,
+            'filters' => [
+                'search' => $request->filled('search') ? $request->string('search')->toString() : null,
+                'category_id' => $request->filled('category_id') ? $request->string('category_id')->toString() : null,
+                'categories' => $request->filled('categories') ? array_values($request->input('categories')) : null,
+                'month' => $request->filled('month') ? $request->integer('month') : null,
+                'year' => $request->filled('year') ? $request->integer('year') : null,
+            ],
+            ...$this->articleFacets(),
+        ]);
+    }
+
+    /**
+     * Muat halaman artikel berikutnya (load-more) — respons JSON paginator,
+     * konsisten dengan load-more katalog buku proto-d.
+     */
+    public function articlesLoadMore(ArticleHomeRequest $request): JsonResponse
+    {
+        $articles = $this->articleFeedQuery($request)
+            ->paginate(12)
+            ->through(fn (Article $article): array => $this->articleCard($article));
+
+        return response()->json($articles);
+    }
+
+    /**
+     * Detail artikel proto-d — menambah buku unggulan untuk slot iklan di
+     * samping & bawah artikel.
+     */
+    protected function articleDetailProps(Article $article): array
+    {
+        return array_merge(parent::articleDetailProps($article), [
+            'books' => $this->featuredBooksForStorefront(),
         ]);
     }
 

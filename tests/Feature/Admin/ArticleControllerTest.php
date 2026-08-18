@@ -256,6 +256,27 @@ it('toggles article visibility', function (): void {
     expect($article->refresh()->is_active)->toBeTrue();
 });
 
+it('toggles the featured article and keeps only one featured', function (): void {
+    $current = Article::factory()->create(['is_featured' => true]);
+    $target = Article::factory()->create(['is_featured' => false]);
+
+    // Jadikan target unggulan → unggulan lama otomatis di-reset.
+    $this->actingAs($this->admin)
+        ->patch(route('admin.articles.toggle-featured', $target))
+        ->assertRedirect();
+
+    expect($target->refresh()->is_featured)->toBeTrue()
+        ->and($current->refresh()->is_featured)->toBeFalse();
+
+    // Batalkan unggulan → tidak ada artikel unggulan.
+    $this->actingAs($this->admin)
+        ->patch(route('admin.articles.toggle-featured', $target))
+        ->assertRedirect();
+
+    expect($target->refresh()->is_featured)->toBeFalse()
+        ->and(Article::where('is_featured', true)->count())->toBe(0);
+});
+
 it('soft deletes and restores an article', function (): void {
     $article = Article::factory()->create();
 

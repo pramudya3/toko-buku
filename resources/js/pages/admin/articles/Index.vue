@@ -9,7 +9,7 @@ defineOptions({
 });
 
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Search, X } from '@lucide/vue';
+import { Plus, Search, Star, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import ArticleController from '@/actions/App/Http/Controllers/Admin/ArticleController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
@@ -28,6 +28,7 @@ type Article = {
     kategori_label: string;
     penulis: string | null;
     is_active: boolean;
+    is_featured: boolean;
     published_at: string | null;
 };
 
@@ -53,6 +54,7 @@ const columns: DataTableColumn[] = [
     },
     { key: 'judul', header: 'Judul', cellClass: 'font-medium' },
     { key: 'kategori_label', header: 'Kategori' },
+    { key: 'featured', header: 'Unggulan', cellClass: 'text-center' },
     { key: 'status', header: 'Status' },
     { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
 ];
@@ -107,6 +109,15 @@ const statusBadge = (row: Article) =>
     row.is_active
         ? { variant: 'success' as const, label: 'Aktif' }
         : { variant: 'neutral' as const, label: 'Nonaktif' };
+
+function toggleFeatured(article: Article): void {
+    router.patch(
+        ArticleController.toggleFeatured(article.id).url,
+        {
+            preserveScroll: true,
+        },
+    );
+}
 </script>
 
 <template>
@@ -173,12 +184,45 @@ const statusBadge = (row: Article) =>
                     :label="statusBadge(row).label"
                 />
             </template>
+            <template #cell-featured="{ row }">
+                <span
+                    class="inline-flex"
+                    :title="
+                        row.is_featured
+                            ? 'Artikel unggulan'
+                            : 'Bukan artikel unggulan'
+                    "
+                >
+                    <Star
+                        class="size-4"
+                        :class="
+                            row.is_featured
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-muted-foreground/40'
+                        "
+                        aria-hidden="true"
+                    />
+                    <span class="sr-only">
+                        {{
+                            row.is_featured
+                                ? 'Artikel unggulan'
+                                : 'Bukan artikel unggulan'
+                        }}
+                    </span>
+                </span>
+            </template>
             <template #cell-aksi="{ row }">
                 <DataTableActions
                     :actions="[
                         {
                             label: 'Edit',
                             href: ArticleController.edit(row.id).url,
+                        },
+                        {
+                            label: row.is_featured
+                                ? 'Batalkan Unggulan'
+                                : 'Jadikan Unggulan',
+                            onClick: () => toggleFeatured(row),
                         },
                         {
                             label: row.is_active ? 'Nonaktifkan' : 'Aktifkan',

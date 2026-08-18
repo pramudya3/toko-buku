@@ -17,6 +17,11 @@ use RuntimeException;
  */
 class MyOrderController extends Controller
 {
+    protected function page(string $name): string
+    {
+        return "storefront/{$name}";
+    }
+
     public function index(Request $request): Response
     {
         $orders = Order::query()
@@ -26,7 +31,7 @@ class MyOrderController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return Inertia::render('storefront/MyOrders', [
+        return Inertia::render($this->page('MyOrders'), [
             'orders' => $orders,
             'statusOptions' => OrderStatus::options(),
         ]);
@@ -46,7 +51,7 @@ class MyOrderController extends Controller
             'dropshipper',
         ]);
 
-        return Inertia::render('storefront/OrderDetail', [
+        return Inertia::render($this->page('OrderDetail'), [
             'order' => $order,
             'statusOptions' => OrderStatus::options(),
             'bankAccounts' => BankAccount::query()

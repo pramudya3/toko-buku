@@ -49,17 +49,17 @@ const outOfStockCount = computed(
     <Head :title="`${bundle.promo_name} — Pustaka Cahaya Peradaban`" />
 
     <div class="mx-auto max-w-6xl px-4 pt-10 pb-28 md:px-6 md:pt-16 md:pb-32">
-        <nav class="text-sm text-pcd-muted" aria-label="Breadcrumb">
+        <nav class="text-sm text-gray-500" aria-label="Breadcrumb">
             <ol class="flex items-center gap-1.5">
                 <li>
                     <Link
                         :href="catalogUrl().url"
-                        class="transition-colors hover:text-pcd-ink"
+                        class="transition-colors hover:text-flat-primary"
                         >Toko</Link
                     >
                 </li>
                 <li aria-hidden="true">/</li>
-                <li class="text-pcd-ink" aria-current="page">Paket</li>
+                <li class="text-flat-ink" aria-current="page">Paket</li>
             </ol>
         </nav>
 
@@ -72,7 +72,7 @@ const outOfStockCount = computed(
                     <div
                         v-for="book in bundle.books.slice(0, 4)"
                         :key="book.id"
-                        class="overflow-hidden rounded-md ring-1 ring-pcd-hairline"
+                        class="overflow-hidden rounded-md border-2 border-flat-border"
                     >
                         <img
                             v-if="book.cover_url"
@@ -87,7 +87,7 @@ const outOfStockCount = computed(
                         />
                     </div>
                 </div>
-                <p class="mt-3 text-center text-xs text-pcd-muted">
+                <p class="mt-3 text-center text-xs text-gray-500">
                     {{ bundle.books.length }} buku dalam satu paket
                 </p>
             </div>
@@ -95,37 +95,37 @@ const outOfStockCount = computed(
             <!-- Info + CTA -->
             <div class="lg:pt-6">
                 <p
-                    class="text-xs font-semibold tracking-[0.16em] text-pcd-accent uppercase"
+                    class="text-xs font-semibold tracking-[0.16em] text-flat-primary uppercase"
                 >
                     Paket · Hemat
                 </p>
                 <h1
-                    class="mt-3 font-serif text-3xl leading-tight font-semibold tracking-tight md:text-4xl"
+                    class="mt-3 text-3xl leading-tight font-extrabold tracking-tight md:text-4xl"
                 >
                     {{ bundle.promo_name }}
                 </h1>
 
                 <div class="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <p class="text-2xl font-semibold tabular-nums md:text-3xl">
+                    <p class="text-3xl font-extrabold tabular-nums text-flat-primary">
                         <Money :value="bundle.total_final" />
                     </p>
                     <p
                         v-if="bundle.total_discount > 0"
-                        class="text-sm font-medium text-red-700 tabular-nums"
+                        class="rounded-md bg-flat-accent px-2 py-0.5 text-xs font-bold text-white tabular-nums"
                     >
                         Hemat <Money :value="bundle.total_discount" />
                     </p>
-                    <p class="text-sm text-pcd-muted tabular-nums line-through">
+                    <p class="text-sm text-gray-400 tabular-nums line-through">
                         <Money :value="bundle.total_original" />
                     </p>
                 </div>
-                <p class="mt-1.5 text-xs text-pcd-muted">
+                <p class="mt-1.5 text-xs text-gray-500">
                     Sudah termasuk ongkir — dikirim dalam satu paket.
                 </p>
 
                 <!-- Isi paket -->
                 <ul
-                    class="mt-7 space-y-2.5 border-t border-pcd-hairline pt-6 text-sm"
+                    class="mt-7 space-y-2.5 border-t-2 border-flat-border pt-6 text-sm"
                 >
                     <li
                         v-for="book in bundle.books"
@@ -133,16 +133,16 @@ const outOfStockCount = computed(
                         class="flex items-center gap-3"
                     >
                         <Check
-                            class="size-4 shrink-0 text-pcd-accent"
+                            class="size-4 shrink-0 text-flat-primary"
                             aria-hidden="true"
                         />
                         {{ book.judul }}
-                        <span class="text-pcd-muted"
+                        <span class="text-gray-500"
                             >— <Money :value="book.unit_final"
                         /></span>
                         <s
                             v-if="book.unit_discount > 0"
-                            class="ml-auto text-xs text-pcd-muted"
+                            class="ml-auto text-xs text-gray-400"
                             ><Money :value="book.price_original"
                         /></s>
                     </li>
@@ -170,7 +170,7 @@ const outOfStockCount = computed(
                         />
                         <button
                             type="submit"
-                            class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-pcd-accent-strong px-6 text-sm font-semibold text-white transition-colors hover:bg-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
+                            class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-flat-primary px-6 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none"
                         >
                             <ShoppingCart class="size-4" aria-hidden="true" />
                             Tambah Paket ke Keranjang
@@ -178,13 +178,13 @@ const outOfStockCount = computed(
                     </Form>
                     <a
                         href="#"
-                        class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-pcd-hairline bg-pcd-surface px-6 text-sm font-medium transition-colors hover:border-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
+                        class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border-2 border-flat-border bg-white px-6 text-sm font-medium transition-all duration-200 hover:bg-flat-muted focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:outline-none"
                     >
                         <MessageCircle class="size-4" aria-hidden="true" />
                         Tanya via WhatsApp
                     </a>
                 </div>
-                <p class="mt-3 text-xs text-pcd-muted">
+                <p class="mt-3 text-xs text-gray-500">
                     Pembayaran transfer atau tunai · Garansi rusak diganti.
                 </p>
             </div>
@@ -193,16 +193,16 @@ const outOfStockCount = computed(
 
     <!-- Sticky bar (mobile) -->
     <div
-        class="fixed inset-x-0 bottom-0 z-40 border-t border-pcd-hairline bg-pcd-surface/95 backdrop-blur lg:hidden"
+        class="fixed inset-x-0 bottom-0 z-40 border-t-2 border-flat-border bg-white lg:hidden"
     >
         <div
             class="flex items-center gap-3 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         >
             <div class="min-w-0">
-                <p class="text-base font-semibold tabular-nums">
+                <p class="text-base font-bold tabular-nums text-flat-primary">
                     <Money :value="bundle.total_final" />
                 </p>
-                <p class="truncate text-[11px] text-pcd-muted">
+                <p class="truncate text-[11px] text-gray-500">
                     {{ bundle.books.length }} buku · hemat
                     <Money :value="bundle.total_discount" />
                 </p>
@@ -210,7 +210,7 @@ const outOfStockCount = computed(
             <button
                 type="submit"
                 form="addBundleForm"
-                class="ml-auto inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-pcd-accent-strong px-5 text-sm font-semibold text-white transition-colors hover:bg-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong sm:max-w-xs"
+                class="ml-auto inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-md bg-flat-primary px-5 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none sm:max-w-xs"
             >
                 <ShoppingCart class="size-4" aria-hidden="true" />
                 Tambah Paket

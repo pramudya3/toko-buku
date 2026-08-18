@@ -305,10 +305,13 @@ const discountScopeValue = computed(() => discountScope.value);
                             </div>
                         </div>
 
-                        <div class="flex flex-col gap-2 border-t pt-4">
+                        <!-- Action bar — sticky di bawah agar selalu terlihat -->
+                        <div
+                            class="sticky bottom-0 z-10 -mx-4 mt-2 flex flex-col gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:flex-row md:-mx-6 md:px-6"
+                        >
                             <Button
                                 type="submit"
-                                class="w-full"
+                                class="w-full sm:w-auto"
                                 :disabled="processing"
                             >
                                 {{
@@ -322,7 +325,7 @@ const discountScopeValue = computed(() => discountScope.value);
                             <Button
                                 variant="outline"
                                 type="button"
-                                class="w-full"
+                                class="w-full sm:w-auto"
                                 as-child
                             >
                                 <Link :href="indexRoute().url">Batal</Link>
