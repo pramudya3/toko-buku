@@ -480,7 +480,7 @@ function runSearch(value: string): void {
         </main>
 
         <!-- ══════════ FOOTER ══════════ -->
-        <footer class="border-t border-article-border bg-article-surface pb-24 lg:pb-0">
+        <footer class="border-t border-article-border bg-article-surface pb-18 lg:pb-0">
             <!-- Info toko & alamat — rata kiri -->
             <div class="mx-auto flex max-w-6xl flex-col gap-0.5 px-4 py-6 text-left">
                 <p class="text-sm font-bold tracking-tight text-article-ink">

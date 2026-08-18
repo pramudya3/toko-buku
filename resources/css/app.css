@@ -31,6 +31,9 @@
     }
 }
 
+/* (Auto-scroll promo ditangani JS di Catalog.vue — scroll manual selalu bisa
+   karena container overflow-x-auto; CSS ini hanya cadangan.) */
+
 /* Isi artikel (v-html dari CMS): sentuhan warna sesuai storefront. */
 @layer components {
     .pcd-prose blockquote {

@@ -2,15 +2,13 @@
 import { Form, Head, Link, router, useHttp } from '@inertiajs/vue3';
 import {
     BookX,
-    ChevronLeft,
-    ChevronRight,
+    ChevronDown,
     LayoutGrid,
     List,
     Loader2,
     ShoppingBag,
 } from '@lucide/vue';
-import { useResizeObserver } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -277,68 +275,79 @@ function resetFilters(): void {
     );
 }
 
-// ── Scroll horizontal Paket Hemat (desktop: tombol kiri/kanan) ──
-const bundleRow = ref<HTMLElement | null>(null);
-const canScrollLeft = ref(false);
-const canScrollRight = ref(false);
+// Klik kartu promo per item → scroll ke daftar buku (grid/list) di bawah.
+function scrollToPromoBooks(promo: Promo): void {
+    const grid = document.querySelector<HTMLElement>(
+        '[data-book-grid], [data-book-list]',
+    );
 
-function updateBundleScrollState(): void {
-    const el = bundleRow.value;
-
-    if (!el) {
-        return;
+    if (grid) {
+        grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
-    canScrollLeft.value = el.scrollLeft > 4;
-    canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
 }
 
-useResizeObserver(bundleRow, () => updateBundleScrollState());
-
-function scrollBundles(direction: -1 | 1): void {
-    const el = bundleRow.value;
-
-    if (!el) {
-        return;
-    }
-
-    const card = el.querySelector<HTMLElement>('[data-bundle-card]');
-    const step = (card?.offsetWidth ?? 280) + 16;
-
-    el.scrollBy({ left: direction * step, behavior: 'smooth' });
-}
-
-// ── Scroll horizontal section Promo (unit promos) ──
+// ── Auto-scroll baris promo ──
+// Container bisa di-scroll manual kapan saja. Auto-scroll jalan saat idle:
+// pause saat hover, jeda 3 detik setelah user scroll manual, lalu lanjut.
 const promoRow = ref<HTMLElement | null>(null);
-const canPromoScrollLeft = ref(false);
-const canPromoScrollRight = ref(false);
+let promoAutoTimer: ReturnType<typeof setInterval> | undefined;
+let promoPausedUntil = 0;
+let promoLastAutoLeft = 0;
 
-function updatePromoScrollState(): void {
+function startPromoAutoScroll(): void {
+    stopPromoAutoScroll();
+    promoLastAutoLeft = promoRow.value?.scrollLeft ?? 0;
+    promoAutoTimer = setInterval(() => {
+        const el = promoRow.value;
+
+        // Hover → pause; user scroll → pause sementara (3 dtk) lalu lanjut.
+        if (
+            !el ||
+            el.matches(':hover') ||
+            Date.now() < promoPausedUntil
+        ) {
+            return;
+        }
+
+        // Konten asli = setengah lebar track (duplikat 2x).
+        const half = el.scrollWidth / 2;
+
+        // Reset mulus: geser balik sejauh setengah — tidak terlihat karena
+        // salinan identik di posisi kedua.
+        if (el.scrollLeft >= half - 4) {
+            el.scrollLeft -= half;
+        }
+
+        el.scrollLeft += 1;
+        promoLastAutoLeft = el.scrollLeft;
+    }, 30);
+}
+
+function stopPromoAutoScroll(): void {
+    clearInterval(promoAutoTimer);
+}
+
+// Scroll yang bukan dari auto-scroll (perubahan > 2px) = user scroll manual
+// → jeda auto-scroll 3 detik, lalu lanjut sendiri.
+function handlePromoScroll(): void {
     const el = promoRow.value;
 
     if (!el) {
         return;
     }
 
-    canPromoScrollLeft.value = el.scrollLeft > 4;
-    canPromoScrollRight.value =
-        el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
-}
-
-useResizeObserver(promoRow, () => updatePromoScrollState());
-
-function scrollPromos(direction: -1 | 1): void {
-    const el = promoRow.value;
-
-    if (!el) {
-        return;
+    if (Math.abs(el.scrollLeft - promoLastAutoLeft) > 2) {
+        promoPausedUntil = Date.now() + 1500;
     }
-
-    const card = el.querySelector<HTMLElement>('[data-promo-card]');
-    const step = (card?.offsetWidth ?? 320) + 16;
-
-    el.scrollBy({ left: direction * step, behavior: 'smooth' });
 }
+
+onMounted(() => {
+    startPromoAutoScroll();
+});
+
+onBeforeUnmount(() => {
+    stopPromoAutoScroll();
+});
 
 // Label diskon promo — persentase atau harga tetap.
 function promoBadge(promo: Promo): string {
@@ -448,20 +457,26 @@ function loadMore() {
                     class="flex items-center gap-2 text-sm text-article-muted"
                 >
                     <span class="sr-only">Kategori</span>
-                    <select
-                        v-model="categoryId"
-                        class="min-h-11 w-full rounded-lg border border-article-border bg-article-surface px-3 pr-8 text-sm text-article-ink transition-colors outline-none focus:border-article-primary focus:ring-2 focus:ring-article-primary/20 md:w-auto"
-                        aria-label="Filter kategori"
-                    >
-                        <option value="__all__">Semua kategori</option>
-                        <option
-                            v-for="category in categories"
-                            :key="category.id"
-                            :value="String(category.id)"
+                    <span class="relative">
+                        <select
+                            v-model="categoryId"
+                            class="min-h-11 w-full appearance-none rounded-lg border border-article-border bg-article-surface py-2 pr-9 pl-3 text-sm text-article-ink transition-colors outline-none focus:border-article-primary focus:ring-2 focus:ring-article-primary/20 md:w-auto"
+                            aria-label="Filter kategori"
                         >
-                            {{ category.nama }}
-                        </option>
-                    </select>
+                            <option value="__all__">Semua kategori</option>
+                            <option
+                                v-for="category in categories"
+                                :key="category.id"
+                                :value="String(category.id)"
+                            >
+                                {{ category.nama }}
+                            </option>
+                        </select>
+                        <ChevronDown
+                            class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-article-muted"
+                            aria-hidden="true"
+                        />
+                    </span>
                 </label>
 
                 <!-- Filter stok -->
@@ -527,7 +542,7 @@ function loadMore() {
         </div>
 
         <!-- Chips kategori — mobile saja (desktop sudah ada select) -->
-        <div
+        <!-- <div
             v-if="categories.length"
             class="flex gap-2 overflow-x-auto pb-1 lg:hidden"
         >
@@ -557,248 +572,68 @@ function loadMore() {
             >
                 {{ category.nama }}
             </button>
-        </div>
+        </div> -->
 
-        <!-- ── Promo: wrapper paket hemat + promo per item ── -->
+        <!-- ── Baris promo — scrollable & auto-gerak (pause saat hover) ── -->
         <section
             v-if="showPromoSection"
             id="promo"
-            class="mt-8 flex scroll-mt-24 flex-col gap-4 rounded-xl border border-article-border bg-article-surface p-4 lg:p-5"
+            class="mt-8 flex scroll-mt-24 flex-col gap-3"
+            aria-label="Promo aktif"
         >
-            <div class="flex items-end justify-between gap-3">
-                <div>
-                    <h2
-                        class="font-serif text-xl font-bold tracking-tight text-article-ink"
-                    >
-                        Promo
-                    </h2>
-                    <p class="mt-1 text-sm text-article-muted">
-                        Penawaran terbaik — paket hemat & diskon per buku
-                    </p>
-                </div>
-                <p
-                    class="hidden items-center gap-0.5 text-xs text-article-muted lg:hidden"
+            <div class="flex items-center gap-2">
+                <h2
+                    class="font-serif text-xl font-bold tracking-tight text-article-ink"
                 >
-                    Geser untuk lihat lainnya
-                    <ChevronRight class="size-3.5" />
-                </p>
+                    Promo
+                </h2>
+                <span
+                    class="flex size-6 items-center justify-center rounded-full bg-article-accent text-white"
+                >
+                    <ShoppingBag class="size-3" aria-hidden="true" />
+                </span>
             </div>
 
-            <!-- ── Paket Hemat: promo bundle aktif ── -->
-            <div v-if="visibleBundles.length" class="flex flex-col gap-3">
-                <h3 class="text-sm font-semibold text-article-ink">
-                    Paket Hemat
-                </h3>
-                <!-- Scroll horizontal (mobile & desktop) — desktop pakai tombol panah -->
-                <div class="relative">
-                    <div
-                        ref="bundleRow"
-                        class="flex snap-x scroll-px-1 [scrollbar-width:thin] gap-4 overflow-x-auto overscroll-x-contain pb-3 [&::-webkit-scrollbar]:h-1.5"
-                        @scroll="updateBundleScrollState"
+            <!-- Auto-scroll JS: bisa scroll manual (hover/jeda), jalan sendiri jika idle -->
+            <div
+                ref="promoRow"
+                class="flex overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5"
+                @scroll="handlePromoScroll"
+            >
+                <template v-for="copy in 2" :key="copy">
+                    <!-- Paket hemat -->
+                    <button
+                        v-for="bundle in visibleBundles"
+                        :key="`bundle-${copy}-${bundle.id}`"
+                        type="button"
+                        class="mr-4 flex w-64 shrink-0 flex-col gap-2 rounded-xl border border-article-border bg-article-surface p-4 text-left transition-shadow hover:shadow-md"
+                        :aria-hidden="copy === 2 ? 'true' : undefined"
+                        @click="activeBundle = bundle"
                     >
-                        <div
-                            v-for="bundle in visibleBundles"
-                            :key="bundle.id"
-                            data-bundle-card
-                            class="flex w-[85vw] max-w-[240px] shrink-0 snap-start flex-col gap-2 rounded-xl border border-article-border bg-article-bg p-3 transition-shadow hover:shadow-md lg:w-[260px] lg:max-w-none"
-                        >
-                            <div class="flex items-start gap-3">
-                                <!-- Cover buku paket (tumpuk) -->
-                                <div class="relative">
-                                    <div class="flex -space-x-3">
-                                        <template
-                                            v-for="book in bundle.books.slice(
-                                                0,
-                                                3,
-                                            )"
-                                            :key="book.id"
-                                        >
-                                            <div
-                                                class="size-13 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-surface shadow-sm"
-                                            >
-                                                <img
-                                                    v-if="book.cover_url"
-                                                    :src="book.cover_url"
-                                                    :alt="book.judul"
-                                                    class="h-full w-full object-cover"
-                                                />
-                                                <BookCoverPlaceholder
-                                                    v-else
-                                                    :title="book.judul"
-                                                    class="h-full w-full"
-                                                />
-                                            </div>
-                                        </template>
-                                    </div>
-                                    <span
-                                        v-if="bundle.books.length > 3"
-                                        class="absolute -right-1.5 -bottom-1.5 rounded-full bg-article-accent px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
-                                    >
-                                        +{{ bundle.books.length - 3 }}
-                                    </span>
-                                </div>
-                                <span
-                                    class="ml-auto rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
-                                >
-                                    -{{ bundle.discount_percent }}%
-                                </span>
-                            </div>
-
-                            <div>
-                                <p
-                                    class="font-semibold text-article-ink"
-                                >
-                                    {{ bundle.promo_name }}
-                                </p>
-                                <p class="text-xs text-article-muted">
-                                    {{ bundle.books.length }} buku · diskon
-                                    {{ bundle.discount_percent }}% saat beli
-                                    semua
-                                </p>
-                            </div>
-
-                            <div class="flex flex-col gap-0.5">
-                                <div
-                                    class="flex flex-wrap items-baseline gap-x-2"
-                                >
-                                    <Money
-                                        :value="bundle.total_final"
-                                        class="font-bold text-article-primary"
-                                    />
-                                    <Money
-                                        :value="bundle.total_original"
-                                        class="text-xs text-article-muted line-through"
-                                    />
-                                </div>
-                                <p
-                                    class="text-xs font-medium text-article-accent-strong"
-                                >
-                                    Hemat
-                                    <Money :value="bundle.total_discount" />
-                                </p>
-                            </div>
-
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
+                            >
+                                -{{ bundle.discount_percent }}%
+                            </span>
                             <p
-                                class="mt-auto line-clamp-2 text-xs text-article-muted"
+                                class="min-w-0 flex-1 truncate text-sm font-bold text-article-ink"
                             >
-                                {{
-                                    bundle.books.map((b) => b.judul).join(', ')
-                                }}
+                                {{ bundle.promo_name }}
                             </p>
-
-                            <p
-                                v-if="(bundleStockCounts[bundle.id] ?? 0) > 0"
-                                class="text-xs font-medium text-article-accent-strong"
-                            >
-                                {{ bundleStockCounts[bundle.id] }} buku stok
-                                habis
-                            </p>
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                class="w-full"
-                                @click="activeBundle = bundle"
-                            >
-                                Lihat Paket
-                            </Button>
                         </div>
-                    </div>
-                    <!-- Tombol geser — desktop saja -->
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        class="absolute top-1/2 -left-4 z-10 hidden -translate-y-1/2 rounded-full shadow-sm lg:inline-flex"
-                        :disabled="!canScrollLeft"
-                        aria-label="Geser paket ke kiri"
-                        @click="scrollBundles(-1)"
-                    >
-                        <ChevronLeft class="size-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        class="absolute top-1/2 -right-4 z-10 hidden -translate-y-1/2 rounded-full shadow-sm lg:inline-flex"
-                        :disabled="!canScrollRight"
-                        aria-label="Geser paket ke kanan"
-                        @click="scrollBundles(1)"
-                    >
-                        <ChevronRight class="size-4" />
-                    </Button>
-                </div>
-            </div>
-
-            <!-- ── Promo per item ── -->
-            <div v-if="promos.length" class="flex flex-col gap-3">
-                <h3 class="text-sm font-semibold text-article-ink">
-                    Promo per item
-                </h3>
-                <div class="relative">
-                    <div
-                        ref="promoRow"
-                        class="flex snap-x scroll-px-1 [scrollbar-width:thin] gap-4 overflow-x-auto overscroll-x-contain pb-3 [&::-webkit-scrollbar]:h-1.5"
-                        @scroll="updatePromoScrollState"
-                    >
-                        <div
-                            v-for="promo in promos"
-                            :key="promo.id"
-                            data-promo-card
-                            class="flex w-[85vw] max-w-[250px] shrink-0 snap-start flex-col gap-2 rounded-xl border border-article-border bg-article-bg p-3 transition-shadow hover:shadow-md lg:w-[270px] lg:max-w-none"
-                        >
-                            <div class="flex items-start gap-2">
-                                <ShoppingBag
-                                    class="size-4 shrink-0 text-article-primary"
-                                />
-                                <p
-                                    class="min-w-0 flex-1 text-sm font-semibold text-article-ink"
-                                >
-                                    {{ promo.promo_name }}
-                                </p>
-                                <span
-                                    class="rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
-                                >
-                                    {{ promoBadge(promo) }}
-                                </span>
-                            </div>
-
-                            <p class="text-xs text-article-muted">
-                                <template v-if="promo.promo_type === 'fixed'">
-                                    Harga tetap
-                                    <Money
-                                        :value="promo.promo_value ?? 0"
-                                        class="font-medium text-article-ink"
-                                    />
-                                    per buku
-                                </template>
-                                <template v-else>
-                                    Diskon
-                                    {{ promo.discount_percentage ?? 0 }}% untuk
-                                    buku-buku berikut
-                                </template>
-                                <span v-if="promo.is_global">
-                                    — berlaku untuk semua buku
-                                </span>
-                            </p>
-
-                            <p class="text-xs text-article-muted">
-                                Berlaku s.d.
-                                {{ promo.end_date }}
-                            </p>
-
-                            <div
-                                v-if="promo.books.length"
-                                class="mt-auto flex items-center gap-2"
-                            >
+                        <p class="text-xs text-article-muted">
+                            {{ bundle.books.length }} buku · hemat
+                            <Money :value="bundle.total_discount" />
+                        </p>
+                        <div class="mt-auto flex items-center gap-1.5 pt-2">
+                            <div class="flex -space-x-2">
                                 <template
-                                    v-for="book in promo.books.slice(0, 3)"
+                                    v-for="book in bundle.books.slice(0, 3)"
                                     :key="book.id"
                                 >
-                                    <Link
-                                        :href="showRoute.url(bookShowUrl(book))"
-                                        class="size-11 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-surface transition-shadow hover:shadow-sm"
-                                        :title="book.judul"
+                                    <div
+                                        class="size-8 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-bg"
                                     >
                                         <img
                                             v-if="book.cover_url"
@@ -806,52 +641,86 @@ function loadMore() {
                                             :alt="book.judul"
                                             class="h-full w-full object-cover"
                                         />
-                                        <BookCoverPlaceholder
-                                            v-else
-                                            :title="book.judul"
-                                            class="h-full w-full"
+                                    </div>
+                                </template>
+                            </div>
+                            <span class="text-xs text-article-muted">
+                                Lihat paket →
+                            </span>
+                        </div>
+                    </button>
+
+                    <!-- Promo per item -->
+                    <button
+                        v-for="promo in promos"
+                        :key="`promo-${copy}-${promo.id}`"
+                        type="button"
+                        class="mr-4 flex w-64 shrink-0 flex-col gap-2 rounded-xl border border-article-border bg-article-surface p-4 text-left transition-shadow hover:shadow-md"
+                        :aria-hidden="copy === 2 ? 'true' : undefined"
+                        @click="scrollToPromoBooks(promo)"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
+                            >
+                                {{ promoBadge(promo) }}
+                            </span>
+                            <p
+                                class="min-w-0 flex-1 truncate text-sm font-bold text-article-ink"
+                            >
+                                {{ promo.promo_name }}
+                            </p>
+                        </div>
+                        <p class="text-xs text-article-muted">
+                            <template v-if="promo.promo_type === 'fixed'">
+                                Harga tetap
+                                <Money
+                                    :value="promo.promo_value ?? 0"
+                                    class="font-medium text-article-ink"
+                                />
+                                per buku
+                            </template>
+                            <template v-else>
+                                Diskon {{ promo.discount_percentage ?? 0 }}%
+                                untuk buku terpilih
+                            </template>
+                            <template v-if="promo.is_global">
+                                — semua buku
+                            </template>
+                        </p>
+                        <div class="mt-auto flex items-center gap-1.5 pt-2">
+                            <div class="flex -space-x-2">
+                                <template
+                                    v-for="book in promo.books.slice(0, 3)"
+                                    :key="book.id"
+                                >
+                                    <Link
+                                        :href="showRoute.url(bookShowUrl(book))"
+                                        class="size-8 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-bg"
+                                        @click.stop
+                                    >
+                                        <img
+                                            v-if="book.cover_url"
+                                            :src="book.cover_url"
+                                            :alt="book.judul"
+                                            class="h-full w-full object-cover"
                                         />
                                     </Link>
                                 </template>
-                                <span
-                                    v-if="promo.books.length > 3"
-                                    class="text-xs font-medium text-article-muted"
-                                >
-                                    +{{ promo.books.length - 3 }} buku
-                                </span>
                             </div>
+                            <span class="text-xs text-article-muted">
+                                {{ promo.books.length }} buku
+                            </span>
                         </div>
-                    </div>
-                    <!-- Tombol geser — desktop saja -->
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        class="absolute top-1/2 -left-4 z-10 hidden -translate-y-1/2 rounded-full shadow-sm lg:inline-flex"
-                        :disabled="!canPromoScrollLeft"
-                        aria-label="Geser promo ke kiri"
-                        @click="scrollPromos(-1)"
-                    >
-                        <ChevronLeft class="size-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        class="absolute top-1/2 -right-4 z-10 hidden -translate-y-1/2 rounded-full shadow-sm lg:inline-flex"
-                        :disabled="!canPromoScrollRight"
-                        aria-label="Geser promo ke kanan"
-                        @click="scrollPromos(1)"
-                    >
-                        <ChevronRight class="size-4" />
-                    </Button>
-                </div>
+                    </button>
+                </template>
             </div>
         </section>
 
         <!-- ── List view (desktop) ── -->
         <div
             v-if="books.length && viewMode === 'list'"
+            data-book-list
             class="mt-8 flex flex-col gap-3"
         >
             <Link
@@ -939,6 +808,7 @@ function loadMore() {
         <!-- ── Grid view (mobile & desktop) ── -->
         <div
             v-else-if="books.length"
+            data-book-grid
             class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
         >
             <Link

@@ -10,7 +10,7 @@
  * tepian #E7E2D8. Font: Inter (teks) + Lora (judul).
  */
 import { Head, Link, router, useHttp } from '@inertiajs/vue3';
-import { BookOpen, Loader2 } from '@lucide/vue';
+import { BookOpen, Loader2, ChevronDown } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
@@ -234,21 +234,27 @@ function loadMore(): void {
                     class="flex items-center gap-2 text-sm text-article-muted"
                 >
                     <span class="sr-only">Kategori</span>
-                    <select
-                        v-model="selectedCategory"
-                        class="min-h-10 rounded-lg border border-article-border bg-article-surface px-3 pr-8 text-sm text-article-ink transition-colors outline-none focus:border-article-primary focus:ring-2 focus:ring-article-primary/20"
-                        aria-label="Filter kategori"
-                        @change="applyCategoryFilter"
-                    >
-                        <option :value="allCategories">Semua kategori</option>
-                        <option
-                            v-for="category in categories"
-                            :key="category.id"
-                            :value="category.id"
+                    <span class="relative">
+                        <select
+                            v-model="selectedCategory"
+                            class="min-h-11 w-full appearance-none rounded-lg border border-article-border bg-article-surface py-2 pr-9 pl-3 text-sm text-article-ink transition-colors outline-none focus:border-article-primary focus:ring-2 focus:ring-article-primary/20 md:w-auto"
+                            aria-label="Filter kategori"
+                            @change="applyCategoryFilter"
                         >
-                            {{ category.nama }}
-                        </option>
-                    </select>
+                            <option :value="allCategories">Semua kategori</option>
+                            <option
+                                v-for="category in categories"
+                                :key="category.id"
+                                :value="category.id"
+                            >
+                                {{ category.nama }}
+                            </option>
+                        </select>
+                        <ChevronDown
+                            class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-article-muted"
+                            aria-hidden="true"
+                        />  
+                    </span>
                 </label>
             </div>
 
