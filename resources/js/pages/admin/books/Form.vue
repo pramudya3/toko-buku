@@ -944,7 +944,10 @@ function onFormError() {
                 <input type="hidden" name="removed_images[]" :value="id" />
             </template>
 
-            <div class="flex items-center gap-3">
+            <!-- Action bar — sticky di bawah agar selalu terlihat -->
+            <div
+                class="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6"
+            >
                 <Button type="submit" :disabled="processing">
                     {{
                         processing

@@ -46,6 +46,8 @@ class HandleInertiaRequests extends Middleware
             // Identitas toko dari pengaturan Lembaga — dipakai di judul sidebar.
             'storeName' => Setting::get('store_nama_lembaga') ?: config('app.name'),
             'storeLogoUrl' => Setting::get('store_logo_url', ''),
+            'storeAddress' => Setting::get('store_alamat', ''),
+            'storePhone' => Setting::get('store_telepon', ''),
             'auth' => [
                 'user' => $request->user(),
             ],

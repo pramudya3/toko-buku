@@ -143,19 +143,19 @@ function loadMore(): void {
 <template>
     <Head title="Toko — Pustaka Cahaya Peradaban" />
 
-    <div class="mx-auto max-w-6xl px-4 pt-16 pb-24 md:px-6 md:pt-24 md:pb-32">
+    <div class="mx-auto max-w-6xl px-4 pt-14 pb-24 md:px-6 md:pt-20 md:pb-32">
         <div class="text-center">
             <p
-                class="text-xs font-semibold tracking-[0.16em] text-pcd-accent uppercase"
+                class="text-xs font-semibold tracking-[0.16em] text-flat-primary uppercase"
             >
                 Toko
             </p>
             <h1
-                class="mt-3 font-serif text-3xl font-semibold tracking-tight md:text-4xl"
+                class="mt-3 text-3xl font-extrabold tracking-tight md:text-4xl"
             >
                 Semua Buku
             </h1>
-            <p class="mt-3 text-sm text-pcd-muted">
+            <p class="mt-3 text-sm text-gray-500">
                 {{ total }} judul — fisik dan e-book, dikirim dari Malang.
             </p>
         </div>
@@ -170,11 +170,11 @@ function loadMore(): void {
                 v-for="cat in [{ id: 'all', nama: 'Semua' }, ...categories]"
                 :key="cat.id"
                 type="button"
-                class="min-h-12 rounded-full px-4 text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
+                class="min-h-12 rounded-md px-4 text-[13px] font-semibold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none"
                 :class="
                     activeCategory === cat.id
-                        ? 'border border-transparent bg-pcd-ink font-medium text-white'
-                        : 'border border-pcd-hairline text-pcd-muted hover:border-pcd-ink hover:text-pcd-ink'
+                        ? 'bg-flat-primary text-white'
+                        : 'bg-flat-muted text-gray-600 hover:bg-gray-200'
                 "
                 :aria-pressed="activeCategory === cat.id"
                 @click="selectCategory(cat.id)"
@@ -186,10 +186,10 @@ function loadMore(): void {
         <!-- Urutan -->
         <div class="mt-6 flex justify-end">
             <label class="flex items-center gap-3">
-                <span class="text-xs font-medium text-pcd-muted">Urutkan</span>
+                <span class="text-xs font-medium text-gray-500">Urutkan</span>
                 <select
                     v-model="sort"
-                    class="min-h-12 rounded-lg border border-pcd-hairline bg-pcd-surface px-3 text-sm transition-colors outline-none focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25"
+                    class="min-h-12 rounded-md border-2 border-transparent bg-flat-muted px-3 text-sm transition-colors outline-none focus:border-flat-primary focus:bg-white"
                     @change="applyFilters()"
                 >
                     <option
@@ -215,7 +215,7 @@ function loadMore(): void {
                 class="group"
             >
                 <div
-                    class="relative overflow-hidden rounded-md ring-1 ring-pcd-hairline"
+                    class="relative overflow-hidden rounded-md border-2 border-flat-border"
                 >
                     <img
                         v-if="book.cover_url"
@@ -230,7 +230,7 @@ function loadMore(): void {
                     />
                     <span
                         v-if="book.price_breakdown"
-                        class="absolute top-2.5 left-2.5 rounded-full bg-red-700 px-2.5 py-1 text-xs font-semibold text-white"
+                        class="absolute top-2.5 left-2.5 rounded-md bg-flat-accent px-2.5 py-1 text-xs font-bold text-white"
                         >-{{
                             Math.round(
                                 (book.price_breakdown.promo_discount /
@@ -240,19 +240,19 @@ function loadMore(): void {
                         }}%</span
                     >
                 </div>
-                <h2 class="mt-4 text-sm leading-snug font-semibold">
+                <h2 class="mt-4 text-sm leading-snug font-bold">
                     {{ book.judul }}
                 </h2>
-                <p class="mt-1 text-xs text-pcd-muted">
+                <p class="mt-1 text-xs text-gray-500">
                     {{ book.penulis ?? '—' }}
                 </p>
-                <p class="mt-2 text-sm font-semibold tabular-nums">
+                <p class="mt-2 text-sm font-bold tabular-nums text-flat-primary">
                     <Money
                         :value="book.price_breakdown?.final_price ?? book.harga"
                     />
                     <s
                         v-if="book.price_breakdown"
-                        class="ml-1 text-xs font-normal text-pcd-muted"
+                        class="ml-1 text-xs font-normal text-gray-400"
                     >
                         <Money :value="book.price_breakdown.original_price" />
                     </s>
@@ -271,7 +271,7 @@ function loadMore(): void {
             <button
                 type="button"
                 :disabled="loadingMore"
-                class="inline-flex min-h-12 items-center gap-2 rounded-lg border border-pcd-hairline bg-pcd-surface px-8 text-sm font-medium transition-colors hover:border-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong disabled:opacity-60"
+                class="inline-flex min-h-12 items-center gap-2 rounded-md bg-flat-primary px-8 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
                 @click="loadMore()"
             >
                 <Loader2
@@ -283,7 +283,7 @@ function loadMore(): void {
             </button>
         </div>
 
-        <p class="mt-6 text-center text-xs text-pcd-muted">
+        <p class="mt-6 text-center text-xs text-gray-500">
             Pembayaran transfer atau tunai · Gratis ongkir min. Rp 150.000
         </p>
     </div>

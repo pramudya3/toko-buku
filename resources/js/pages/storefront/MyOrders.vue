@@ -6,7 +6,7 @@ import Money from '@/components/Money.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import { invoice as invoiceRoute, show as showRoute } from '@/routes/my-orders';
 
 type Order = {
@@ -36,7 +36,7 @@ defineProps<{
 }>();
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 function openDetail(orderId: string): void {
@@ -78,13 +78,18 @@ function formatDate(createdAt: string): string {
 <template>
     <Head title="Pesanan Saya" />
 
-    <div class="flex flex-col gap-6">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight">Pesanan Saya</h1>
-            <p class="text-sm text-muted-foreground">
-                Riwayat pesanan yang pernah Anda buat.
-            </p>
-        </div>
+    <div class="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        <div class="flex flex-col gap-6">
+            <div>
+                <h1
+                    class="font-serif text-2xl font-bold tracking-tight text-article-ink md:text-3xl"
+                >
+                    Pesanan Saya
+                </h1>
+                <p class="mt-1 text-sm text-article-muted">
+                    Riwayat pesanan yang pernah Anda buat.
+                </p>
+            </div>
 
         <div v-if="orders.data.length" class="flex flex-col gap-3">
             <div
@@ -200,5 +205,6 @@ function formatDate(createdAt: string): string {
                 <Link :href="'/buku'">Lihat Katalog</Link>
             </Button>
         </EmptyState>
+        </div>
     </div>
 </template>

@@ -156,17 +156,17 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
 
     <div class="mx-auto max-w-6xl px-4 pt-10 pb-28 md:px-6 md:pt-16 md:pb-32">
         <!-- Breadcrumb -->
-        <nav class="text-sm text-pcd-muted" aria-label="Breadcrumb">
+        <nav class="text-sm text-gray-500" aria-label="Breadcrumb">
             <ol class="flex items-center gap-1.5">
                 <li>
                     <Link
                         :href="catalogUrl().url"
-                        class="transition-colors hover:text-pcd-ink"
+                        class="transition-colors hover:text-flat-primary"
                         >Toko</Link
                     >
                 </li>
                 <li aria-hidden="true">/</li>
-                <li class="text-pcd-ink" aria-current="page">
+                <li class="text-flat-ink" aria-current="page">
                     {{ book.judul }}
                 </li>
             </ol>
@@ -180,7 +180,7 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                 class="mx-auto w-56 sm:w-64 lg:mx-0 lg:w-full lg:max-w-[340px]"
             >
                 <div
-                    class="overflow-hidden rounded-md ring-1 ring-pcd-hairline"
+                    class="overflow-hidden rounded-md border-2 border-flat-border"
                 >
                     <img
                         v-if="book.cover_url"
@@ -199,44 +199,44 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
             <!-- Info + CTA -->
             <div class="lg:pt-6">
                 <p
-                    class="text-xs font-semibold tracking-[0.16em] text-pcd-accent uppercase"
+                    class="text-xs font-semibold tracking-[0.16em] text-flat-primary uppercase"
                 >
                     {{ book.category?.nama ?? 'Buku' }}
                 </p>
                 <h1
-                    class="mt-3 font-serif text-3xl leading-tight font-semibold tracking-tight md:text-4xl"
+                    class="mt-3 text-3xl leading-tight font-extrabold tracking-tight md:text-4xl"
                 >
                     {{ book.judul }}
                 </h1>
-                <p v-if="book.penulis" class="mt-2 text-sm text-pcd-muted">
+                <p v-if="book.penulis" class="mt-2 text-sm text-gray-500">
                     oleh {{ book.penulis }}
                 </p>
 
                 <div class="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <p class="text-2xl font-semibold tabular-nums md:text-3xl">
+                    <p class="text-3xl font-extrabold tabular-nums text-flat-primary">
                         <Money :value="displayPrice" />
                     </p>
                     <p
                         v-if="discountPercent > 0"
-                        class="text-sm font-medium text-red-700 tabular-nums"
+                        class="rounded-md bg-flat-accent px-2 py-0.5 text-xs font-bold text-white tabular-nums"
                     >
                         -{{ discountPercent }}%
                     </p>
                     <p
                         v-if="displayOriginal"
-                        class="text-sm text-pcd-muted tabular-nums line-through"
+                        class="text-sm text-gray-400 tabular-nums line-through"
                     >
                         <Money :value="displayOriginal" />
                     </p>
                 </div>
-                <p class="mt-1.5 text-xs text-pcd-muted">{{ stockHint }}</p>
+                <p class="mt-1.5 text-xs text-gray-500">{{ stockHint }}</p>
 
                 <!-- Cetakan (edition) -->
                 <fieldset v-if="editions.length > 1" class="mt-7">
                     <legend class="text-sm font-medium">Pilih cetakan</legend>
                     <select
                         v-model="selectedEdition"
-                        class="mt-3 min-h-12 w-full max-w-xs rounded-lg border border-pcd-hairline bg-pcd-surface px-4 text-sm transition-colors outline-none focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25 sm:w-auto"
+                        class="mt-3 min-h-12 w-full max-w-xs rounded-md border-2 border-transparent bg-flat-muted px-4 text-sm transition-colors outline-none focus:border-flat-primary focus:bg-white sm:w-auto"
                     >
                         <option
                             v-for="edition in editions"
@@ -258,11 +258,11 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                 >
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <div
-                            class="flex items-center rounded-lg border border-pcd-hairline bg-pcd-surface"
+                            class="flex items-center rounded-md border-2 border-flat-border bg-white"
                         >
                             <button
                                 type="button"
-                                class="flex size-12 items-center justify-center text-pcd-muted transition-colors hover:text-pcd-ink disabled:opacity-40"
+                                class="flex size-12 items-center justify-center text-gray-500 transition-colors hover:text-flat-ink disabled:opacity-40"
                                 :disabled="qty <= 1"
                                 aria-label="Kurangi jumlah"
                                 @click="qty = Math.max(1, qty - 1)"
@@ -280,7 +280,7 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                             />
                             <button
                                 type="button"
-                                class="flex size-12 items-center justify-center text-pcd-muted transition-colors hover:text-pcd-ink disabled:opacity-40"
+                                class="flex size-12 items-center justify-center text-gray-500 transition-colors hover:text-flat-ink disabled:opacity-40"
                                 :disabled="qty >= maxQty && !isPreorder"
                                 aria-label="Tambah jumlah"
                                 @click="
@@ -303,7 +303,7 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                         <button
                             type="submit"
                             :disabled="!canAdd"
-                            class="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-pcd-accent-strong px-6 text-sm font-semibold text-white transition-colors hover:bg-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong disabled:opacity-50"
+                            class="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-md bg-flat-primary px-6 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
                         >
                             <ShoppingCart class="size-4" aria-hidden="true" />
                             {{ canAdd ? 'Tambah ke Keranjang' : 'Stok Habis' }}
@@ -313,7 +313,7 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
 
                 <a
                     href="#"
-                    class="mt-3 inline-flex min-h-12 items-center gap-2 text-sm font-medium text-pcd-muted transition-colors hover:text-pcd-ink"
+                    class="mt-3 inline-flex min-h-12 items-center gap-2 text-sm font-medium text-gray-500 transition-colors hover:text-flat-primary"
                 >
                     <MessageCircle class="size-4" aria-hidden="true" />
                     Tanya via WhatsApp
@@ -322,10 +322,10 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                 <!-- Meta buku -->
                 <dl
                     v-if="specs.length > 0"
-                    class="mt-8 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-pcd-hairline pt-6 text-sm sm:grid-cols-3"
+                    class="mt-8 grid grid-cols-2 gap-x-6 gap-y-3 border-t-2 border-flat-border pt-6 text-sm sm:grid-cols-3"
                 >
                     <div v-for="spec in specs" :key="spec.label">
-                        <dt class="text-xs text-pcd-muted">{{ spec.label }}</dt>
+                        <dt class="text-xs text-gray-500">{{ spec.label }}</dt>
                         <dd
                             class="mt-1 font-medium"
                             :class="{
@@ -338,7 +338,7 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                     </div>
                 </dl>
 
-                <p class="mt-6 text-xs text-pcd-muted">
+                <p class="mt-6 text-xs text-gray-500">
                     Pembayaran transfer bank atau tunai saat buku tiba · Garansi
                     buku rusak diganti.
                 </p>
@@ -348,30 +348,30 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
         <!-- Sinopsis -->
         <section
             v-if="book.sinopsis"
-            class="mt-16 max-w-2xl border-t border-pcd-hairline pt-12 md:mt-24"
+            class="mt-16 max-w-2xl border-t-2 border-flat-border pt-12 md:mt-24"
             aria-labelledby="sinopsis"
         >
             <h2
                 id="sinopsis"
-                class="font-serif text-2xl font-semibold tracking-tight"
+                class="text-2xl font-extrabold tracking-tight"
             >
                 Tentang Buku Ini
             </h2>
             <p
-                class="mt-6 font-serif text-[17px] leading-[1.8] whitespace-pre-line text-pcd-ink/90"
+                class="mt-6 text-[17px] leading-[1.8] whitespace-pre-line text-flat-ink/90"
             >
                 {{ book.sinopsis }}
             </p>
         </section>
 
-        <section class="mt-16 border-t border-pcd-hairline pt-12 md:mt-24">
-            <p class="text-center text-sm text-pcd-muted">
+        <section class="mt-16 border-t-2 border-flat-border pt-12 md:mt-24">
+            <p class="text-center text-sm text-gray-500">
                 Mencari judul lain?
             </p>
             <p class="mt-2 text-center">
                 <Link
                     :href="catalogUrl().url"
-                    class="inline-flex min-h-12 items-center gap-1.5 font-serif text-lg font-semibold tracking-tight transition-colors hover:text-pcd-accent"
+                    class="inline-flex min-h-12 items-center gap-1.5 text-lg font-extrabold tracking-tight transition-colors hover:text-flat-primary"
                 >
                     Lihat Semua Buku
                 </Link>
@@ -381,16 +381,16 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
 
     <!-- Sticky bar (mobile): harga + satu CTA -->
     <div
-        class="fixed inset-x-0 bottom-0 z-40 border-t border-pcd-hairline bg-pcd-surface/95 backdrop-blur lg:hidden"
+        class="fixed inset-x-0 bottom-0 z-40 border-t-2 border-flat-border bg-white lg:hidden"
     >
         <div
             class="flex items-center gap-3 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         >
             <div class="min-w-0">
-                <p class="text-base font-semibold tabular-nums">
+                <p class="text-base font-bold tabular-nums text-flat-primary">
                     <Money :value="displayPrice" />
                 </p>
-                <p class="truncate text-[11px] text-pcd-muted">
+                <p class="truncate text-[11px] text-gray-500">
                     {{ book.judul }} ·
                     {{
                         isPreorder
@@ -405,7 +405,7 @@ const formatRupiah = (value: number) => value.toLocaleString('id-ID');
                 type="submit"
                 form="addToCartForm"
                 :disabled="!canAdd"
-                class="ml-auto inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-pcd-accent-strong px-5 text-sm font-semibold text-white transition-colors hover:bg-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong disabled:opacity-50 sm:max-w-xs"
+                class="ml-auto inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-md bg-flat-primary px-5 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50 sm:max-w-xs"
             >
                 <ShoppingCart class="size-4" aria-hidden="true" />
                 {{ canAdd ? 'Tambah' : 'Stok Habis' }}

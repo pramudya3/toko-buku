@@ -39,14 +39,17 @@ use App\Http\Controllers\BiteshipWebhookController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CheckoutPcdController;
 use App\Http\Controllers\MyOrderController;
+use App\Http\Controllers\MyOrderPcdController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProfilePcdController;
 use App\Http\Controllers\PublicAddressController;
 use App\Http\Controllers\StockRequestController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StorefrontPcdController;
+use App\Http\Controllers\StorefrontProfileController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [StorefrontController::class, 'catalog'])->name('home');
+Route::get('/', [StorefrontController::class, 'home'])->name('home');
 
 Route::get('wilayah/provinces', [PublicAddressController::class, 'provinces'])->name('wilayah.provinces');
 Route::get('wilayah/cities', [PublicAddressController::class, 'cities'])->name('wilayah.cities');
@@ -55,7 +58,8 @@ Route::get('wilayah/villages', [PublicAddressController::class, 'villages'])->na
 
 Route::get('tentang-kami', [StorefrontController::class, 'about'])->name('about');
 Route::get('promo', [StorefrontController::class, 'promo'])->name('books.promo');
-Route::get('artikel', [StorefrontController::class, 'articles'])->name('articles.index');
+// Muat-lagi feed artikel beranda — didaftarkan sebelum artikel/{article:slug}.
+Route::get('artikel/lainnya', [StorefrontController::class, 'homeLoadMore'])->name('articles.load-more');
 Route::get('artikel/{article:slug}', [StorefrontController::class, 'articleShow'])->name('articles.show');
 
 // Webhook Biteship — verifikasi X-Signature di controller.
@@ -87,13 +91,25 @@ Route::prefix('pcd')->name('pcd.')->group(function () {
         ->where('bookUrl', '[a-f0-9-]{36}(-[a-z0-9-]+)?')
         ->name('books.show');
     Route::get('paket/{bundle}', [StorefrontPcdController::class, 'bundle'])->name('bundles.show');
+    // Muat-lagi artikel — harus didaftarkan sebelum artikel/{article:slug}.
+    Route::get('artikel/lainnya', [StorefrontPcdController::class, 'articlesLoadMore'])->name('articles.load-more');
     Route::get('artikel/{article:slug}', [StorefrontPcdController::class, 'articleShow'])->name('articles.show');
 
-    // Checkout & ongkir — alur sama dengan storefront utama (auth wajib).
+    // Checkout, pesanan & profil — alur sama dengan storefront utama (auth wajib).
     Route::middleware(['auth'])->group(function () {
         Route::get('checkout', [CheckoutPcdController::class, 'index'])->name('checkout.index');
         Route::post('checkout', [CheckoutPcdController::class, 'store'])->name('checkout.store')->middleware('throttle:5,1');
         Route::get('checkout/sukses', [CheckoutPcdController::class, 'success'])->name('checkout.success');
+
+        Route::get('pesanan-saya', [MyOrderPcdController::class, 'index'])->name('my-orders.index');
+        Route::get('pesanan-saya/{order}', [MyOrderPcdController::class, 'show'])->name('my-orders.show');
+        Route::get('pesanan-saya/{order}/invoice', [MyOrderPcdController::class, 'invoice'])->name('my-orders.invoice');
+        Route::post('pesanan-saya/{order}/bukti', [MyOrderPcdController::class, 'uploadBukti'])->name('my-orders.upload-bukti');
+
+        Route::get('profil', [ProfilePcdController::class, 'edit'])->name('profile.edit');
+        Route::patch('profil', [ProfilePcdController::class, 'update'])->name('profile.update');
+        Route::patch('profil/alamat', [ProfilePcdController::class, 'updateAddress'])->name('profile.update-address');
+        Route::delete('profil', [ProfilePcdController::class, 'destroy'])->name('profile.destroy');
     });
 });
 
@@ -109,6 +125,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('pesanan-saya/{order}/invoice', [MyOrderController::class, 'invoice'])->name('my-orders.invoice');
     Route::post('pesanan-saya/{order}/bukti', [MyOrderController::class, 'uploadBukti'])->name('my-orders.upload-bukti');
     Route::post('stok/ajukan/{book}', [StockRequestController::class, 'store'])->name('stock-requests.store');
+
+    // Profil storefront utama — update akun & alamat (desain editorial).
+    Route::get('profil', [StorefrontProfileController::class, 'edit'])->name('storefront.profile.edit');
+    Route::patch('profil', [StorefrontProfileController::class, 'update'])->name('storefront.profile.update');
+    Route::patch('profil/alamat', [StorefrontProfileController::class, 'updateAddress'])->name('storefront.profile.update-address');
+    Route::delete('profil', [StorefrontProfileController::class, 'destroy'])->name('storefront.profile.destroy');
 
     Route::post('notifikasi/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('notifikasi/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
@@ -161,6 +183,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('articles/upload-image', [ArticleController::class, 'uploadImage'])->name('articles.upload-image');
     Route::post('articles/{article}/restore', [ArticleController::class, 'restore'])->name('articles.restore')->withTrashed();
     Route::patch('articles/{article}/toggle-active', [ArticleController::class, 'toggleActive'])->name('articles.toggle-active');
+    Route::patch('articles/{article}/toggle-featured', [ArticleController::class, 'toggleFeatured'])->name('articles.toggle-featured');
 
     Route::resource('article-categories', ArticleCategoryController::class)->except(['show']);
     Route::post('article-categories/{article_category}/restore', [ArticleCategoryController::class, 'restore'])->name('article-categories.restore')->withTrashed();

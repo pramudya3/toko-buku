@@ -1,23 +1,36 @@
 <script setup lang="ts">
 /**
  * Beranda editorial proto-d — /pcd.
- * Artikel nyata dari CMS (aktif & terbit) + data toko nyata: buku unggulan,
- * promo, dan paket dari backend.
  *
- * Klik artikel membuka halaman baca /pcd/artikel/{slug}; filter tanggal ada
- * di sidebar (samping daftar).
+ * Daftar artikel nyata dari CMS (aktif & terbit) dengan filter server-side:
+ * pencarian (judul/kata kunci/isi) di header, kategori jamak (OR), bulan,
+ * dan tahun di sidebar kiri. Filter hidup di URL query sehingga tetap
+ * tersimpan saat navigasi ke detail dan kembali.
  */
-import { Form, Head, Link } from '@inertiajs/vue3';
-import { ArrowRight, ShoppingCart, X } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Form, Head, Link, router, useHttp } from '@inertiajs/vue3';
+import {
+    ArrowRight,
+    Loader2,
+    ShoppingCart,
+    SlidersHorizontal,
+    X,
+} from '@lucide/vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import CartController from '@/actions/App/Http/Controllers/CheckoutController';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
+import FlatSection from '@/components/storefront/FlatSection.vue';
+import ArticleFilterSidebar from '@/components/storefront-pcd/ArticleFilterSidebar.vue';
+import ArticleListSkeleton from '@/components/storefront-pcd/ArticleListSkeleton.vue';
 import ArticleThumb from '@/components/storefront-pcd/ArticleThumb.vue';
 import StorefrontPcdLayout from '@/layouts/customer/StorefrontPcdLayout.vue';
-import { formatDateID, todayWIB } from '@/lib/date';
+import { formatDateID } from '@/lib/date';
 import { bookShowUrl } from '@/lib/slug';
-import { show as articleShowRoute } from '@/routes/pcd/articles';
+import { home as homeRoute } from '@/routes/pcd';
+import {
+    loadMore as loadMoreUrl,
+    show as articleShowRoute,
+} from '@/routes/pcd/articles';
 import { catalog as catalogUrl, show as showRoute } from '@/routes/pcd/books';
 import { show as bundleShowRoute } from '@/routes/pcd/bundles';
 
@@ -84,136 +97,240 @@ type ArticleCard = {
     menit: number;
 };
 
+type ArticleFilters = {
+    search?: string | null;
+    category_id?: string | null;
+    categories?: string[] | null;
+    month?: number | null;
+    year?: number | null;
+};
+
+type CategoryFacet = {
+    id: string;
+    nama: string;
+    articles_count: number;
+};
+
+type DateFacet = {
+    year: number;
+    month: number;
+    count: number;
+};
+
 const props = defineProps<{
+    featured: ArticleCard | null;
     books: Book[];
     categories: Array<{ id: string; nama: string }>;
     bundles: Bundle[];
     promos: Promo[];
-    articles: ArticleCard[];
+    articles: {
+        data: ArticleCard[];
+        current_page: number;
+        last_page: number;
+        total: number;
+        per_page: number;
+    };
+    filters: ArticleFilters;
+    articleCategories: CategoryFacet[];
+    dateFacets: DateFacet[];
 }>();
 
 defineOptions({ layout: StorefrontPcdLayout });
 
-// ── Artikel (data nyata dari CMS, terurut terbaru) ──
-const featuredArticle = computed<ArticleCard | null>(() => {
-    return props.articles[0] ?? null;
-});
+// ── State filter (disinkronkan dari props server / URL) ──
+const selectedCategories = ref<string[]>(props.filters.categories ?? []);
+const month = ref<number | null>(props.filters.month ?? null);
+const year = ref<number | null>(props.filters.year ?? null);
+const searchActive = computed(() => Boolean(props.filters.search));
+const hasFilters = computed(
+    () =>
+        searchActive.value ||
+        selectedCategories.value.length > 0 ||
+        month.value !== null ||
+        year.value !== null,
+);
 
-const listArticles = computed<ArticleCard[]>(() => props.articles.slice(1));
+// ── Daftar artikel (paginator, append saat load-more) ──
+const articlesData = ref<ArticleCard[]>(props.articles.data);
+const currentPage = ref(props.articles.current_page);
 
-const articleCategories = computed<Array<{ id: string; nama: string }>>(() => {
-    const seen = new Set<string>();
-    const cats: Array<{ id: string; nama: string }> = [];
+watch(
+    () => props.articles,
+    (next) => {
+        articlesData.value = next.data;
+        currentPage.value = next.current_page;
+    },
+);
 
-    for (const a of props.articles) {
-        if (a.kategori_id && !seen.has(a.kategori_id)) {
-            seen.add(a.kategori_id);
-            cats.push({ id: a.kategori_id, nama: a.kategori_label });
-        }
+watch(
+    () => props.filters,
+    (next) => {
+        selectedCategories.value = next.categories ?? [];
+        month.value = next.month ?? null;
+        year.value = next.year ?? null;
+    },
+);
+
+// Artikel unggulan dari server (is_featured=true, pilihan admin) — hanya
+// saat tanpa filter & halaman pertama. Fallback: artikel terbaru pertama.
+const featuredArticle = computed<ArticleCard | null>(() =>
+    !hasFilters.value && currentPage.value === 1
+        ? (props.featured ?? articlesData.value[0] ?? null)
+        : null,
+);
+
+// Daftar tanpa artikel unggulan (hindari duplikat di feed).
+const listArticles = computed<ArticleCard[]>(() => {
+    if (!featuredArticle.value) {
+        return articlesData.value;
     }
 
-    return [{ id: 'all', nama: 'Semua' }, ...cats];
+    return articlesData.value.filter(
+        (article) => article.id !== featuredArticle.value?.id,
+    );
 });
 
-const activeCat = ref('all');
-const period = ref('all');
-const exactDate = ref('');
+// ── Navigasi filter: skeleton saat menunggu respons Inertia ──
+const loadingList = ref(false);
+let offStart: () => void;
+let offFinish: () => void;
 
-const parseISO = (s: string) => {
-    const [y, m, d] = s.split('-').map(Number);
-
-    return new Date(y, m - 1, d);
-};
-
-const dateMin = computed(() => {
-    const dates = props.articles.map((a) => a.published_at).filter(Boolean);
-
-    return dates.length > 0 ? [...dates].sort()[0]! : undefined;
-});
-
-const dateMax = todayWIB();
-
-const filteredArticles = computed(() => {
-    const today = new Date();
-    const cutoff7 = new Date(today);
-    cutoff7.setDate(cutoff7.getDate() - 7);
-    const cutoff30 = new Date(today);
-    cutoff30.setDate(cutoff30.getDate() - 30);
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    return listArticles.value.filter((a) => {
-        if (activeCat.value !== 'all' && a.kategori_id !== activeCat.value) {
-            return false;
+onMounted(() => {
+    offStart = router.on('start', () => {
+        if (!loadingMore.value) {
+            loadingList.value = true;
         }
-
-        if (exactDate.value) {
-            return a.published_at === exactDate.value;
-        }
-
-        if (!a.published_at) {
-            return true;
-        }
-
-        if (period.value === '7d') {
-            return parseISO(a.published_at) >= cutoff7;
-        }
-
-        if (period.value === '30d') {
-            return parseISO(a.published_at) >= cutoff30;
-        }
-
-        if (period.value === 'month') {
-            return parseISO(a.published_at) >= monthStart;
-        }
-
-        return true;
+    });
+    offFinish = router.on('finish', () => {
+        loadingList.value = false;
     });
 });
 
-function resetFilters(): void {
-    activeCat.value = 'all';
-    period.value = 'all';
-    exactDate.value = '';
+onUnmounted(() => {
+    offStart();
+    offFinish();
+});
+
+function applyFilters(): void {
+    router.get(
+        homeRoute().url,
+        {
+            search: props.filters.search || undefined,
+            categories:
+                selectedCategories.value.length > 0
+                    ? selectedCategories.value
+                    : undefined,
+            month: month.value ?? undefined,
+            year: year.value ?? undefined,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            only: ['articles', 'filters'],
+        },
+    );
 }
 
-function selectDate(date: string): void {
-    exactDate.value = date;
-    period.value = 'all';
+function updateCategories(value: string[]): void {
+    selectedCategories.value = value;
+    applyFilters();
 }
 
-// ── Sidebar: chip hari (dari tanggal artikel yang ada) ──
-const MONTHS_SHORT = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-];
+function selectMonth(value: number | null): void {
+    month.value = value;
+    applyFilters();
+}
 
-const dayChips = computed(() => {
-    const counts = new Map<string, number>();
+function selectYear(value: number | null): void {
+    year.value = value;
 
-    for (const a of props.articles) {
-        if (a.published_at) {
-            counts.set(a.published_at, (counts.get(a.published_at) ?? 0) + 1);
+    if (value !== null && month.value !== null) {
+        const available = props.dateFacets.some(
+            (f) => f.year === value && f.month === month.value,
+        );
+
+        if (!available) {
+            month.value = null;
         }
     }
 
-    return [...counts.entries()]
-        .sort(([a], [b]) => (a < b ? 1 : -1))
-        .map(([date, count]) => {
-            const [, m, d] = date.split('-').map(Number);
+    applyFilters();
+}
 
-            return { date, count, label: `${d} ${MONTHS_SHORT[m - 1]}` };
-        });
-});
+function clearFilters(): void {
+    selectedCategories.value = [];
+    month.value = null;
+    year.value = null;
+    applyFilters();
+}
+
+/** Bersihkan semua filter termasuk pencarian (dari state kosong). */
+function resetAll(): void {
+    router.get(
+        homeRoute().url,
+        {},
+        {
+            preserveState: true,
+            preserveScroll: true,
+            only: ['articles', 'filters'],
+        },
+    );
+}
+
+// ── Load more (halaman berikutnya) ──
+const loadMoreRequest = useHttp();
+const loadingMore = ref(false);
+const canLoadMore = computed(
+    () => articlesData.value.length < props.articles.total,
+);
+let loadMoreToken = 0;
+
+function loadMore(): void {
+    if (loadingMore.value || !canLoadMore.value) {
+        return;
+    }
+
+    loadingMore.value = true;
+    const token = ++loadMoreToken;
+
+    loadMoreRequest.get(
+        loadMoreUrl({
+            query: {
+                page: currentPage.value + 1,
+                search: props.filters.search || undefined,
+                categories:
+                    selectedCategories.value.length > 0
+                        ? selectedCategories.value
+                        : undefined,
+                month: month.value ?? undefined,
+                year: year.value ?? undefined,
+            },
+        }).url,
+        {
+            onSuccess: (data: unknown) => {
+                if (token !== loadMoreToken) {
+                    return;
+                }
+
+                const page = data as {
+                    data: ArticleCard[];
+                    current_page: number;
+                    last_page: number;
+                };
+                articlesData.value = [...articlesData.value, ...page.data];
+                currentPage.value = page.current_page;
+            },
+            onFinish: () => {
+                if (token === loadMoreToken) {
+                    loadingMore.value = false;
+                }
+            },
+        },
+    );
+}
+
+// ── Filter mobile: panel kolapsibel ──
+const filterOpen = ref(false);
 
 // ── Promo slot (data nyata dari backend) ──
 const heroBundle = computed(() => props.bundles[0] ?? null);
@@ -237,362 +354,347 @@ const dateLabel = (value: string | null): string =>
 <template>
     <Head title="Artikel — Pustaka Cahaya Peradaban" />
 
-    <div class="mx-auto max-w-5xl px-4 pt-16 pb-24 md:pt-24 md:pb-32">
+    <div class="mx-auto max-w-6xl px-4 pb-24 md:pb-32">
         <!-- Intro -->
-        <p
-            class="mx-auto max-w-2xl text-center text-[15px] leading-relaxed text-pcd-muted"
-        >
-            Kami menerbitkan buku dan menulis tentangnya —<br
-                class="hidden sm:block"
-            />
-            esai, resensi, dan catatan dari meja redaksi.
-        </p>
-
-        <!-- Artikel unggulan -->
-        <article
-            v-if="featuredArticle"
-            class="mx-auto mt-16 max-w-2xl md:mt-20"
-        >
+        <div class="pt-14 pb-10 text-center md:pt-20">
             <p
-                class="text-xs font-semibold tracking-[0.16em] text-pcd-accent uppercase"
+                class="text-xs font-semibold tracking-[0.16em] text-flat-primary uppercase"
             >
-                {{ featuredArticle.kategori_label }} ·
-                {{ dateLabel(featuredArticle.published_at) }}
+                Redaksi
             </p>
             <h1
-                class="mt-4 font-serif text-[30px] leading-[1.25] font-semibold tracking-tight md:text-[40px] md:leading-[1.2]"
+                class="mx-auto mt-3 max-w-2xl text-3xl font-extrabold tracking-tight md:text-4xl"
             >
-                <Link
-                    :href="
-                        articleShowRoute({ article: featuredArticle.slug }).url
-                    "
-                    class="transition-colors hover:text-pcd-accent"
-                >
-                    {{ featuredArticle.judul }}
-                </Link>
+                Membaca adalah cara kami berpikir
             </h1>
-            <p class="mt-5 max-w-xl text-[15px] leading-[1.7] text-pcd-muted">
-                {{ featuredArticle.ringkasan }}
+            <p class="mx-auto mt-3 max-w-2xl text-[15px] leading-relaxed text-gray-500">
+                Kami menerbitkan buku dan menulis tentangnya — esai, resensi,
+                dan catatan dari meja redaksi.
             </p>
-            <p class="mt-5 text-sm text-pcd-muted">
-                {{ featuredArticle.penulis ?? 'Tim Penerbit' }} ·
-                {{ featuredArticle.menit }} menit baca
-            </p>
+        </div>
 
-            <Link
-                :href="articleShowRoute({ article: featuredArticle.slug }).url"
-                class="mt-8 block"
-            >
-                <img
-                    v-if="featuredArticle.cover_url"
-                    :src="featuredArticle.cover_url"
-                    :alt="`Ilustrasi artikel ${featuredArticle.judul}`"
-                    class="aspect-video w-full rounded-lg object-cover ring-1 ring-pcd-hairline transition-transform duration-300 hover:scale-[1.01]"
-                />
-                <ArticleThumb
-                    v-else
-                    :motif="featuredArticle.motif ?? 'lamp'"
-                    :label="`Ilustrasi artikel ${featuredArticle.judul}`"
-                />
-            </Link>
+        <!-- Artikel unggulan (hanya saat tanpa filter) -->
+        <FlatSection
+            v-if="featuredArticle && !loadingList"
+            variant="primary"
+            decoration
+        >
+            <article class="mx-auto max-w-3xl py-6 text-center md:py-10">
+                <p
+                    class="text-xs font-semibold tracking-[0.16em] text-white/80 uppercase"
+                >
+                    {{ featuredArticle.kategori_label }} ·
+                    {{ dateLabel(featuredArticle.published_at) }}
+                </p>
+                <h2
+                    class="mt-4 text-3xl leading-[1.15] font-extrabold tracking-tight text-white md:text-5xl"
+                >
+                    <Link
+                        :href="
+                            articleShowRoute({
+                                article: featuredArticle.slug,
+                            }).url
+                        "
+                        class="transition-colors hover:text-white/85"
+                    >
+                        {{ featuredArticle.judul }}
+                    </Link>
+                </h2>
+                <p class="mx-auto mt-5 max-w-xl text-[15px] leading-[1.7] text-white/80">
+                    {{ featuredArticle.ringkasan }}
+                </p>
+                <p class="mt-5 text-sm text-white/70">
+                    {{ featuredArticle.penulis ?? 'Tim Penerbit' }} ·
+                    {{ featuredArticle.menit }} menit baca
+                </p>
 
-            <Link
-                :href="articleShowRoute({ article: featuredArticle.slug }).url"
-                class="mt-8 inline-flex min-h-12 items-center gap-1.5 text-sm font-semibold text-pcd-accent transition-colors hover:text-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pcd-accent-strong"
-            >
-                Baca artikel
-                <ArrowRight class="size-4" aria-hidden="true" />
-            </Link>
-        </article>
+                <Link
+                    :href="articleShowRoute({ article: featuredArticle.slug }).url"
+                    class="mt-8 block"
+                >
+                    <img
+                        v-if="featuredArticle.cover_url"
+                        :src="featuredArticle.cover_url"
+                        :alt="`Ilustrasi artikel ${featuredArticle.judul}`"
+                        class="mx-auto aspect-video w-full max-w-2xl rounded-lg object-cover ring-2 ring-white/20 transition-transform duration-300 hover:scale-[1.01]"
+                    />
+                    <ArticleThumb
+                        v-else
+                        :motif="featuredArticle.motif ?? 'quote'"
+                        :label="`Ilustrasi artikel ${featuredArticle.judul}`"
+                    />
+                </Link>
+
+                <Link
+                    :href="articleShowRoute({ article: featuredArticle.slug }).url"
+                    class="mt-8 inline-flex min-h-12 items-center gap-1.5 rounded-md bg-white px-6 text-sm font-semibold text-flat-primary transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-flat-primary focus-visible:outline-none"
+                >
+                    Baca artikel
+                    <ArrowRight class="size-4" aria-hidden="true" />
+                </Link>
+            </article>
+        </FlatSection>
 
         <!-- Daftar artikel + filter -->
         <section
             id="artikel-terbaru"
-            class="mt-16 scroll-mt-24 border-t border-pcd-hairline pt-8 md:mt-20"
+            class="mt-16 scroll-mt-24 md:mt-20"
             aria-labelledby="artikel-terbaru-title"
         >
             <div class="flex flex-wrap items-baseline justify-between gap-3">
                 <h2
                     id="artikel-terbaru-title"
-                    class="font-serif text-2xl font-semibold tracking-tight"
+                    class="text-2xl font-extrabold tracking-tight"
                 >
                     Artikel Terbaru
                 </h2>
-                <p class="text-xs text-pcd-muted" aria-live="polite">
-                    {{ filteredArticles.length }} artikel
+                <p class="text-xs text-gray-500" aria-live="polite">
+                    {{
+                        hasFilters
+                            ? `${articlesData.length} hasil`
+                            : `${props.articles.total} artikel`
+                    }}
                 </p>
             </div>
 
-            <!-- Filter kategori -->
-            <div
-                class="mt-6 flex flex-wrap items-center gap-2"
-                role="group"
-                aria-label="Filter kategori artikel"
+            <!-- Tombol filter mobile -->
+            <button
+                type="button"
+                class="mt-6 inline-flex min-h-12 items-center gap-2 rounded-md border-2 px-4 text-[13px] font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none lg:hidden"
+                :class="
+                    filterOpen
+                        ? 'border-flat-primary bg-flat-primary text-white'
+                        : 'border-flat-border text-flat-ink hover:bg-flat-muted'
+                "
+                :aria-expanded="filterOpen"
+                aria-controls="pcd-filter-sidebar"
+                @click="filterOpen = !filterOpen"
             >
-                <button
-                    v-for="cat in articleCategories"
-                    :key="cat.id"
-                    type="button"
-                    class="min-h-12 rounded-full px-4 text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
-                    :class="
-                        activeCat === cat.id
-                            ? 'border border-transparent bg-pcd-ink font-medium text-white'
-                            : 'border border-pcd-hairline text-pcd-muted hover:border-pcd-ink hover:text-pcd-ink'
+                <SlidersHorizontal class="size-4" aria-hidden="true" />
+                Filter
+                <span
+                    v-if="
+                        selectedCategories.length > 0 ||
+                        month !== null ||
+                        year !== null
                     "
-                    :aria-pressed="activeCat === cat.id"
-                    @click="activeCat = cat.id"
+                    class="rounded-full bg-flat-accent px-2 py-0.5 text-[11px] font-semibold text-white"
+                    aria-label="Jumlah filter aktif"
                 >
-                    {{ cat.nama }}
-                </button>
-            </div>
+                    {{
+                        selectedCategories.length +
+                        (month !== null ? 1 : 0) +
+                        (year !== null ? 1 : 0)
+                    }}
+                </span>
+            </button>
 
-            <!-- Kolom kiri: daftar · Kolom kanan: filter tanggal -->
+            <!-- Kolom kiri: sidebar filter · Kanan: daftar -->
             <div
-                class="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_250px] lg:items-start lg:gap-12"
+                class="mt-6 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start lg:gap-10"
             >
-                <div class="min-w-0">
-                    <!-- Daftar artikel -->
-                    <article
-                        v-for="a in filteredArticles"
-                        :key="a.id"
-                        class="flex gap-5 border-b border-pcd-hairline py-8"
-                    >
-                        <Link
-                            :href="articleShowRoute({ article: a.slug }).url"
-                            class="w-28 shrink-0 text-left sm:w-40"
-                            :aria-label="`Buka artikel ${a.judul}`"
-                        >
-                            <img
-                                v-if="a.cover_url"
-                                :src="a.cover_url"
-                                :alt="`Ilustrasi artikel ${a.judul}`"
-                                class="aspect-video w-full rounded-md object-cover ring-1 ring-pcd-hairline transition-transform duration-300 hover:scale-[1.02]"
-                            />
-                            <ArticleThumb
-                                v-else
-                                :motif="a.motif ?? 'stack'"
-                                :label="`Ilustrasi artikel ${a.judul}`"
-                            />
-                        </Link>
-                        <div class="min-w-0">
-                            <p
-                                class="flex flex-wrap items-center gap-x-2 gap-y-1"
-                            >
-                                <span
-                                    class="text-xs font-semibold tracking-[0.14em] text-pcd-accent uppercase"
-                                    >{{ a.kategori_label }}</span
-                                >
-                                <button
-                                    v-if="a.published_at"
-                                    type="button"
-                                    class="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors"
-                                    :class="
-                                        exactDate === a.published_at
-                                            ? 'border-transparent bg-pcd-ink text-white'
-                                            : 'border-pcd-hairline text-pcd-muted hover:border-pcd-ink hover:text-pcd-ink'
-                                    "
-                                    :aria-pressed="exactDate === a.published_at"
-                                    @click="selectDate(a.published_at!)"
-                                >
-                                    {{ dateLabel(a.published_at) }}
-                                </button>
-                            </p>
-                            <h3
-                                class="mt-2.5 font-serif text-lg leading-snug font-semibold tracking-tight md:text-xl"
-                            >
-                                <Link
-                                    :href="
-                                        articleShowRoute({ article: a.slug })
-                                            .url
-                                    "
-                                    class="transition-colors hover:text-pcd-accent"
-                                >
-                                    {{ a.judul }}
-                                </Link>
-                            </h3>
-                            <p
-                                class="mt-2 text-sm leading-[1.7] text-pcd-muted"
-                            >
-                                {{ a.ringkasan }}
-                            </p>
-                        </div>
-                    </article>
-
-                    <!-- Tidak ada hasil -->
-                    <div
-                        v-if="filteredArticles.length === 0"
-                        class="border-b border-pcd-hairline py-16 text-center"
-                    >
-                        <p class="text-sm text-pcd-muted">
-                            {{
-                                props.articles.length === 0
-                                    ? 'Belum ada artikel. Cerita pertama akan segera hadir.'
-                                    : 'Tidak ada artikel yang cocok dengan filter.'
-                            }}
-                        </p>
-                        <button
-                            v-if="props.articles.length > 0"
-                            type="button"
-                            class="mt-5 inline-flex min-h-12 items-center rounded-lg border border-pcd-hairline bg-pcd-surface px-6 text-sm font-medium transition-colors hover:border-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
-                            @click="resetFilters"
-                        >
-                            Atur ulang filter
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Sidebar: filter tanggal -->
                 <aside
-                    class="mt-10 lg:sticky lg:top-24 lg:mt-0"
-                    aria-labelledby="filter-tanggal"
+                    id="pcd-filter-sidebar"
+                    class="lg:sticky lg:top-24 lg:self-start"
+                    aria-label="Filter artikel"
                 >
-                    <div
-                        class="rounded-xl border border-pcd-hairline bg-pcd-surface p-5"
-                    >
-                        <h3 id="filter-tanggal" class="text-sm font-semibold">
-                            Filter Tanggal
-                        </h3>
-                        <div class="mt-4 space-y-5">
-                            <label class="block">
-                                <span class="text-xs font-medium text-pcd-muted"
-                                    >Periode</span
-                                >
-                                <select
-                                    v-model="period"
-                                    class="mt-2 min-h-12 w-full rounded-lg border border-pcd-hairline bg-pcd-surface px-3 text-sm transition-colors outline-none focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25"
-                                    @change="exactDate = ''"
-                                >
-                                    <option value="all">Semua waktu</option>
-                                    <option value="7d">7 hari terakhir</option>
-                                    <option value="30d">
-                                        30 hari terakhir
-                                    </option>
-                                    <option value="month">Bulan ini</option>
-                                </select>
-                            </label>
-                            <label class="block">
-                                <span class="text-xs font-medium text-pcd-muted"
-                                    >Tepat tanggal</span
-                                >
-                                <input
-                                    v-model="exactDate"
-                                    type="date"
-                                    :min="dateMin"
-                                    :max="dateMax"
-                                    class="mt-2 min-h-12 w-full rounded-lg border border-pcd-hairline bg-pcd-surface px-3 text-sm transition-colors outline-none focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25"
-                                />
-                            </label>
-                            <div>
-                                <span class="text-xs font-medium text-pcd-muted"
-                                    >Hari</span
-                                >
-                                <div class="mt-2 flex flex-wrap gap-2">
-                                    <button
-                                        v-for="chip in dayChips"
-                                        :key="chip.date"
-                                        type="button"
-                                        class="min-h-9 rounded-full border px-3 text-xs transition-colors"
-                                        :class="
-                                            exactDate === chip.date
-                                                ? 'border-transparent bg-pcd-ink font-medium text-white'
-                                                : 'border-pcd-hairline text-pcd-muted hover:border-pcd-ink hover:text-pcd-ink'
-                                        "
-                                        :aria-pressed="exactDate === chip.date"
-                                        @click="selectDate(chip.date)"
-                                    >
-                                        {{ chip.label }} ({{ chip.count }})
-                                    </button>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                class="inline-flex min-h-11 items-center text-sm font-medium text-pcd-accent transition-colors hover:text-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pcd-accent-strong"
-                                @click="
-                                    exactDate = '';
-                                    period = 'all';
-                                "
-                            >
-                                Tampilkan semua
-                            </button>
-                        </div>
+                    <div :class="filterOpen ? 'block' : 'hidden lg:block'">
+                        <ArticleFilterSidebar
+                            :categories="articleCategories"
+                            :date-facets="dateFacets"
+                            :categories-selected="selectedCategories"
+                            :month="month"
+                            :year="year"
+                            :loading="loadingList"
+                            @update:categories="updateCategories"
+                            @update:month="selectMonth"
+                            @update:year="selectYear"
+                            @clear="clearFilters"
+                        />
                     </div>
                 </aside>
+
+                <div class="mt-10 min-w-0 lg:mt-0">
+                    <!-- Skeleton saat navigasi filter -->
+                    <ArticleListSkeleton v-if="loadingList" :rows="5" />
+
+                    <!-- Daftar artikel -->
+                    <template v-else>
+                        <article
+                            v-for="a in listArticles"
+                            :key="a.id"
+                            class="flex gap-5 border-b-2 border-flat-border py-8"
+                        >
+                            <Link
+                                :href="
+                                    articleShowRoute({ article: a.slug }).url
+                                "
+                                class="w-28 shrink-0 text-left sm:w-40"
+                                :aria-label="`Buka artikel ${a.judul}`"
+                            >
+                                <img
+                                    v-if="a.cover_url"
+                                    :src="a.cover_url"
+                                    :alt="`Ilustrasi artikel ${a.judul}`"
+                                    class="aspect-video w-full rounded-md object-cover border-2 border-flat-border transition-transform duration-300 hover:scale-[1.02]"
+                                />
+                                <ArticleThumb
+                                    v-else
+                                    :motif="a.motif ?? 'quote'"
+                                    :label="`Ilustrasi artikel ${a.judul}`"
+                                />
+                            </Link>
+                            <div class="min-w-0">
+                                <p
+                                    class="flex flex-wrap items-center gap-x-2 gap-y-1"
+                                >
+                                    <span
+                                        class="text-xs font-semibold tracking-[0.14em] text-flat-primary uppercase"
+                                        >{{ a.kategori_label }}</span
+                                    >
+                                    <span
+                                        v-if="a.published_at"
+                                        class="text-xs text-gray-500"
+                                        >{{ dateLabel(a.published_at) }}</span
+                                    >
+                                </p>
+                                <h3
+                                    class="mt-2.5 text-lg leading-snug font-extrabold tracking-tight md:text-xl"
+                                >
+                                    <Link
+                                        :href="
+                                            articleShowRoute({
+                                                article: a.slug,
+                                            }).url
+                                        "
+                                        class="transition-colors hover:text-flat-primary"
+                                    >
+                                        {{ a.judul }}
+                                    </Link>
+                                </h3>
+                                <p
+                                    class="mt-2 text-sm leading-[1.7] text-gray-500"
+                                >
+                                    {{ a.ringkasan }}
+                                </p>
+                            </div>
+                        </article>
+
+                        <!-- Tidak ada hasil -->
+                        <div
+                            v-if="listArticles.length === 0"
+                            class="border-b-2 border-flat-border py-16 text-center"
+                        >
+                            <p class="text-sm text-gray-500">
+                                {{
+                                    props.articles.total === 0 && !hasFilters
+                                        ? 'Belum ada artikel. Cerita pertama akan segera hadir.'
+                                        : 'Tidak ada artikel yang cocok dengan filter.'
+                                }}
+                            </p>
+                            <button
+                                v-if="hasFilters"
+                                type="button"
+                                class="mt-5 inline-flex min-h-12 items-center rounded-md border-2 border-flat-border bg-white px-6 text-sm font-medium transition-all duration-200 hover:bg-flat-muted focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:outline-none"
+                                @click="resetAll"
+                            >
+                                Bersihkan filter &amp; pencarian
+                            </button>
+                        </div>
+
+                        <!-- Muat lainnya -->
+                        <div
+                            v-if="canLoadMore && !loadingList"
+                            class="mt-10 flex justify-center"
+                        >
+                            <button
+                                type="button"
+                                :disabled="loadingMore"
+                                class="inline-flex min-h-12 items-center gap-2 rounded-md bg-flat-primary px-8 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
+                                @click="loadMore"
+                            >
+                                <Loader2
+                                    v-if="loadingMore"
+                                    class="size-4 animate-spin"
+                                    aria-hidden="true"
+                                />
+                                Muat artikel lainnya
+                            </button>
+                        </div>
+                    </template>
+                </div>
             </div>
         </section>
 
         <!-- Promo slot: paket (data nyata) -->
-        <aside
+        <FlatSection
             v-if="heroBundle && !dismissedPromos.has(`bundle-${heroBundle.id}`)"
-            class="mt-14"
-            aria-label="Promo paket buku"
+            variant="secondary"
+            decoration
+            class="mt-16"
         >
-            <div
-                class="relative flex items-center gap-4 rounded-lg border border-pcd-hairline bg-pcd-surface p-4 sm:p-5"
-            >
+            <div class="relative flex items-center gap-5">
                 <button
                     type="button"
-                    class="absolute -top-2.5 -right-2.5 flex size-9 items-center justify-center rounded-full border border-pcd-hairline bg-pcd-surface text-pcd-muted transition-colors hover:border-pcd-ink hover:text-pcd-ink"
+                    class="absolute -top-3 -right-1 flex size-10 items-center justify-center rounded-full bg-white/20 text-white transition-all duration-200 hover:scale-105 hover:bg-white/30"
                     :aria-label="`Tutup promo ${heroBundle.promo_name}`"
                     @click="dismissPromo(`bundle-${heroBundle.id}`)"
                 >
                     <X class="size-4" aria-hidden="true" />
                 </button>
-                <div class="grid shrink-0 grid-cols-2 gap-1">
+                <div class="grid shrink-0 grid-cols-2 gap-1.5">
                     <img
                         v-for="b in heroBundle.books.slice(0, 4)"
                         :key="b.id"
                         :src="b.cover_url ?? ''"
                         :alt="b.cover_url ? `Sampul ${b.judul}` : ''"
-                        class="size-10 rounded-sm object-cover ring-1 ring-pcd-hairline"
+                        class="size-11 rounded-sm object-cover ring-2 ring-white/20"
                     />
                 </div>
                 <div class="min-w-0 flex-1">
                     <p
-                        class="text-xs font-semibold tracking-[0.14em] text-pcd-accent uppercase"
+                        class="text-xs font-semibold tracking-[0.14em] text-white/80 uppercase"
                     >
                         Promo · Paket
                     </p>
-                    <h3 class="mt-1.5 truncate text-sm font-semibold">
+                    <h3 class="mt-1.5 truncate text-base font-extrabold text-white">
                         {{ heroBundle.promo_name }}
                     </h3>
-                    <p class="mt-0.5 truncate text-xs text-pcd-muted">
+                    <p class="mt-0.5 truncate text-xs text-white/70">
                         {{ heroBundle.books.length }} buku · hemat
-                        <Money
-                            :value="heroBundle.total_discount"
-                            class="text-xs"
-                        />
+                        <Money :value="heroBundle.total_discount" class="text-xs" />
                     </p>
                 </div>
                 <Link
                     :href="bundleHref"
-                    class="inline-flex min-h-12 shrink-0 items-center justify-center rounded-lg bg-pcd-accent-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
+                    class="inline-flex min-h-12 shrink-0 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-flat-secondary transition-all duration-200 hover:scale-105 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-flat-secondary focus-visible:outline-none"
                     >Lihat Paket</Link
                 >
             </div>
-        </aside>
+        </FlatSection>
 
         <!-- Dari Toko: buku unggulan (data nyata) -->
         <section
-            class="mt-20 border-t border-pcd-hairline pt-14 md:mt-28 md:pt-16"
+            class="mt-20 md:mt-28"
             aria-labelledby="dari-toko"
         >
             <div class="flex items-end justify-between gap-4">
                 <div>
                     <p
-                        class="text-xs font-semibold tracking-[0.16em] text-pcd-accent uppercase"
+                        class="text-xs font-semibold tracking-[0.16em] text-flat-primary uppercase"
                     >
                         Dari Toko
                     </p>
                     <h2
                         id="dari-toko"
-                        class="mt-2 font-serif text-2xl font-semibold tracking-tight md:text-3xl"
+                        class="mt-2 text-2xl font-extrabold tracking-tight md:text-3xl"
                     >
                         Buku Pilihan
                     </h2>
                 </div>
                 <Link
                     :href="catalogUrl().url"
-                    class="shrink-0 text-sm font-medium text-pcd-muted transition-colors hover:text-pcd-ink"
+                    class="shrink-0 text-sm font-semibold text-flat-primary transition-colors hover:text-flat-primary-dark"
                     >Semua buku →</Link
                 >
             </div>
@@ -607,7 +709,7 @@ const dateLabel = (value: string | null): string =>
                         class="group block"
                     >
                         <div
-                            class="relative overflow-hidden rounded-md ring-1 ring-pcd-hairline"
+                            class="relative overflow-hidden rounded-md border-2 border-flat-border"
                         >
                             <img
                                 v-if="book.cover_url"
@@ -621,13 +723,13 @@ const dateLabel = (value: string | null): string =>
                                 class="aspect-[5/7] w-full"
                             />
                         </div>
-                        <h3 class="mt-3 truncate text-sm font-semibold">
+                        <h3 class="mt-3 truncate text-sm font-extrabold">
                             {{ book.judul }}
                         </h3>
-                        <p class="mt-0.5 truncate text-xs text-pcd-muted">
+                        <p class="mt-0.5 truncate text-xs text-gray-500">
                             {{ book.penulis ?? '—' }}
                         </p>
-                        <p class="mt-2 text-sm font-semibold tabular-nums">
+                        <p class="mt-2 text-sm font-bold tabular-nums text-flat-primary">
                             <Money
                                 :value="
                                     book.price_breakdown?.final_price ??
@@ -636,7 +738,7 @@ const dateLabel = (value: string | null): string =>
                             />
                             <s
                                 v-if="book.price_breakdown"
-                                class="ml-1 text-xs font-normal text-pcd-muted"
+                                class="ml-1 text-xs font-normal text-gray-400"
                             >
                                 <Money
                                     :value="book.price_breakdown.original_price"
@@ -653,7 +755,7 @@ const dateLabel = (value: string | null): string =>
                         <input type="hidden" name="qty" value="1" />
                         <button
                             type="submit"
-                            class="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-pcd-hairline bg-pcd-surface text-xs font-semibold text-pcd-ink transition-colors hover:border-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong"
+                            class="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border-2 border-flat-border bg-white text-xs font-semibold text-flat-ink transition-all duration-200 hover:bg-flat-muted focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:outline-none"
                         >
                             <ShoppingCart class="size-3.5" aria-hidden="true" />
                             Tambah
@@ -662,7 +764,7 @@ const dateLabel = (value: string | null): string =>
                 </div>
             </div>
 
-            <p v-else class="mt-10 text-sm text-pcd-muted">
+            <p v-else class="mt-10 text-sm text-gray-500">
                 Belum ada buku yang ditampilkan.
             </p>
         </section>

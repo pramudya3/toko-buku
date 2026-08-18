@@ -370,12 +370,10 @@ function onFormError(): void {
     <Head title="Checkout — Pustaka Cahaya Peradaban" />
 
     <div class="mx-auto max-w-6xl px-4 pt-12 pb-32 md:px-6 md:pt-16">
-        <h1
-            class="font-serif text-3xl font-semibold tracking-tight md:text-4xl"
-        >
+        <h1 class="text-3xl font-extrabold tracking-tight md:text-4xl">
             Checkout
         </h1>
-        <p class="mt-3 text-sm text-pcd-muted">
+        <p class="mt-3 text-sm text-gray-500">
             Isi alamat, pilih cara bayar, selesai. Pesanan dikonfirmasi via
             WhatsApp.
         </p>
@@ -389,7 +387,7 @@ function onFormError(): void {
         >
             <!-- Kolom form -->
             <div class="lg:order-1">
-                <h2 class="text-base font-semibold">Data Penerima</h2>
+                <h2 class="text-base font-bold">Data Penerima</h2>
                 <div class="mt-5 space-y-5">
                     <div>
                         <label for="pcd-nama" class="text-sm font-medium"
@@ -402,7 +400,7 @@ function onFormError(): void {
                             type="text"
                             autocomplete="name"
                             required
-                            class="mt-2 w-full rounded-lg border border-pcd-hairline bg-pcd-surface px-4 py-3.5 text-sm transition-colors outline-none placeholder:text-pcd-muted/70 focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25"
+                            class="mt-2 w-full rounded-md border-2 border-transparent bg-flat-muted px-4 py-3.5 text-sm transition-colors outline-none placeholder:text-gray-400 focus:border-flat-primary focus:bg-white"
                             placeholder="cth. Siti Rahayu"
                         />
                         <p
@@ -426,14 +424,14 @@ function onFormError(): void {
                                 :default-value="
                                     user?.whatsapp_number ?? undefined
                                 "
-                                class="mt-2 w-full rounded-lg border border-pcd-hairline bg-pcd-surface px-4 py-3.5 text-sm transition-colors outline-none placeholder:text-pcd-muted/70 focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25"
+                                class="mt-2 w-full rounded-md border-2 border-transparent bg-flat-muted px-4 py-3.5 text-sm transition-colors outline-none placeholder:text-gray-400 focus:border-flat-primary focus:bg-white"
                                 placeholder="cth. 0812-3456-7890"
                             />
                         </div>
                         <div>
                             <label for="pcd-email" class="text-sm font-medium"
                                 >Email
-                                <span class="font-normal text-pcd-muted"
+                                <span class="font-normal text-gray-500"
                                     >(opsional)</span
                                 ></label
                             >
@@ -443,58 +441,58 @@ function onFormError(): void {
                                 type="email"
                                 autocomplete="email"
                                 :default-value="user?.email ?? undefined"
-                                class="mt-2 w-full rounded-lg border border-pcd-hairline bg-pcd-surface px-4 py-3.5 text-sm transition-colors outline-none placeholder:text-pcd-muted/70 focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25"
+                                class="mt-2 w-full rounded-md border-2 border-transparent bg-flat-muted px-4 py-3.5 text-sm transition-colors outline-none placeholder:text-gray-400 focus:border-flat-primary focus:bg-white"
                             />
                         </div>
                     </div>
                 </div>
 
-                <h2 class="mt-10 text-base font-semibold">
+                <h2 class="mt-10 text-base font-bold">
                     Metode Pengambilan
                 </h2>
                 <div class="mt-4 grid grid-cols-2 gap-3">
                     <button
                         type="button"
-                        class="flex items-start gap-3 rounded-lg border p-4 text-left transition-colors"
+                        class="flex items-start gap-3 rounded-md border-2 p-4 text-left transition-all duration-200"
                         :class="
                             !isAmbil
-                                ? 'border-pcd-ink bg-pcd-surface ring-1 ring-pcd-ink'
-                                : 'border-pcd-hairline bg-pcd-surface'
+                                ? 'border-flat-primary bg-white'
+                                : 'border-flat-border bg-white hover:bg-flat-muted'
                         "
                         @click="chooseFulfillment('kirim')"
                     >
                         <Truck
-                            class="mt-0.5 size-5 shrink-0 text-pcd-accent"
+                            class="mt-0.5 size-5 shrink-0 text-flat-primary"
                             aria-hidden="true"
                         />
                         <span>
-                            <span class="block text-sm font-semibold"
+                            <span class="block text-sm font-bold"
                                 >Kirim</span
                             >
-                            <span class="mt-0.5 block text-xs text-pcd-muted"
+                            <span class="mt-0.5 block text-xs text-gray-500"
                                 >Via ekspedisi</span
                             >
                         </span>
                     </button>
                     <button
                         type="button"
-                        class="flex items-start gap-3 rounded-lg border p-4 text-left transition-colors"
+                        class="flex items-start gap-3 rounded-md border-2 p-4 text-left transition-all duration-200"
                         :class="
                             isAmbil
-                                ? 'border-pcd-ink bg-pcd-surface ring-1 ring-pcd-ink'
-                                : 'border-pcd-hairline bg-pcd-surface'
+                                ? 'border-flat-primary bg-white'
+                                : 'border-flat-border bg-white hover:bg-flat-muted'
                         "
                         @click="chooseFulfillment('ambil')"
                     >
                         <PackageCheck
-                            class="mt-0.5 size-5 shrink-0 text-pcd-accent"
+                            class="mt-0.5 size-5 shrink-0 text-flat-primary"
                             aria-hidden="true"
                         />
                         <span>
-                            <span class="block text-sm font-semibold"
+                            <span class="block text-sm font-bold"
                                 >Ambil Sendiri</span
                             >
-                            <span class="mt-0.5 block text-xs text-pcd-muted"
+                            <span class="mt-0.5 block text-xs text-gray-500"
                                 >Di toko, tanpa ongkir</span
                             >
                         </span>
@@ -507,12 +505,12 @@ function onFormError(): void {
                 />
 
                 <div v-if="!isAmbil" class="mt-10">
-                    <h2 class="text-base font-semibold">Alamat Pengiriman</h2>
+                    <h2 class="text-base font-bold">Alamat Pengiriman</h2>
                     <div class="mt-5">
                         <AddressFields v-model="address" />
                     </div>
 
-                    <h2 class="mt-10 text-base font-semibold">
+                    <h2 class="mt-10 text-base font-bold">
                         Ekspedisi &amp; Ongkir
                     </h2>
                     <div
@@ -523,7 +521,7 @@ function onFormError(): void {
                             :disabled="
                                 ongkirLoading || shippingCosts.length === 0
                             "
-                            class="min-h-12 w-full flex-1 rounded-lg border border-pcd-hairline bg-pcd-surface px-4 text-sm transition-colors outline-none focus:border-pcd-accent focus:ring-2 focus:ring-pcd-accent/25 disabled:opacity-60 sm:max-w-sm"
+                            class="min-h-12 w-full flex-1 rounded-md border-2 border-transparent bg-flat-muted px-4 text-sm transition-colors outline-none focus:border-flat-primary focus:bg-white disabled:opacity-60 sm:max-w-sm"
                             @change="onShippingChange"
                         >
                             <option value="" disabled>
@@ -549,7 +547,7 @@ function onFormError(): void {
                         </select>
                         <button
                             type="button"
-                            class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-pcd-hairline bg-pcd-surface px-6 text-sm font-medium transition-colors hover:border-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong disabled:opacity-60"
+                            class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-flat-primary px-6 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
                             :disabled="ongkirLoading || !address.kode_pos"
                             @click="checkOngkir"
                         >
@@ -561,7 +559,7 @@ function onFormError(): void {
                             {{ ongkirLoading ? 'Menghitung...' : 'Cek Ongkir' }}
                         </button>
                     </div>
-                    <p v-if="ongkirLoading" class="mt-2 text-xs text-pcd-muted">
+                    <p v-if="ongkirLoading" class="mt-2 text-xs text-gray-500">
                         Menghitung ongkir ke {{ address.kelurahan }}...
                     </p>
                     <p
@@ -580,7 +578,7 @@ function onFormError(): void {
                         v-else-if="
                             shippingCosts.length && shippingWeight !== null
                         "
-                        class="mt-2 text-xs text-pcd-muted"
+                        class="mt-2 text-xs text-gray-500"
                     >
                         Berat paket {{ shippingWeight }} kg ·
                         {{ shippingCosts.length }} ekspedisi tersedia
@@ -597,7 +595,7 @@ function onFormError(): void {
                     />
                 </div>
 
-                <h2 class="mt-10 text-base font-semibold">Cara Bayar</h2>
+                <h2 class="mt-10 text-base font-bold">Cara Bayar</h2>
                 <div class="mt-4 space-y-3">
                     <label
                         v-for="(label, value) in paymentOptions"
@@ -612,7 +610,7 @@ function onFormError(): void {
                             class="peer sr-only"
                         />
                         <span
-                            class="flex min-h-[68px] items-center rounded-lg border bg-pcd-surface px-4 py-3.5 text-sm font-semibold transition-colors peer-checked:border-pcd-ink peer-checked:ring-1 peer-checked:ring-pcd-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-pcd-accent-strong"
+                            class="flex min-h-[68px] items-center rounded-md border-2 border-flat-border bg-white px-4 py-3.5 text-sm font-bold transition-all duration-200 peer-checked:border-flat-primary peer-checked:ring-2 peer-checked:ring-flat-primary peer-focus-visible:ring-2 peer-focus-visible:ring-flat-primary peer-focus-visible:ring-offset-2 peer-focus-visible:outline-none"
                             >{{ label }}</span
                         >
                     </label>
@@ -624,9 +622,9 @@ function onFormError(): void {
                             selectedPayment === 'transfer' &&
                             bankAccounts.length
                         "
-                        class="rounded-lg border border-pcd-hairline bg-pcd-surface px-4 py-3 text-xs text-pcd-muted"
+                        class="rounded-md bg-flat-muted px-4 py-3 text-xs text-gray-500"
                     >
-                        <p class="mb-1 font-medium text-pcd-ink">
+                        <p class="mb-1 font-bold text-flat-ink">
                             Transfer ke rekening:
                         </p>
                         <p
@@ -634,7 +632,7 @@ function onFormError(): void {
                             :key="account.id"
                             class="flex flex-wrap items-center gap-2 py-0.5"
                         >
-                            <span class="font-medium">{{
+                            <span class="font-bold">{{
                                 account.bank_name
                             }}</span>
                             <span class="font-mono tracking-wide">{{
@@ -649,9 +647,9 @@ function onFormError(): void {
             <!-- Ringkasan -->
             <aside class="lg:order-2" aria-labelledby="pcd-ringkasan">
                 <div
-                    class="rounded-xl border border-pcd-hairline bg-pcd-surface p-6 lg:sticky lg:top-24"
+                    class="rounded-lg bg-flat-muted p-6 lg:sticky lg:top-24"
                 >
-                    <h2 id="pcd-ringkasan" class="text-base font-semibold">
+                    <h2 id="pcd-ringkasan" class="text-base font-bold">
                         Ringkasan Pesanan
                     </h2>
 
@@ -659,7 +657,7 @@ function onFormError(): void {
                         v-if="groups.length === 0"
                         class="mt-6 py-10 text-center"
                     >
-                        <p class="text-sm text-pcd-muted">
+                        <p class="text-sm text-gray-500">
                             Keranjang masih kosong.
                         </p>
                     </div>
@@ -668,7 +666,7 @@ function onFormError(): void {
                         <div
                             v-for="group in groups"
                             :key="group.key"
-                            class="mt-5 rounded-lg border border-pcd-hairline p-4 transition-opacity"
+                            class="mt-5 rounded-lg bg-white p-4 transition-opacity"
                             :class="{
                                 'opacity-60': !selectedGroups.includes(
                                     group.key,
@@ -681,7 +679,7 @@ function onFormError(): void {
                                 >
                                     <input
                                         type="checkbox"
-                                        class="size-4 accent-pcd-accent-strong"
+                                        class="size-4 accent-flat-primary"
                                         :checked="
                                             selectedGroups.includes(group.key)
                                         "
@@ -696,13 +694,13 @@ function onFormError(): void {
                                         "
                                     />
                                     <span
-                                        class="min-w-0 truncate text-sm font-semibold"
+                                        class="min-w-0 truncate text-sm font-bold"
                                         >{{ group.name }}</span
                                     >
                                 </label>
                                 <button
                                     type="button"
-                                    class="ml-auto flex size-9 shrink-0 items-center justify-center rounded-lg text-pcd-muted transition-colors hover:text-red-700"
+                                    class="ml-auto flex size-9 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-red-700"
                                     :aria-label="`Hapus seluruh grup ${group.name}`"
                                     @click="removeGroup(group)"
                                 >
@@ -725,7 +723,7 @@ function onFormError(): void {
                                         >
                                             <select
                                                 v-if="item.editions.length > 1"
-                                                class="min-h-9 rounded-md border border-pcd-hairline bg-pcd-surface px-2 text-xs outline-none"
+                                                class="min-h-9 rounded-md border-2 border-transparent bg-flat-muted px-2 text-xs outline-none focus:border-flat-primary focus:bg-white"
                                                 :value="currentEditionId(item)"
                                                 @change="
                                                     changeEdition(
@@ -754,7 +752,7 @@ function onFormError(): void {
                                             </select>
                                             <span
                                                 v-else
-                                                class="text-xs text-pcd-muted"
+                                                class="text-xs text-gray-500"
                                             >
                                                 {{
                                                     item.edition_label
@@ -768,11 +766,11 @@ function onFormError(): void {
                                     </div>
                                     <div
                                         v-if="group.key === 'regular'"
-                                        class="flex shrink-0 items-center rounded-md border border-pcd-hairline"
+                                        class="flex shrink-0 items-center rounded-md border-2 border-flat-border bg-white"
                                     >
                                         <button
                                             type="button"
-                                            class="flex size-9 items-center justify-center text-pcd-muted transition-colors hover:text-pcd-ink disabled:opacity-40"
+                                            class="flex size-9 items-center justify-center text-gray-500 transition-colors hover:text-flat-ink disabled:opacity-40"
                                             :disabled="item.qty <= 1"
                                             :aria-label="`Kurangi ${item.book.judul}`"
                                             @click="updateQty(item, -1)"
@@ -788,7 +786,7 @@ function onFormError(): void {
                                         >
                                         <button
                                             type="button"
-                                            class="flex size-9 items-center justify-center text-pcd-muted transition-colors hover:text-pcd-ink disabled:opacity-40"
+                                            class="flex size-9 items-center justify-center text-gray-500 transition-colors hover:text-flat-ink disabled:opacity-40"
                                             :disabled="
                                                 item.qty >=
                                                 (item.book.is_preorder
@@ -809,11 +807,11 @@ function onFormError(): void {
                                     >
                                         <Money
                                             :value="item.item_total"
-                                            class="text-sm font-semibold"
+                                            class="text-sm font-bold"
                                         />
                                         <button
                                             type="button"
-                                            class="flex size-8 items-center justify-center rounded-md text-pcd-muted transition-colors hover:text-red-700"
+                                            class="flex size-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-red-700"
                                             :aria-label="`Hapus ${item.book.judul} dari keranjang`"
                                             @click="removeItem(item)"
                                         >
@@ -828,10 +826,10 @@ function onFormError(): void {
                         </div>
 
                         <dl
-                            class="mt-6 space-y-2.5 border-t border-pcd-hairline pt-5 text-sm"
+                            class="mt-6 space-y-2.5 border-t-2 border-flat-border pt-5 text-sm"
                         >
                             <div class="flex items-center justify-between">
-                                <dt class="text-pcd-muted">Subtotal</dt>
+                                <dt class="text-gray-500">Subtotal</dt>
                                 <dd class="font-medium tabular-nums">
                                     <Money :value="subtotal" />
                                 </dd>
@@ -840,7 +838,7 @@ function onFormError(): void {
                                 v-if="totalDiscount > 0"
                                 class="flex items-center justify-between"
                             >
-                                <dt class="text-pcd-muted">Diskon</dt>
+                                <dt class="text-gray-500">Diskon</dt>
                                 <dd
                                     class="font-medium text-red-700 tabular-nums"
                                 >
@@ -851,7 +849,7 @@ function onFormError(): void {
                                 v-if="!isAmbil"
                                 class="flex items-center justify-between"
                             >
-                                <dt class="text-pcd-muted">Ongkir</dt>
+                                <dt class="text-gray-500">Ongkir</dt>
                                 <dd class="font-medium tabular-nums">
                                     <Money
                                         v-if="shippingCosts.length"
@@ -861,10 +859,12 @@ function onFormError(): void {
                                 </dd>
                             </div>
                             <div
-                                class="flex items-center justify-between border-t border-pcd-hairline pt-3"
+                                class="flex items-center justify-between border-t-2 border-flat-border pt-3"
                             >
-                                <dt class="font-semibold">Total</dt>
-                                <dd class="text-lg font-semibold tabular-nums">
+                                <dt class="font-bold">Total</dt>
+                                <dd
+                                    class="text-lg font-extrabold tabular-nums text-flat-primary"
+                                >
                                     <Money :value="grandTotal" />
                                 </dd>
                             </div>
@@ -882,7 +882,7 @@ function onFormError(): void {
                     <button
                         type="submit"
                         :disabled="processing || !hasActiveGroup"
-                        class="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-pcd-accent-strong px-6 text-sm font-semibold text-white transition-colors hover:bg-pcd-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pcd-accent-strong disabled:opacity-50"
+                        class="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-flat-primary px-6 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark focus-visible:ring-2 focus-visible:ring-flat-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
                     >
                         <Loader2
                             v-if="processing"
@@ -891,7 +891,7 @@ function onFormError(): void {
                         />
                         Buat Pesanan
                     </button>
-                    <p class="mt-3 text-center text-xs text-pcd-muted">
+                    <p class="mt-3 text-center text-xs text-gray-500">
                         Pesanan dikonfirmasi melalui WhatsApp dalam 1×24 jam.
                     </p>
                 </div>

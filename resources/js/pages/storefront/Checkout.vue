@@ -21,7 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 
 type CartBook = {
     id: string;
@@ -120,7 +120,7 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 const selectedPayment = ref(Object.keys(props.paymentOptions)[0] ?? 'transfer');
@@ -602,13 +602,18 @@ function onFormError() {
 <template>
     <Head title="Checkout" />
 
-    <div class="flex flex-col gap-6 pb-36 lg:pb-0">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight">Checkout</h1>
-            <p class="text-sm text-muted-foreground">
-                Lengkapi data diri dan alamat pengiriman.
-            </p>
-        </div>
+    <div class="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        <div class="flex flex-col gap-6 pb-36 lg:pb-0">
+            <div>
+                <h1
+                    class="font-serif text-2xl font-bold tracking-tight text-article-ink md:text-3xl"
+                >
+                    Checkout
+                </h1>
+                <p class="mt-1 text-sm text-article-muted">
+                    Lengkapi data diri dan alamat pengiriman.
+                </p>
+            </div>
 
         <Form
             :action="CartController.store().url"
@@ -1410,5 +1415,6 @@ function onFormError() {
             </EmptyState>
             <InputError :message="errors.items" />
         </Form>
+        </div>
     </div>
 </template>

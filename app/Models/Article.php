@@ -29,11 +29,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $motif
  * @property string|null $cover_url
  * @property bool $is_active
+ * @property bool $is_featured
  * @property string|null $published_at
  */
 #[Fillable([
     'judul', 'slug', 'article_category_id', 'penulis', 'ringkasan', 'isi',
-    'motif', 'cover_url', 'is_active', 'published_at',
+    'motif', 'cover_url', 'is_active', 'is_featured', 'published_at',
 ])]
 #[ObservedBy([ArticleObserver::class])]
 class Article extends Model
@@ -83,10 +84,22 @@ class Article extends Model
             ->where(fn ($q) => $q->whereNull('published_at')->orWhereDate('published_at', '<=', today()));
     }
 
+    /**
+     * Artikel yang ditandai sebagai unggulan (featured).
+     *
+     * @param  Builder<Article>  $query
+     * @return Builder<Article>
+     */
+    public function scopeFeatured(Builder $query): Builder
+    {
+        return $query->where('is_featured', true);
+    }
+
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_featured' => 'boolean',
             'published_at' => DateOnly::class,
         ];
     }

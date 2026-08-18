@@ -49,6 +49,7 @@ class ArticleController extends Controller
                 'motif' => $article->motif,
                 'cover_url' => $article->cover_url,
                 'is_active' => $article->is_active,
+                'is_featured' => $article->is_featured,
                 'published_at' => $article->published_at,
             ]);
 
@@ -67,7 +68,6 @@ class ArticleController extends Controller
         return Inertia::render('admin/articles/Form', [
             'article' => null,
             'kategoriOptions' => ArticleCategory::orderBy('nama')->get(['id', 'nama']),
-            'motifOptions' => Article::motifOptions(),
         ]);
     }
 
@@ -79,7 +79,6 @@ class ArticleController extends Controller
         return Inertia::render('admin/articles/Form', [
             'article' => $article->load('category:id,nama'),
             'kategoriOptions' => ArticleCategory::orderBy('nama')->get(['id', 'nama']),
-            'motifOptions' => Article::motifOptions(),
         ]);
     }
 
@@ -88,6 +87,9 @@ class ArticleController extends Controller
         $data = $this->payload($request);
 
         $data['slug'] = $this->uniqueSlug($data['judul']);
+
+        // Tanpa cover yang diunggah, ilustrasi kutipan (SVG) dipakai otomatis.
+        $data['motif'] = $data['motif'] ?? 'quote';
 
         Article::create($data);
 
@@ -164,6 +166,35 @@ class ArticleController extends Controller
     }
 
     /**
+     * Jadikan/batalkan artikel sebagai unggulan (hero beranda).
+     *
+     * Hanya satu artikel unggulan — saat menetapkan unggulan baru, unggulan
+     * lama otomatis di-reset.
+     */
+    public function toggleFeatured(Article $article): RedirectResponse
+    {
+        $isFeatured = ! $article->is_featured;
+
+        if ($isFeatured) {
+            Article::query()
+                ->where('is_featured', true)
+                ->whereKeyNot($article->getKey())
+                ->update(['is_featured' => false]);
+        }
+
+        $article->update(['is_featured' => $isFeatured]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $isFeatured
+                ? "Artikel {$article->judul} kini menjadi artikel unggulan."
+                : "Artikel {$article->judul} tidak lagi menjadi unggulan.",
+        ]);
+
+        return back();
+    }
+
+    /**
      * Unggah gambar di dalam body artikel (editor). Dipakai langsung oleh
      * toolbar Insert Image — bukan bagian dari form artikel.
      */
@@ -191,7 +222,11 @@ class ArticleController extends Controller
     {
         $data = $request->validated();
 
-        unset($data['cover'], $data['remove_cover']);
+        unset($data['cover'], $data['remove_cover'], $data['save_as_draft']);
+
+        // Draft boleh kosong — isi default agar kolom tidak null.
+        $data['ringkasan'] ??= '';
+        $data['isi'] ??= '';
 
         if ($request->hasFile('cover')) {
             if ($article !== null) {
@@ -220,6 +255,10 @@ class ArticleController extends Controller
 
         if ($request->has('is_active')) {
             $data['is_active'] = $request->boolean('is_active');
+        }
+
+        if ($request->has('is_featured')) {
+            $data['is_featured'] = $request->boolean('is_featured');
         }
 
         return $data;

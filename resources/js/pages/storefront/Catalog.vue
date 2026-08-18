@@ -24,7 +24,7 @@ import {
     DialogScrollContent,
     DialogTitle,
 } from '@/components/ui/dialog';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import { formatDateID } from '@/lib/date';
 import { bookShowUrl } from '@/lib/slug';
 import {
@@ -107,7 +107,7 @@ type Props = {
 };
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 const props = defineProps<Props>();
@@ -115,8 +115,10 @@ const props = defineProps<Props>();
 // Paket bundle yang sedang dibuka di modal detail.
 const activeBundle = ref<Bundle | null>(null);
 
-// Search & kategori hidup di header (CustomerLayout) — halaman ini hanya
-// mengelola filter stok. Nilai search/kategori dibaca dari props server.
+// Filter kategori & stok hidup di halaman ini; pencarian ada di header
+// (EditorialLayout). Sinkron nilai kategori dari props server.
+const categoryId = ref(props.filters.category_id ?? '__all__');
+
 const stokFilter = ref<'all' | 'ready' | 'preorder' | 'empty'>(
     props.filters.stok === 'ready' ||
         props.filters.stok === 'preorder' ||
@@ -124,6 +126,32 @@ const stokFilter = ref<'all' | 'ready' | 'preorder' | 'empty'>(
         ? props.filters.stok
         : 'all',
 );
+
+watch(
+    () => [props.filters.search, props.filters.category_id],
+    () => {
+        categoryId.value = props.filters.category_id ?? '__all__';
+    },
+);
+
+// Kategori & stok berubah → langsung request.
+function applyFilters(): void {
+    router.get(
+        catalogUrl().url,
+        {
+            search: props.filters.search ?? undefined,
+            category_id:
+                categoryId.value === '__all__' ? undefined : categoryId.value,
+            stok:
+                stokFilter.value === 'all' ? undefined : stokFilter.value,
+        },
+        { preserveState: true, replace: true },
+    );
+}
+
+watch(categoryId, applyFilters);
+watch(stokFilter, applyFilters);
+
 const books = ref<Book[]>(props.books.data);
 const currentPage = ref(props.books.current_page);
 const lastPage = ref(props.books.last_page);
@@ -142,44 +170,6 @@ watch(viewMode, (mode) => {
 // Token generasi load-more — response yang sudah basi (filter berubah)
 // diabaikan supaya tidak mencampur hasil lama ke daftar baru.
 let loadMoreToken = 0;
-
-let timer: ReturnType<typeof setTimeout> | undefined;
-
-watch(stokFilter, () => {
-    // Filter berubah → response load-more lama tidak berlaku lagi.
-    loadMoreToken++;
-    loadingMore.value = false;
-
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-        router.get(
-            catalogUrl().url,
-            {
-                search: props.filters.search ?? undefined,
-                category_id: props.filters.category_id ?? undefined,
-                stok: stokFilter.value === 'all' ? undefined : stokFilter.value,
-            },
-            { preserveState: true, replace: true },
-        );
-    }, 350);
-});
-
-// Chips kategori (mobile) — kirim langsung; select kategori di header
-// tersinkron otomatis lewat props.filters.
-function applyCategory(categoryId: string | null): void {
-    loadMoreToken++;
-    loadingMore.value = false;
-
-    router.get(
-        catalogUrl().url,
-        {
-            search: props.filters.search ?? undefined,
-            category_id: categoryId ?? undefined,
-            stok: stokFilter.value === 'all' ? undefined : stokFilter.value,
-        },
-        { preserveState: true, replace: true },
-    );
-}
 
 // Sync daftar buku saat props berubah (search/filter reload dengan preserveState).
 watch(
@@ -272,7 +262,6 @@ function preorderEtaLabel(book: Book): string {
 }
 
 function resetFilters(): void {
-    clearTimeout(timer);
     stokFilter.value = 'all';
 
     router.get(
@@ -430,47 +419,91 @@ function loadMore() {
         />
     </Head>
 
-    <div class="flex flex-col gap-6">
-        <!-- ── Filter stok + toggle grid/list ── -->
-        <div class="flex items-center justify-between gap-3">
-            <div
-                class="flex items-center gap-1 rounded-lg border bg-muted/40 p-1"
+    <div class="mx-auto max-w-6xl px-4 pb-20 md:px-6 md:pb-28">
+        <!-- ── Header katalog ── -->
+        <!-- <div class="pt-12 text-center md:pt-16">
+            <p
+                class="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-article-accent uppercase"
             >
-                <button
-                    v-for="option in [
-                        { value: 'all', label: 'Semua' },
-                        { value: 'ready', label: 'Tersedia' },
-                        { value: 'preorder', label: 'Pre-Order' },
-                        { value: 'empty', label: 'Habis' },
-                    ]"
-                    :key="option.value"
-                    type="button"
-                    class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-                    :class="
-                        stokFilter === option.value
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                    "
-                    @click="
-                        stokFilter = option.value as
-                            'all' | 'ready' | 'preorder' | 'empty'
-                    "
+                <BookX class="size-3.5" aria-hidden="true" />
+                Toko
+            </p>
+            <h1
+                class="mx-auto mt-3 max-w-2xl font-serif text-3xl leading-tight font-bold tracking-tight text-article-ink md:text-4xl"
+            >
+                Katalog Buku
+            </h1>
+            <p class="mt-3 text-sm text-article-muted">
+                Temukan buku berkualitas untuk semua kalangan.
+            </p>
+        </div> -->
+
+        <!-- ── Filter: kategori + stok + grid/list (pencarian di header) ── -->
+        <div
+            class="mt-8 flex flex-col gap-4 rounded-xl border border-article-border bg-article-surface p-4 md:flex-row md:items-center md:justify-between lg:p-5"
+        >
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <!-- Kategori -->
+                <label
+                    class="flex items-center gap-2 text-sm text-article-muted"
                 >
-                    {{ option.label }}
-                </button>
+                    <span class="sr-only">Kategori</span>
+                    <select
+                        v-model="categoryId"
+                        class="min-h-11 w-full rounded-lg border border-article-border bg-article-surface px-3 pr-8 text-sm text-article-ink transition-colors outline-none focus:border-article-primary focus:ring-2 focus:ring-article-primary/20 md:w-auto"
+                        aria-label="Filter kategori"
+                    >
+                        <option value="__all__">Semua kategori</option>
+                        <option
+                            v-for="category in categories"
+                            :key="category.id"
+                            :value="String(category.id)"
+                        >
+                            {{ category.nama }}
+                        </option>
+                    </select>
+                </label>
+
+                <!-- Filter stok -->
+                <div
+                    class="flex items-center gap-1 rounded-lg border border-article-border bg-article-surface p-1"
+                >
+                    <button
+                        v-for="option in [
+                            { value: 'all', label: 'Semua' },
+                            { value: 'ready', label: 'Tersedia' },
+                            { value: 'preorder', label: 'Pre-Order' },
+                            { value: 'empty', label: 'Habis' },
+                        ]"
+                        :key="option.value"
+                        type="button"
+                        class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                        :class="
+                            stokFilter === option.value
+                                ? 'bg-article-primary text-white'
+                                : 'text-article-muted hover:text-article-ink'
+                        "
+                        @click="
+                            stokFilter = option.value as
+                                'all' | 'ready' | 'preorder' | 'empty'
+                        "
+                    >
+                        {{ option.label }}
+                    </button>
+                </div>
             </div>
 
             <!-- Toggle grid/list — hanya desktop -->
             <div
-                class="hidden items-center gap-1 rounded-lg border bg-muted/40 p-1 lg:flex"
+                class="hidden items-center gap-1 rounded-lg border border-article-border bg-article-surface p-1 lg:flex"
             >
                 <button
                     type="button"
                     class="rounded-md p-2 transition-colors"
                     :class="
                         viewMode === 'grid'
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-article-primary text-white'
+                            : 'text-article-muted hover:text-article-ink'
                     "
                     title="Tampilan grid"
                     @click="viewMode = 'grid'"
@@ -482,8 +515,8 @@ function loadMore() {
                     class="rounded-md p-2 transition-colors"
                     :class="
                         viewMode === 'list'
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-article-primary text-white'
+                            : 'text-article-muted hover:text-article-ink'
                     "
                     title="Tampilan list"
                     @click="viewMode = 'list'"
@@ -493,7 +526,7 @@ function loadMore() {
             </div>
         </div>
 
-        <!-- Chips kategori — mobile saja (desktop di header) -->
+        <!-- Chips kategori — mobile saja (desktop sudah ada select) -->
         <div
             v-if="categories.length"
             class="flex gap-2 overflow-x-auto pb-1 lg:hidden"
@@ -502,11 +535,11 @@ function loadMore() {
                 type="button"
                 class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
                 :class="
-                    !props.filters.category_id
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background text-muted-foreground'
+                    categoryId === '__all__'
+                        ? 'border-article-primary bg-article-primary text-white'
+                        : 'border-article-border bg-article-surface text-article-muted'
                 "
-                @click="applyCategory(null)"
+                @click="categoryId = '__all__'"
             >
                 Semua
             </button>
@@ -516,11 +549,11 @@ function loadMore() {
                 type="button"
                 class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
                 :class="
-                    props.filters.category_id === String(category.id)
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background text-muted-foreground'
+                    categoryId === String(category.id)
+                        ? 'border-article-primary bg-article-primary text-white'
+                        : 'border-article-border bg-article-surface text-article-muted'
                 "
-                @click="applyCategory(String(category.id))"
+                @click="categoryId = String(category.id)"
             >
                 {{ category.nama }}
             </button>
@@ -530,17 +563,21 @@ function loadMore() {
         <section
             v-if="showPromoSection"
             id="promo"
-            class="flex scroll-mt-24 flex-col gap-4 rounded-xl border bg-muted/20 p-4 lg:p-5"
+            class="mt-8 flex scroll-mt-24 flex-col gap-4 rounded-xl border border-article-border bg-article-surface p-4 lg:p-5"
         >
             <div class="flex items-end justify-between gap-3">
                 <div>
-                    <h2 class="text-lg font-bold tracking-tight">Promo</h2>
-                    <p class="text-sm text-muted-foreground">
+                    <h2
+                        class="font-serif text-xl font-bold tracking-tight text-article-ink"
+                    >
+                        Promo
+                    </h2>
+                    <p class="mt-1 text-sm text-article-muted">
                         Penawaran terbaik — paket hemat & diskon per buku
                     </p>
                 </div>
                 <p
-                    class="hidden items-center gap-0.5 text-xs text-muted-foreground lg:hidden"
+                    class="hidden items-center gap-0.5 text-xs text-article-muted lg:hidden"
                 >
                     Geser untuk lihat lainnya
                     <ChevronRight class="size-3.5" />
@@ -549,7 +586,9 @@ function loadMore() {
 
             <!-- ── Paket Hemat: promo bundle aktif ── -->
             <div v-if="visibleBundles.length" class="flex flex-col gap-3">
-                <h3 class="text-sm font-semibold">Paket Hemat</h3>
+                <h3 class="text-sm font-semibold text-article-ink">
+                    Paket Hemat
+                </h3>
                 <!-- Scroll horizontal (mobile & desktop) — desktop pakai tombol panah -->
                 <div class="relative">
                     <div
@@ -561,7 +600,7 @@ function loadMore() {
                             v-for="bundle in visibleBundles"
                             :key="bundle.id"
                             data-bundle-card
-                            class="flex w-[85vw] max-w-[240px] shrink-0 snap-start flex-col gap-2 rounded-xl border bg-background p-3 transition-shadow hover:shadow-md lg:w-[260px] lg:max-w-none"
+                            class="flex w-[85vw] max-w-[240px] shrink-0 snap-start flex-col gap-2 rounded-xl border border-article-border bg-article-bg p-3 transition-shadow hover:shadow-md lg:w-[260px] lg:max-w-none"
                         >
                             <div class="flex items-start gap-3">
                                 <!-- Cover buku paket (tumpuk) -->
@@ -575,7 +614,7 @@ function loadMore() {
                                             :key="book.id"
                                         >
                                             <div
-                                                class="size-13 shrink-0 overflow-hidden rounded-md border bg-muted shadow-sm"
+                                                class="size-13 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-surface shadow-sm"
                                             >
                                                 <img
                                                     v-if="book.cover_url"
@@ -593,23 +632,25 @@ function loadMore() {
                                     </div>
                                     <span
                                         v-if="bundle.books.length > 3"
-                                        class="absolute -right-1.5 -bottom-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm"
+                                        class="absolute -right-1.5 -bottom-1.5 rounded-full bg-article-accent px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
                                     >
                                         +{{ bundle.books.length - 3 }}
                                     </span>
                                 </div>
                                 <span
-                                    class="ml-auto rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground"
+                                    class="ml-auto rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
                                 >
                                     -{{ bundle.discount_percent }}%
                                 </span>
                             </div>
 
                             <div>
-                                <p class="font-semibold">
+                                <p
+                                    class="font-semibold text-article-ink"
+                                >
                                     {{ bundle.promo_name }}
                                 </p>
-                                <p class="text-xs text-muted-foreground">
+                                <p class="text-xs text-article-muted">
                                     {{ bundle.books.length }} buku · diskon
                                     {{ bundle.discount_percent }}% saat beli
                                     semua
@@ -622,21 +663,23 @@ function loadMore() {
                                 >
                                     <Money
                                         :value="bundle.total_final"
-                                        class="font-bold text-primary"
+                                        class="font-bold text-article-primary"
                                     />
                                     <Money
                                         :value="bundle.total_original"
-                                        class="text-xs text-muted-foreground line-through"
+                                        class="text-xs text-article-muted line-through"
                                     />
                                 </div>
-                                <p class="text-xs font-medium text-destructive">
+                                <p
+                                    class="text-xs font-medium text-article-accent-strong"
+                                >
                                     Hemat
                                     <Money :value="bundle.total_discount" />
                                 </p>
                             </div>
 
                             <p
-                                class="mt-auto line-clamp-2 text-xs text-muted-foreground"
+                                class="mt-auto line-clamp-2 text-xs text-article-muted"
                             >
                                 {{
                                     bundle.books.map((b) => b.judul).join(', ')
@@ -645,7 +688,7 @@ function loadMore() {
 
                             <p
                                 v-if="(bundleStockCounts[bundle.id] ?? 0) > 0"
-                                class="text-xs font-medium text-destructive"
+                                class="text-xs font-medium text-article-accent-strong"
                             >
                                 {{ bundleStockCounts[bundle.id] }} buku stok
                                 habis
@@ -689,7 +732,9 @@ function loadMore() {
 
             <!-- ── Promo per item ── -->
             <div v-if="promos.length" class="flex flex-col gap-3">
-                <h3 class="text-sm font-semibold">Promo per item</h3>
+                <h3 class="text-sm font-semibold text-article-ink">
+                    Promo per item
+                </h3>
                 <div class="relative">
                     <div
                         ref="promoRow"
@@ -700,28 +745,30 @@ function loadMore() {
                             v-for="promo in promos"
                             :key="promo.id"
                             data-promo-card
-                            class="flex w-[85vw] max-w-[250px] shrink-0 snap-start flex-col gap-2 rounded-xl border bg-background p-3 transition-shadow hover:shadow-md lg:w-[270px] lg:max-w-none"
+                            class="flex w-[85vw] max-w-[250px] shrink-0 snap-start flex-col gap-2 rounded-xl border border-article-border bg-article-bg p-3 transition-shadow hover:shadow-md lg:w-[270px] lg:max-w-none"
                         >
                             <div class="flex items-start gap-2">
                                 <ShoppingBag
-                                    class="size-4 shrink-0 text-primary"
+                                    class="size-4 shrink-0 text-article-primary"
                                 />
-                                <p class="min-w-0 flex-1 text-sm font-semibold">
+                                <p
+                                    class="min-w-0 flex-1 text-sm font-semibold text-article-ink"
+                                >
                                     {{ promo.promo_name }}
                                 </p>
                                 <span
-                                    class="rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground"
+                                    class="rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
                                 >
                                     {{ promoBadge(promo) }}
                                 </span>
                             </div>
 
-                            <p class="text-xs text-muted-foreground">
+                            <p class="text-xs text-article-muted">
                                 <template v-if="promo.promo_type === 'fixed'">
                                     Harga tetap
                                     <Money
                                         :value="promo.promo_value ?? 0"
-                                        class="font-medium text-foreground"
+                                        class="font-medium text-article-ink"
                                     />
                                     per buku
                                 </template>
@@ -735,7 +782,7 @@ function loadMore() {
                                 </span>
                             </p>
 
-                            <p class="text-xs text-muted-foreground">
+                            <p class="text-xs text-article-muted">
                                 Berlaku s.d.
                                 {{ promo.end_date }}
                             </p>
@@ -750,7 +797,7 @@ function loadMore() {
                                 >
                                     <Link
                                         :href="showRoute.url(bookShowUrl(book))"
-                                        class="size-11 shrink-0 overflow-hidden rounded-md border bg-muted transition-shadow hover:shadow-sm"
+                                        class="size-11 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-surface transition-shadow hover:shadow-sm"
                                         :title="book.judul"
                                     >
                                         <img
@@ -768,7 +815,7 @@ function loadMore() {
                                 </template>
                                 <span
                                     v-if="promo.books.length > 3"
-                                    class="text-xs font-medium text-muted-foreground"
+                                    class="text-xs font-medium text-article-muted"
                                 >
                                     +{{ promo.books.length - 3 }} buku
                                 </span>
@@ -805,21 +852,21 @@ function loadMore() {
         <!-- ── List view (desktop) ── -->
         <div
             v-if="books.length && viewMode === 'list'"
-            class="flex flex-col gap-3"
+            class="mt-8 flex flex-col gap-3"
         >
             <Link
                 v-for="book in books"
                 :key="book.id"
                 :href="showRoute.url(bookShowUrl(book))"
-                class="flex items-center gap-4 rounded-xl border p-3 transition-shadow hover:shadow-md"
+                class="flex items-center gap-4 rounded-xl border border-article-border bg-article-surface p-3 transition-shadow hover:shadow-md"
                 :class="isEmptyStock(book) && 'opacity-60 saturate-50'"
             >
                 <div
-                    class="relative size-14 shrink-0 overflow-hidden rounded-md border bg-muted sm:size-16"
+                    class="relative size-14 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-bg sm:size-16"
                 >
                     <span
                         v-if="discountPercent(book) > 0"
-                        class="absolute top-1 left-1 z-10 rounded-md bg-destructive px-1 py-0.5 text-[10px] font-bold text-destructive-foreground shadow-sm"
+                        class="absolute top-1 left-1 z-10 rounded-md bg-article-accent px-1 py-0.5 text-[10px] font-bold text-white shadow-sm"
                     >
                         -{{ discountPercent(book) }}%
                     </span>
@@ -843,25 +890,27 @@ function loadMore() {
                     />
                 </div>
                 <div class="min-w-0 flex-1">
-                    <p class="truncate font-medium">{{ book.judul }}</p>
-                    <p class="truncate text-xs text-muted-foreground">
+                    <p class="truncate font-medium text-article-ink">
+                        {{ book.judul }}
+                    </p>
+                    <p class="truncate text-xs text-article-muted">
                         {{ book.penulis ?? '—' }}
                     </p>
                     <div class="mt-1 flex items-baseline gap-2">
                         <template v-if="book.price_breakdown?.promo_discount">
                             <Money
                                 :value="book.price_breakdown.final_price"
-                                class="font-semibold text-primary"
+                                class="font-semibold text-article-primary"
                             />
                             <Money
                                 :value="book.harga"
-                                class="text-xs text-muted-foreground line-through"
+                                class="text-xs text-article-muted line-through"
                             />
                         </template>
                         <Money
                             v-else
                             :value="book.harga"
-                            class="font-semibold"
+                            class="font-semibold text-article-ink"
                         />
                     </div>
                     <p
@@ -874,13 +923,13 @@ function loadMore() {
                 </div>
                 <span
                     v-if="book.stok > 0"
-                    class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                    class="shrink-0 rounded-full bg-article-border/50 px-2 py-0.5 text-xs font-medium text-article-muted"
                 >
                     Stok {{ book.stok }}
                 </span>
                 <span
                     v-else-if="isEmptyStock(book)"
-                    class="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500"
+                    class="shrink-0 rounded-full bg-article-border/50 px-2 py-0.5 text-xs font-medium text-article-muted"
                 >
                     Habis
                 </span>
@@ -890,21 +939,21 @@ function loadMore() {
         <!-- ── Grid view (mobile & desktop) ── -->
         <div
             v-else-if="books.length"
-            class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
+            class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
         >
             <Link
                 v-for="book in books"
                 :key="book.id"
                 :href="showRoute.url(bookShowUrl(book))"
-                class="flex flex-col overflow-hidden rounded-xl border transition-shadow hover:shadow-md"
+                class="flex flex-col overflow-hidden rounded-xl border border-article-border bg-article-surface transition-shadow hover:shadow-md"
                 :class="isEmptyStock(book) && 'opacity-60 saturate-50'"
             >
                 <div
-                    class="relative flex aspect-[2/3] items-center justify-center overflow-hidden bg-muted text-4xl"
+                    class="relative flex aspect-[2/3] items-center justify-center overflow-hidden bg-article-bg text-4xl"
                 >
                     <span
                         v-if="discountPercent(book) > 0"
-                        class="absolute top-2 left-2 rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground shadow-sm"
+                        class="absolute top-2 left-2 rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white shadow-sm"
                     >
                         -{{ discountPercent(book) }}%
                     </span>
@@ -928,10 +977,12 @@ function loadMore() {
                     />
                 </div>
                 <div class="flex flex-1 flex-col gap-1 p-3 sm:p-4">
-                    <p class="line-clamp-2 text-sm font-medium">
+                    <p
+                        class="line-clamp-2 text-sm font-medium text-article-ink"
+                    >
                         {{ book.judul }}
                     </p>
-                    <p class="truncate text-xs text-muted-foreground">
+                    <p class="truncate text-xs text-article-muted">
                         {{ book.penulis ?? '—' }}
                     </p>
                     <p
@@ -947,29 +998,29 @@ function loadMore() {
                             >
                                 <Money
                                     :value="book.price_breakdown.final_price"
-                                    class="font-semibold text-primary"
+                                    class="font-semibold text-article-primary"
                                 />
                                 <Money
                                     :value="book.harga"
-                                    class="text-xs text-muted-foreground line-through"
+                                    class="text-xs text-article-muted line-through"
                                 />
                             </template>
                             <template v-else>
                                 <Money
                                     :value="book.harga"
-                                    class="font-semibold"
+                                    class="font-semibold text-article-ink"
                                 />
                             </template>
                         </div>
                         <span
                             v-if="book.stok > 0"
-                            class="self-start rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                            class="self-start rounded-full bg-article-border/50 px-1.5 py-0.5 text-[10px] font-medium text-article-muted"
                         >
                             Stok {{ book.stok }}
                         </span>
                         <span
                             v-else-if="isEmptyStock(book)"
-                            class="self-start rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500"
+                            class="self-start rounded-full bg-article-border/50 px-1.5 py-0.5 text-[10px] font-medium text-article-muted"
                         >
                             Habis
                         </span>
@@ -991,7 +1042,7 @@ function loadMore() {
 
         <div
             v-if="books.length && currentPage < lastPage"
-            class="flex justify-center"
+            class="mt-10 flex justify-center"
         >
             <Button variant="outline" :disabled="loadingMore" @click="loadMore">
                 <Loader2 v-if="loadingMore" class="size-4 animate-spin" />
