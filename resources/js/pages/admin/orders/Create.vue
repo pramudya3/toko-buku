@@ -707,7 +707,6 @@ const buyerAddressText = computed(() =>
                                     <div class="grid min-w-0 flex-1 gap-2">
                                         <Select
                                             v-model="shippingValue"
-                                            name="ekspedisi"
                                             :disabled="
                                                 ongkirLoading ||
                                                 shippingCosts.length === 0
@@ -811,6 +810,11 @@ const buyerAddressText = computed(() =>
                                     {{ shippingCosts.length }} ekspedisi
                                     tersedia
                                 </p>
+                                <input
+                                    type="hidden"
+                                    name="ekspedisi"
+                                    :value="selectedCourier"
+                                />
                                 <input
                                     type="hidden"
                                     name="shipping_cost"
