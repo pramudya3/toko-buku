@@ -23,6 +23,7 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, pdo_sqlite, sqlite3
           tools: composer:v2
           coverage: none
 
@@ -32,6 +33,9 @@ jobs:
           node-version: '22'
 
       - name: Setup Application
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
         run: composer setup
 
       - name: Run CI Checks
