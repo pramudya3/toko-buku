@@ -3,7 +3,7 @@
 
 defineProps<{
     notes?: string | null;
-    signatures: Array<{ label: string; name?: string | null }>;
+    signatures?: Array<{ label: string; name?: string | null }>;
     thanks?: string;
 }>();
 </script>
@@ -14,7 +14,10 @@ defineProps<{
             <span class="font-semibold">Catatan:</span> {{ notes }}
         </p>
 
-        <div class="mt-10 flex justify-end gap-16 pr-4 text-center text-xs">
+        <div
+            v-if="(signatures?.length ?? 0) > 0"
+            class="mt-10 flex justify-end gap-16 pr-4 text-center text-xs"
+        >
             <div v-for="sig in signatures" :key="sig.label" class="w-36">
                 <p class="mb-16">{{ sig.label }}</p>
                 <p class="border-t border-slate-900 pt-1 font-medium">

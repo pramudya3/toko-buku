@@ -84,92 +84,92 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-article-muted';
                 </div>
             </div>
 
-        <div class="flex flex-col gap-4">
-            <section v-if="props.deskripsi" :class="sectionClass">
-                <h2 :class="headingClass">Cerita Kami</h2>
-                <p :class="bodyClass">{{ props.deskripsi }}</p>
-            </section>
+            <div class="flex flex-col gap-4">
+                <section v-if="props.deskripsi" :class="sectionClass">
+                    <h2 :class="headingClass">Cerita Kami</h2>
+                    <p :class="bodyClass">{{ props.deskripsi }}</p>
+                </section>
 
-            <section v-if="props.visi" :class="sectionClass">
-                <h2 :class="headingClass">Visi</h2>
-                <p :class="bodyClass">{{ props.visi }}</p>
-            </section>
+                <section v-if="props.visi" :class="sectionClass">
+                    <h2 :class="headingClass">Visi</h2>
+                    <p :class="bodyClass">{{ props.visi }}</p>
+                </section>
 
-            <section v-if="misiList.length" :class="sectionClass">
-                <h2 :class="headingClass">Misi</h2>
-                <ul :class="[bodyClass, 'list-disc space-y-1 pl-5']">
-                    <li v-for="(item, i) in misiList" :key="i">
-                        {{ item }}
-                    </li>
-                </ul>
-            </section>
+                <section v-if="misiList.length" :class="sectionClass">
+                    <h2 :class="headingClass">Misi</h2>
+                    <ul :class="[bodyClass, 'list-disc space-y-1 pl-5']">
+                        <li v-for="(item, i) in misiList" :key="i">
+                            {{ item }}
+                        </li>
+                    </ul>
+                </section>
 
-            <section v-if="props.keamanan" :class="sectionClass">
-                <h2 :class="headingClass">Keamanan & Kepercayaan</h2>
-                <p :class="bodyClass">{{ props.keamanan }}</p>
-            </section>
+                <section v-if="props.keamanan" :class="sectionClass">
+                    <h2 :class="headingClass">Keamanan & Kepercayaan</h2>
+                    <p :class="bodyClass">{{ props.keamanan }}</p>
+                </section>
 
-            <section v-if="syaratList.length" :class="sectionClass">
-                <h2 :class="headingClass">Syarat & Prasyarat</h2>
-                <ul :class="[bodyClass, 'list-disc space-y-1 pl-5']">
-                    <li v-for="(item, i) in syaratList" :key="i">
-                        {{ item }}
-                    </li>
-                </ul>
-            </section>
+                <section v-if="syaratList.length" :class="sectionClass">
+                    <h2 :class="headingClass">Syarat & Prasyarat</h2>
+                    <ul :class="[bodyClass, 'list-disc space-y-1 pl-5']">
+                        <li v-for="(item, i) in syaratList" :key="i">
+                            {{ item }}
+                        </li>
+                    </ul>
+                </section>
 
-            <section v-if="props.bankAccounts.length" :class="sectionClass">
-                <h2 :class="headingClass">Rekening Bank</h2>
-                <div class="mt-2 grid gap-1 text-sm text-article-muted">
-                    <p
-                        v-for="account in props.bankAccounts"
-                        :key="account.id"
-                        class="flex items-center gap-2"
-                    >
-                        <Landmark class="size-4 shrink-0" />
-                        <span class="font-medium text-article-ink">
-                            {{ account.bank_name }}
-                        </span>
-                        <span class="font-mono">{{
-                            account.account_number
-                        }}</span>
-                        <span>a.n. {{ account.account_holder }}</span>
-                    </p>
-                </div>
-            </section>
+                <section v-if="props.bankAccounts.length" :class="sectionClass">
+                    <h2 :class="headingClass">Rekening Bank</h2>
+                    <div class="mt-2 grid gap-1 text-sm text-article-muted">
+                        <p
+                            v-for="account in props.bankAccounts"
+                            :key="account.id"
+                            class="flex items-center gap-2"
+                        >
+                            <Landmark class="size-4 shrink-0" />
+                            <span class="font-medium text-article-ink">
+                                {{ account.bank_name }}
+                            </span>
+                            <span class="font-mono">{{
+                                account.account_number
+                            }}</span>
+                            <span>a.n. {{ account.account_holder }}</span>
+                        </p>
+                    </div>
+                </section>
 
-            <section :class="sectionClass">
-                <h2 :class="headingClass">Kontak</h2>
-                <div class="mt-2 grid gap-1 text-sm text-article-muted">
-                    <p v-if="props.telepon" class="flex items-center gap-2">
-                        <Phone class="size-4 shrink-0" />
-                        <span class="font-medium text-article-ink">
-                            {{ props.telepon }}
-                        </span>
-                    </p>
-                    <p v-if="props.email" class="flex items-center gap-2">
-                        <Mail class="size-4 shrink-0" />
-                        <span class="font-medium text-article-ink">
-                            {{ props.email }}
-                        </span>
-                    </p>
-                    <p v-if="props.alamat" class="flex items-center gap-2">
-                        <Building2 class="size-4 shrink-0" />
-                        <span class="font-medium text-article-ink">
-                            {{ props.alamat }}
-                        </span>
-                    </p>
-                    <p
-                        v-if="props.jam_operasional"
-                        class="flex items-center gap-2"
-                    >
-                        <Clock class="size-4 shrink-0" />
-                        <span class="font-medium text-article-ink">
-                            {{ props.jam_operasional }}
-                        </span>
-                    </p>
-                </div>
-            </section>
+                <section :class="sectionClass">
+                    <h2 :class="headingClass">Kontak</h2>
+                    <div class="mt-2 grid gap-1 text-sm text-article-muted">
+                        <p v-if="props.telepon" class="flex items-center gap-2">
+                            <Phone class="size-4 shrink-0" />
+                            <span class="font-medium text-article-ink">
+                                {{ props.telepon }}
+                            </span>
+                        </p>
+                        <p v-if="props.email" class="flex items-center gap-2">
+                            <Mail class="size-4 shrink-0" />
+                            <span class="font-medium text-article-ink">
+                                {{ props.email }}
+                            </span>
+                        </p>
+                        <p v-if="props.alamat" class="flex items-center gap-2">
+                            <Building2 class="size-4 shrink-0" />
+                            <span class="font-medium text-article-ink">
+                                {{ props.alamat }}
+                            </span>
+                        </p>
+                        <p
+                            v-if="props.jam_operasional"
+                            class="flex items-center gap-2"
+                        >
+                            <Clock class="size-4 shrink-0" />
+                            <span class="font-medium text-article-ink">
+                                {{ props.jam_operasional }}
+                            </span>
+                        </p>
+                    </div>
+                </section>
             </div>
         </div>
     </div>

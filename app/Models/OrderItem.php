@@ -24,11 +24,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $promo_discount_amount
  * @property int $tier_discount_amount
  * @property int $price_final
+ * @property bool $is_custom_price
+ * @property int|null $custom_price
+ * @property string|null $price_note
+ * @property string|null $promo_id_snapshot
  */
 #[Fillable([
     'order_id', 'book_id', 'book_edition_id', 'is_preorder', 'judul_snapshot',
     'harga_snapshot', 'harga_beli_snapshot', 'edition_snapshot', 'qty', 'price_original',
     'promo_discount_amount', 'tier_discount_amount', 'price_final',
+    'is_custom_price', 'custom_price', 'price_note', 'promo_id_snapshot',
 ])]
 class OrderItem extends Model
 {
@@ -70,6 +75,16 @@ class OrderItem extends Model
             'promo_discount_amount' => 'integer',
             'tier_discount_amount' => 'integer',
             'price_final' => 'integer',
+            'is_custom_price' => 'boolean',
+            'custom_price' => 'integer',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Promotion, $this>
+     */
+    public function promoSnapshot(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class, 'promo_id_snapshot');
     }
 }

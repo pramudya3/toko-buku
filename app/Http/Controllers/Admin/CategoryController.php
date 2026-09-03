@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\CategoryImportRequest;
 use App\Http\Requests\Admin\CategoryRequest;
 use App\Models\Category;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class CategoryController extends Controller
                 $query->whereLike('nama', '%'.$request->string('search')->toString().'%');
             })
             ->orderBy('nama')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/categories/Index', [

@@ -55,6 +55,7 @@ const action = isEdit ? VoucherController.update : VoucherController.store;
 const submitArgs = isEdit ? props.voucher?.id : undefined;
 
 const isActive = ref(props.voucher ? props.voucher.is_active : true);
+const today = new Date().toLocaleDateString('en-CA');
 
 const voucherType = ref<'percentage' | 'fixed'>(
     props.voucher?.voucher_type === 'fixed' ? 'fixed' : 'percentage',
@@ -71,18 +72,30 @@ const discountScopeValue = computed(() => discountScope.value);
 <template>
     <Head :title="isEdit ? 'Edit Voucher' : 'Buat Voucher'" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
-        <div>
-            <h1 class="text-xl font-semibold tracking-tight">
-                {{
-                    isEdit
-                        ? `Edit Voucher: ${voucher?.nama}`
-                        : 'Buat Voucher Baru'
-                }}
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                Atur diskon voucher yang bisa dipakai customer di checkout
-            </p>
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
+        <div class="flex items-center gap-2">
+            <Button
+                variant="ghost"
+                size="icon"
+                class="size-8 shrink-0"
+                as-child
+            >
+                <Link :href="indexRoute().url"
+                    ><ArrowLeft class="size-4"
+                /></Link>
+            </Button>
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">
+                    {{
+                        isEdit
+                            ? `Edit Voucher: ${voucher?.nama}`
+                            : 'Buat Voucher Baru'
+                    }}
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    Atur diskon voucher yang bisa dipakai customer di checkout
+                </p>
+            </div>
         </div>
 
         <Form
@@ -219,7 +232,7 @@ const discountScopeValue = computed(() => discountScope.value);
                                     name="start_date"
                                     type="date"
                                     :default-value="
-                                        voucher?.start_date ?? undefined
+                                        voucher?.start_date ?? today
                                     "
                                     required
                                 />

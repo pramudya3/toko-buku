@@ -1,6 +1,60 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$judul\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$kode_sku\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Call to an undefined method App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:delete\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Call to an undefined method App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:hasOrderHistory\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Call to an undefined method App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:update\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\CleanInvalidSku\:\:deleteInvalid\(\) has parameter \$invalid with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\CleanInvalidSku\:\:fixInvalid\(\) has parameter \$invalid with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\CleanInvalidSku\:\:previewNextSku\(\) has parameter \$usedNumbersByCat with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\CleanInvalidSku\:\:previewNextSku\(\) has parameter \$usedSkus with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Console/Commands/CleanInvalidSku.php
+
+		-
 			message: '#^Argument of an invalid type list\<string\>\|false supplied for foreach, only iterables are supported\.$#'
 			identifier: foreach.nonIterable
 			count: 1
@@ -29,6 +83,12 @@ parameters:
 			identifier: argument.type
 			count: 2
 			path: app/Console/Commands/SplitPricelist.php
+
+		-
+			message: '#^Method App\\Events\\Pos\\PosMasterUpdated\:\:broadcastWith\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Events/Pos/PosMasterUpdated.php
 
 		-
 			message: '#^Method App\\Http\\Controllers\\Admin\\BookController\:\:payload\(\) return type has no value type specified in iterable type array\.$#'
@@ -61,27 +121,69 @@ parameters:
 			path: app/Http/Controllers/Admin/BookController.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\CashFlow\:\:\$bulan\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CashFlow\:\:\$count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CashFlow\:\:\$keluar\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CashFlow\:\:\$masuk\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
 			message: '#^Instanceof between App\\Enums\\FlowType and App\\Enums\\FlowType will always evaluate to true\.$#'
 			identifier: instanceof.alwaysTrue
+			count: 3
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\CashFlow\>\:\:mapWithKeys\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\CashFlow\>\:\:mapWithKeys\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
 			count: 1
 			path: app/Http/Controllers/Admin/CashFlowController.php
 
 		-
 			message: '#^Strict comparison using \=\=\= between Illuminate\\Support\\Carbon\|null and false will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
-			count: 1
+			count: 3
 			path: app/Http/Controllers/Admin/CashFlowController.php
 
 		-
 			message: '#^Using nullsafe method call on non\-nullable type App\\Enums\\FlowType\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 4
+			count: 1
+			path: app/Http/Controllers/Admin/CashFlowController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>is_closed" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
 			path: app/Http/Controllers/Admin/CashFlowController.php
 
 		-
 			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\FlowType\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 1
+			count: 2
 			path: app/Http/Controllers/Admin/CashFlowController.php
 
 		-
@@ -89,6 +191,78 @@ parameters:
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Admin/CategoryController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Warehouse\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Warehouse\>\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Query\\Builder\:\:on\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\ConsignmentController\:\:bazafPartners\(\) should return Illuminate\\Support\\Collection\<int, array\<string, mixed\>\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\ConsignmentController\:\:stockRows\(\) should return Illuminate\\Support\\Collection\<int, array\<string, mixed\>\> but returns Illuminate\\Support\\Collection\<int, array\{customer_id\: string, customer_name\: string, customer_wa\: string\|null, book_id\: string, book_judul\: string, kode_sku\: string\|null, book_harga\: int, delivered_qty\: int, \.\.\.\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Parameter \$to of method App\\Services\\InventoryService\:\:move\(\) expects App\\Models\\Warehouse\|null, App\\Models\\Warehouse\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Warehouse\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Parameter \$userId of method App\\Services\\InventoryService\:\:move\(\) expects string\|null, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Parameter \$userId of method App\\Services\\InventoryService\:\:move\(\) expects string\|null, int\|string\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Http/Controllers/Admin/ConsignmentController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>amount" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/ConsignmentController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\District\:\:\$kode_pos\.$#'
@@ -217,7 +391,13 @@ parameters:
 			path: app/Http/Controllers/Admin/SalesReportController.php
 
 		-
-			message: '#^Parameter \#1 \$array of function usort contains unresolvable type\.$#'
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Http/Controllers/Admin/SalesReportController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:sortByDesc\(\) contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
 			count: 1
 			path: app/Http/Controllers/Admin/SalesReportController.php
@@ -231,25 +411,37 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$value of function collect contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Admin/SalesReportController.php
-
-		-
-			message: '#^Parameter \#2 \$callback of function usort contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
+			count: 3
 			path: app/Http/Controllers/Admin/SalesReportController.php
 
 		-
 			message: '#^Return type of call to function collect contains unresolvable type\.$#'
 			identifier: function.unresolvableReturnType
+			count: 3
+			path: app/Http/Controllers/Admin/SalesReportController.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:all\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
 			count: 1
 			path: app/Http/Controllers/Admin/SalesReportController.php
 
 		-
 			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:values\(\) contains unresolvable type\.$#'
 			identifier: method.unresolvableReturnType
+			count: 2
+			path: app/Http/Controllers/Admin/SalesReportController.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
 			count: 1
+			path: app/Http/Controllers/Admin/SalesReportController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
 			path: app/Http/Controllers/Admin/SalesReportController.php
 
 		-
@@ -343,9 +535,51 @@ parameters:
 			path: app/Http/Controllers/Admin/SupplierDebtController.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$kode\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nama\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
+			message: '#^Anonymous function should return array\{id\: int, judul\: string, kode_sku\: string\|null, harga\: int, editions\: Illuminate\\Support\\Collection\<int, array\{id\: mixed, cetakan_ke\: mixed, harga_beli\: mixed, harga_jual\: mixed, is_active\: mixed, stok\: mixed\}\>\} but returns array\{id\: int, judul\: string, kode_sku\: string\|null, harga\: int, editions\: Illuminate\\Support\\Collection\<int, array\{id\: int, cetakan_ke\: mixed, harga_beli\: mixed, harga_jual\: mixed, is_active\: mixed, stok\: mixed\}\>\}\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
+			message: '#^Anonymous function should return array\{id\: int, qty\: int, price\: int, subtotal\: int, stock_before\: int\|null, hpp_old\: int\|null, hpp_new\: int\|null, landed_cost\: int\|null, \.\.\.\} but returns array\{id\: int, qty\: int, price\: int, subtotal\: int, stock_before\: int\|null, hpp_old\: int\|null, hpp_new\: int\|null, landed_cost\: int\|null, \.\.\.\}\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 3
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
 			message: '#^Parameter \$userId of method App\\Services\\SupplierService\:\:recordPurchase\(\) expects string\|null, int\|null given\.$#'
 			identifier: argument.type
 			count: 1
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:values\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
 			path: app/Http/Controllers/Admin/SupplierPurchaseController.php
 
 		-
@@ -367,8 +601,26 @@ parameters:
 			path: app/Http/Controllers/Admin/SupplierReportController.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\SupplierPurchaseItem\:\:\$book_edition_id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nama\.$#'
 			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
+			message: '#^Anonymous function should return array\{book_id\: int, book_edition_id\: mixed, judul\: string, qty\: int, price\: int, cetakan_ke\: int\|null, allocations\: Illuminate\\Support\\Collection\<int, array\{warehouse_kode\: mixed, qty\: mixed\}\>\} but returns array\{book_id\: int, book_edition_id\: mixed, judul\: string, qty\: int, price\: int, cetakan_ke\: int\|null, allocations\: Illuminate\\Support\\Collection\<int, array\{warehouse_kode\: mixed, qty\: int\}\>\}\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
 			count: 1
 			path: app/Http/Controllers/Admin/SupplierReturnController.php
 
@@ -376,6 +628,12 @@ parameters:
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\SupplierPurchase\>\:\:map\(\) contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
 			count: 1
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\SupplierPurchaseItem\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 3
 			path: app/Http/Controllers/Admin/SupplierReturnController.php
 
 		-
@@ -387,6 +645,24 @@ parameters:
 		-
 			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\SupplierPurchase\>\:\:map\(\) contains unresolvable type\.$#'
 			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\SupplierPurchaseItem\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 3
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:values\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Http/Controllers/Admin/SupplierReturnController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Controllers/Admin/SupplierReturnController.php
 
@@ -403,15 +679,153 @@ parameters:
 			path: app/Http/Controllers/Admin/TierDiscountController.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\BookEdition\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\:\:\$book_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BookEdition\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\:\:\$cetakan_ke\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BookEdition\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\:\:\$harga_beli\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BookEdition\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$harga\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$is_preorder\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$judul\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\>\:\:\$stok\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$alamat\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$kabupaten_kota\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$kecamatan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$kelurahan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$kode_pos\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$provinsi\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$status_pelanggan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$whatsapp_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Parameter \#1 \$book of method App\\Services\\InventoryService\:\:assertSufficientStock\(\) expects App\\Models\\Book, App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Parameter \#1 \$book of method App\\Services\\PricingService\:\:priceBreakdown\(\) expects App\\Models\\Book, App\\Models\\Book\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Book\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Parameter \#4 \$edition of method App\\Services\\InventoryService\:\:assertSufficientStock\(\) expects App\\Models\\BookEdition\|null, App\\Models\\BookEdition\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Parameter \#4 \$edition of method App\\Services\\PricingService\:\:priceBreakdown\(\) expects App\\Models\\BookEdition\|null, App\\Models\\BookEdition\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>harga_beli" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Api/Pos/PosOrderController.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\BookEdition\:\:\$sellable_total\.$#'
 			identifier: property.notFound
 			count: 4
-			path: app/Http/Controllers/CheckoutController.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 1
 			path: app/Http/Controllers/CheckoutController.php
 
 		-
@@ -571,6 +985,12 @@ parameters:
 			path: app/Http/Requests/Admin/BookImportRequest.php
 
 		-
+			message: '#^Method App\\Http\\Requests\\Admin\\BulkUpdateSupplierReturnReasonRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/BulkUpdateSupplierReturnReasonRequest.php
+
+		-
 			message: '#^Method App\\Http\\Requests\\Admin\\CategoryImportRequest\:\:after\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -601,10 +1021,142 @@ parameters:
 			path: app/Http/Requests/Admin/PromotionRequest.php
 
 		-
+			message: '#^Method App\\Http\\Requests\\Admin\\ReorderPaymentMethodRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/ReorderPaymentMethodRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\ReorderSalesChannelRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/ReorderSalesChannelRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\StoreKasCategoryRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/StoreKasCategoryRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\StoreKasSubCategoryRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/StoreKasSubCategoryRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\StorePaymentMethodRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/StorePaymentMethodRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\StoreSalesChannelRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/StoreSalesChannelRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\StoreSalesReturnRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/StoreSalesReturnRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\StoreTierDiscountRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/StoreTierDiscountRequest.php
+
+		-
 			message: '#^Method App\\Http\\Requests\\Admin\\TierDiscountImportRequest\:\:after\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: app/Http/Requests/Admin/TierDiscountImportRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateApiKeyRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateApiKeyRequest.php
+
+		-
+			message: '#^Access to an undefined property \(object\|string\)\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Requests/Admin/UpdateKasCategoryRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateKasCategoryRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateKasCategoryRequest.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Requests/Admin/UpdateKasCategoryRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateKasSubCategoryRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateKasSubCategoryRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateLembagaRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateLembagaRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateOrderStatusRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateOrderStatusRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdatePaymentMethodRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdatePaymentMethodRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateSalesChannelRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateSalesChannelRequest.php
+
+		-
+			message: '#^Access to an undefined property \(object\|string\)\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Requests/Admin/UpdateSupplierReturnReasonRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateSupplierReturnReasonRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateSupplierReturnReasonRequest.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Requests/Admin/UpdateSupplierReturnReasonRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateTierDiscountRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateTierDiscountRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\Admin\\UpdateWaTemplateRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/Admin/UpdateWaTemplateRequest.php
 
 		-
 			message: '#^Cannot access property \$id on object\|string\.$#'
@@ -623,6 +1175,18 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Http/Requests/Settings/ProfileUpdateRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\StoreStockRequestRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/StoreStockRequestRequest.php
+
+		-
+			message: '#^Method App\\Http\\Requests\\UploadBuktiRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Requests/UploadBuktiRequest.php
 
 		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
@@ -649,6 +1213,12 @@ parameters:
 			path: app/Models/District.php
 
 		-
+			message: '#^Class App\\Models\\Order has PHPDoc tag @property for property \$pos_meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/Order.php
+
+		-
 			message: '#^Method App\\Models\\Promotion\:\:isGlobal\(\) return type with generic class Illuminate\\Database\\Eloquent\\Casts\\Attribute does not specify its types\: TGet, TSet$#'
 			identifier: missingType.generics
 			count: 1
@@ -673,10 +1243,34 @@ parameters:
 			path: app/Models/Supplier.php
 
 		-
+			message: '#^Call to function is_array\(\) with string\|null will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/Models/SupplierPurchase.php
+
+		-
+			message: '#^Comparison operation "\>" between \*NEVER\* and 0 results in an error\.$#'
+			identifier: greater.invalid
+			count: 1
+			path: app/Models/SupplierPurchase.php
+
+		-
 			message: '#^Method App\\Models\\SupplierPurchase\:\:warehouse\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/SupplierPurchase.php
+
+		-
+			message: '#^Class App\\Models\\User uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^The @use tag of class App\\Models\\User describes Illuminate\\Database\\Eloquent\\Factories\\HasFactory but the class uses Laravel\\Sanctum\\HasApiTokens\.$#'
+			identifier: generics.wrongParent
+			count: 1
+			path: app/Models/User.php
 
 		-
 			message: '#^Property App\\Models\\Village\:\:\$id \(int\) does not accept string\.$#'
@@ -697,6 +1291,24 @@ parameters:
 			path: app/Models/Warehouse.php
 
 		-
+			message: '#^Parameter \#3 \$id of class App\\Events\\Pos\\PosMasterUpdated constructor expects string\|null, int given\.$#'
+			identifier: argument.type
+			count: 4
+			path: app/Observers/BookObserver.php
+
+		-
+			message: '#^Parameter \#3 \$id of class App\\Events\\Pos\\PosMasterUpdated constructor expects string\|null, int given\.$#'
+			identifier: argument.type
+			count: 3
+			path: app/Observers/PromotionObserver.php
+
+		-
+			message: '#^Parameter \#3 \$id of class App\\Events\\Pos\\PosMasterUpdated constructor expects string\|null, int given\.$#'
+			identifier: argument.type
+			count: 3
+			path: app/Observers/WarehouseObserver.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Contracts\\Auth\\Authenticatable\:\:\$email\.$#'
 			identifier: property.notFound
 			count: 1
@@ -715,34 +1327,40 @@ parameters:
 			path: app/Providers/AppServiceProvider.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:\$no_order\.$#'
-			identifier: property.notFound
+			message: '#^Method App\\Services\\AccountingService\:\:createEntry\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/AccountingService.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
 			count: 2
 			path: app/Services/AccountingService.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:\$shipping_cost\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/AccountingService.php
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Services/ConsignmentXlsxExporter.php
 
 		-
-			message: '#^Call to an undefined method App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:cashFlows\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Match arm comparison between ''H'' and ''H'' is always true\.$#'
+			identifier: match.alwaysTrue
 			count: 1
-			path: app/Services/AccountingService.php
+			path: app/Services/ConsignmentXlsxExporter.php
 
 		-
-			message: '#^Call to an undefined method App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\>\:\:subtotal\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Method App\\Services\\ConsignmentXlsxExporter\:\:download\(\) has parameter \$rows with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
 			count: 1
-			path: app/Services/AccountingService.php
+			path: app/Services/ConsignmentXlsxExporter.php
 
 		-
-			message: '#^Parameter \#1 \$order of method App\\Services\\AccountingService\:\:createEntry\(\) expects App\\Models\\Order, App\\Models\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Order\> given\.$#'
-			identifier: argument.type
-			count: 2
-			path: app/Services/AccountingService.php
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ConsignmentXlsxExporter.php
 
 		-
 			message: '#^Expression on left side of \?\? is not nullable\.$#'
@@ -855,13 +1473,13 @@ parameters:
 		-
 			message: '#^Using nullsafe property access "\?\-\>harga_beli" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 1
+			count: 2
 			path: app/Services/PricingService.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>harga_jual" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 1
+			count: 2
 			path: app/Services/PricingService.php
 
 		-
@@ -889,7 +1507,7 @@ parameters:
 			path: app/Services/SalesXlsxExporter.php
 
 		-
-			message: '#^Match arm comparison between ''N'' and ''N'' is always true\.$#'
+			message: '#^Match arm comparison between ''O'' and ''O'' is always true\.$#'
 			identifier: match.alwaysTrue
 			count: 1
 			path: app/Services/SalesXlsxExporter.php
@@ -899,6 +1517,36 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Services/SalesXlsxExporter.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\BookEdition\>\:\:\$book_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<TRelatedModel of Illuminate\\Database\\Eloquent\\Model\>\:\:sellable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Call to function is_array\(\) with null will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 2
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Cannot access property \$id on null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 2
+			path: app/Services/SupplierService.php
 
 		-
 			message: '#^Method App\\Services\\SupplierService\:\:saldoHutang\(\) should return int but returns float\|int\.$#'
@@ -913,8 +1561,104 @@ parameters:
 			path: app/Services/SupplierService.php
 
 		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Offset ''allocations'' does not exist on array\{book_id\: string, book_edition_id\?\: string\|null, qty\: int, price\: int\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Offset ''allocations'' on array\{book_id\: int, qty\: int, price\: int, reason\: string, source\: string\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Offset ''allocations'' on array\{book_id\: string, book_edition_id\?\: string\|null, qty\: int, price\: int\} in empty\(\) does not exist\.$#'
+			identifier: empty.offset
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Offset ''book_edition_id'' on array\{book_id\: int, qty\: int, price\: int, reason\: string, source\: string\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Offset ''qty'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Offset ''qty'' on array\{warehouse_kode\: string, qty\: int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
 			message: '#^Offset ''source'' on array\{book_id\: int, qty\: int, price\: int, reason\: string, source\: string\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Parameter \#3 \$items of method App\\Services\\SupplierService\:\:validateReturnAgainstInvoice\(\) expects array\<int, array\{book_id\: string, book_edition_id\?\: string\|null, qty\: int, price\: int\}\>, array\<int, array\{book_id\: int, qty\: int, price\: int, reason\: string, source\: string\}\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Result of && is always false\.$#'
+			identifier: booleanAnd.alwaysFalse
+			count: 4
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Result of && is always true\.$#'
+			identifier: booleanAnd.alwaysTrue
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between \*NEVER\* and array\{\} will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 2
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 3
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between int and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Ternary operator condition is always false\.$#'
+			identifier: ternary.alwaysFalse
+			count: 5
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>judul" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/SupplierService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>qty" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/SupplierService.php
 
@@ -947,6 +1691,12 @@ parameters:
 			identifier: identical.alwaysFalse
 			count: 1
 			path: app/Support/CsvHeaderValidator.php
+
+		-
+			message: '#^Parameter \#2 \$string of function explode expects string, bool\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: config/sanctum.php
 
 		-
 			message: '#^Method CreateProvincesTable\:\:connection\(\) has no return type specified\.$#'
@@ -997,10 +1747,106 @@ parameters:
 			path: database/migrations/2026_08_10_000639_convert_primary_keys_to_uuid.php
 
 		-
+			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/CustomerWilayahBackfillSeeder.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Console\\Command\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/CustomerWilayahBackfillSeeder.php
+
+		-
 			message: '#^Parameter \$userId of method App\\Services\\InventoryService\:\:move\(\) expects string\|null, int given\.$#'
 			identifier: argument.type
 			count: 4
 			path: database/seeders/DemoSeeder.php
+
+		-
+			message: '#^Method Database\\Seeders\\PenerbitPcpMasterSeeder\:\:readData\(\) should return array\{meta\: array\<string, mixed\>, categories\: array\<int, array\<string, mixed\>\>, books\: array\<int, array\<string, mixed\>\>, customers\: array\<int, array\<string, mixed\>\>, orders\: array\<int, array\<string, mixed\>\>\} but returns array\<mixed, mixed\>\.$#'
+			identifier: return.type
+			count: 1
+			path: database/seeders/PenerbitPcpMasterSeeder.php
+
+		-
+			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/PenerbitPcpMasterSeeder.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Method Database\\Seeders\\PenerbitPcpSalesSeeder\:\:ensureBook\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Method Database\\Seeders\\PenerbitPcpSalesSeeder\:\:ensureDropshipper\(\) has parameter \$group with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Method Database\\Seeders\\PenerbitPcpSalesSeeder\:\:isKonsinyasi\(\) has parameter \$items with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Method Database\\Seeders\\PenerbitPcpSalesSeeder\:\:seedConsignmentGroup\(\) has parameter \$group with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Method Database\\Seeders\\PenerbitPcpSalesSeeder\:\:seedOrderGroup\(\) has parameter \$group with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and null will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 6
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 6
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>judul" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\CustomerTier\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/PenerbitPcpSalesSeeder.php
 
 		-
 			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'

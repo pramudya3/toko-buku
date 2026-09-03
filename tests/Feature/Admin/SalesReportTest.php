@@ -38,7 +38,7 @@ it('shows the sales report page with summary and filters', function (): void {
         'price_final' => 40000,
     ]);
 
-    $resp = $this->actingAs($this->admin)->get(route('admin.sales-reports.index'));
+    $resp = $this->actingAs($this->admin)->get(route('admin.sales-reports.index', ['from' => now()->startOfMonth()->toDateString(), 'to' => now()->toDateString()]));
     $resp->assertOk();
     $props = inertiaProps($resp);
 
@@ -100,7 +100,7 @@ it('reduces omzet and profit by sales returns in the same period', function (): 
     ]);
 
     $props = inertiaProps($this->actingAs($this->admin)
-        ->get(route('admin.sales-reports.index'))
+        ->get(route('admin.sales-reports.index', ['from' => now()->startOfMonth()->toDateString(), 'to' => now()->toDateString()]))
         ->assertOk());
 
     expect($props['summary']['omzet'])->toBe(40000)
@@ -157,7 +157,7 @@ it('applies returns in the period they occurred', function (): void {
     ]);
 
     $props = inertiaProps($this->actingAs($this->admin)
-        ->get(route('admin.sales-reports.index'))
+        ->get(route('admin.sales-reports.index', ['from' => now()->startOfMonth()->toDateString(), 'to' => now()->toDateString()]))
         ->assertOk());
 
     expect($props['summary']['order_count'])->toBe(0)
@@ -230,6 +230,8 @@ it('filters orders by payment method', function (): void {
     ]);
 
     $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.sales-reports.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
         'metode_bayar' => PaymentMethod::Cod->value,
     ])));
 
@@ -254,6 +256,8 @@ it('filters orders by sales channel and shows the source label', function (): vo
     ]);
 
     $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.sales-reports.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
         'sumber_pembelian' => 'shopee',
     ])));
 
@@ -304,6 +308,8 @@ it('filters returns by sales channel in the report', function (): void {
     }
 
     $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.sales-reports.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
         'sumber_pembelian' => 'shopee',
     ])));
 

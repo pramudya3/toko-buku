@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\BookEditionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,23 +17,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $nama
  * @property int $harga_beli
  * @property int $harga_jual
+ * @property string|null $harga_guru_type
+ * @property int|null $harga_guru_value
  * @property bool $is_active
  */
+#[Fillable(['book_id', 'cetakan_ke', 'nama', 'harga_beli', 'harga_jual', 'harga_guru_type', 'harga_guru_value', 'is_active'])]
 class BookEdition extends Model
 {
     /** @use HasFactory<BookEditionFactory> */
     use HasFactory;
 
     use HasUuids;
-
-    protected $fillable = [
-        'book_id',
-        'cetakan_ke',
-        'nama',
-        'harga_beli',
-        'harga_jual',
-        'is_active',
-    ];
 
     /**
      * @return BelongsTo<Book, $this>
@@ -95,7 +90,40 @@ class BookEdition extends Model
             'nama' => 'string',
             'harga_beli' => 'integer',
             'harga_jual' => 'integer',
+            'harga_guru_type' => 'string',
+            'harga_guru_value' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Harga guru efektif (rupiah) untuk cetakan ini.
+     * null = tidak ada harga guru (fallback ke harga_jual normal).
+     */
+    public function guruPrice(): ?int
+    {
+        if ($this->harga_guru_type === null || $this->harga_guru_value === null) {
+            return null;
+        }
+
+        if ($this->harga_guru_type === 'percent') {
+            $percent = max(0, min(100, (int) $this->harga_guru_value));
+
+            return intdiv($this->harga_jual * (100 - $percent), 100);
+        }
+
+        if ($this->harga_guru_type === 'fixed') {
+            return (int) $this->harga_guru_value;
+        }
+
+        return null;
+    }
+
+    /**
+     * Apakah cetakan ini punya harga guru yang valid.
+     */
+    public function hasGuruPrice(): bool
+    {
+        return $this->guruPrice() !== null;
     }
 }

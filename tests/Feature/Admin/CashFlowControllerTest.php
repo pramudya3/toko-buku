@@ -2,56 +2,70 @@
 
 use App\Models\CashFlow;
 use App\Models\CashFlowMonth;
+use App\Models\KasCategory;
+use App\Models\KasSubCategory;
 use App\Models\Order;
 use App\Models\User;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
+    // Seed kategori Kas untuk test store/update (OPSI A + kategori)
+    $this->kasCategory = KasCategory::create(['nama' => 'Kategori Test '.uniqid(), 'sort_order' => 1]);
+    $this->kasSub = KasSubCategory::create(['cash_flow_category_id' => $this->kasCategory->id, 'nama' => 'Sub Test '.uniqid(), 'sort_order' => 1]);
 });
 
 it('shows monthly summary rows on the cash recording page', function (): void {
-    $order = Order::factory()->create();
-
-    CashFlow::factory()->revenue(50000)->create([
-        'order_id' => $order->id,
-        'entry_date' => now()->subDays(2)->toDateString(),
+    // OPSI A: Kas hanya manual (income/expense) — revenue/shipping/refund tidak masuk Kas.
+    // Pakai tanggal dalam bulan berjalan biar tidak melintasi batas bulan saat
+    // test dijalankan tanggal 1–2 (subDays bisa jatuh di bulan lalu).
+    $thisMonth = now()->startOfMonth()->toDateString();
+    CashFlow::factory()->income(50000)->create([
+        'order_id' => null,
+        'entry_date' => $thisMonth,
     ]);
-    CashFlow::factory()->shipping(10000)->create([
-        'order_id' => $order->id,
-        'entry_date' => now()->subDays(2)->toDateString(),
+    CashFlow::factory()->income(10000)->create([
+        'order_id' => null,
+        'entry_date' => $thisMonth,
     ]);
     CashFlow::factory()->expense(7500)->create([
-        'entry_date' => now()->subDays(3)->toDateString(),
+        'order_id' => null,
+        'entry_date' => $thisMonth,
     ]);
+    // Refund lama (order-linked) tidak lagi dihitung di Kas OPSI A.
     CashFlow::factory()->refund(5000)->create([
+        'order_id' => Order::factory()->create()->id,
         'entry_date' => now()->subMonth()->toDateString(),
     ]);
 
     $props = inertiaProps($this->actingAs($this->admin)
         ->get(route('admin.kas.index')));
 
-    expect($props['months'])->toHaveCount(2)
+    expect($props['months'])->toHaveCount(1)
         ->and($props['months'][0]['key'])->toBe(now()->format('Y-m'))
         ->and($props['months'][0]['masuk'])->toBe(60000)
         ->and($props['months'][0]['keluar'])->toBe(7500)
         ->and($props['months'][0]['count'])->toBe(3)
-        ->and($props['months'][1]['masuk'])->toBe(0)
-        ->and($props['months'][1]['keluar'])->toBe(5000)
         ->and($props['summary']['masuk'])->toBe(60000)
-        ->and($props['summary']['keluar'])->toBe(12500);
+        ->and($props['summary']['keluar'])->toBe(7500);
 });
 
 it('shows the month detail with separate in/out tables', function (): void {
-    $order = Order::factory()->create();
-
-    CashFlow::factory()->revenue(50000)->create([
-        'order_id' => $order->id,
+    // OPSI A: hanya income/expense manual yang tampil di KasDetail.
+    CashFlow::factory()->income(50000)->create([
+        'order_id' => null,
         'entry_date' => now()->toDateString(),
     ]);
     CashFlow::factory()->income(20000)->create([
+        'order_id' => null,
         'entry_date' => now()->toDateString(),
     ]);
     CashFlow::factory()->expense(7500)->create([
+        'order_id' => null,
+        'entry_date' => now()->toDateString(),
+    ]);
+    // Revenue lama tidak tampil di Kas OPSI A.
+    CashFlow::factory()->revenue(99999)->create([
+        'order_id' => Order::factory()->create()->id,
         'entry_date' => now()->toDateString(),
     ]);
 
@@ -63,7 +77,7 @@ it('shows the month detail with separate in/out tables', function (): void {
         ->and($props['summary']['keluar'])->toBe(7500)
         ->and(collect($props['pencatatan'])->pluck('amount')->all())->toBe([50000, 20000])
         ->and(collect($props['pengeluaran'])->pluck('amount')->all())->toBe([7500])
-        ->and($props['pencatatan'][0]['order_no'])->toBe($order->no_order);
+        ->and($props['pencatatan'][0])->toHaveKey('kas_category');
 });
 
 it('returns 404 for invalid or empty month details', function (): void {
@@ -115,16 +129,16 @@ it('allows manual cash entries but rejects invalid flow types (CF-02)', function
         ->assertSessionHasErrors('flow_type');
 });
 
-it('links cash flows to their order number (auditability, AC-07)', function (): void {
+it('does not show order-linked cash flows in kas detail (OPSI A: kas mandiri)', function (): void {
     $order = Order::factory()->create();
-    $flow = CashFlow::factory()->revenue(25000)->create(['order_id' => $order->id]);
+    $flow = CashFlow::factory()->revenue(25000)->create(['order_id' => $order->id, 'entry_date' => now()->toDateString()]);
 
     $props = inertiaProps($this->actingAs($this->admin)
         ->get(route('admin.kas.detail', now()->format('Y-m'))));
 
-    $first = collect($props['pencatatan'])->firstWhere('id', $flow->id);
+    $found = collect($props['pencatatan'])->firstWhere('id', $flow->id);
 
-    expect($first['order_no'])->toBe($order->no_order);
+    expect($found)->toBeNull();
 });
 
 it('records manual cash in (uang masuk)', function (): void {
@@ -134,6 +148,8 @@ it('records manual cash in (uang masuk)', function (): void {
             'entry_date' => now()->toDateString(),
             'amount' => 150000,
             'description' => 'Pelunasan piutang Budi',
+            'kas_category_id' => $this->kasCategory->id,
+            'kas_sub_category_id' => $this->kasSub->id,
         ])
         ->assertRedirect();
 
@@ -147,6 +163,8 @@ it('records manual cash out (uang keluar)', function (): void {
             'entry_date' => now()->toDateString(),
             'amount' => 75000,
             'description' => 'Beli plastik packing',
+            'kas_category_id' => $this->kasCategory->id,
+            'kas_sub_category_id' => $this->kasSub->id,
         ])
         ->assertRedirect();
 
@@ -240,4 +258,136 @@ it('includes manually opened months in the report filter options', function (): 
         ->get(route('admin.kas.laporan')));
 
     expect(collect($props['monthOptions'])->pluck('value'))->toContain('2026-06');
+});
+
+it('allows editing manual entry before month is closed', function (): void {
+    $flow = CashFlow::factory()->income(100000)->create([
+        'order_id' => null,
+        'entry_date' => '2026-08-10',
+        'description' => 'Awal',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.kas.update', $flow), [
+            'flow_type' => 'income',
+            'entry_date' => '2026-08-15',
+            'amount' => 150000,
+            'description' => 'Revisi',
+            'kas_category_id' => $this->kasCategory->id,
+            'kas_sub_category_id' => $this->kasSub->id,
+        ])
+        ->assertRedirect();
+
+    expect($flow->fresh()->amount)->toBe(150000)
+        ->and($flow->fresh()->description)->toBe('Revisi');
+});
+
+it('blocks editing when month is closed', function (): void {
+    $flow = CashFlow::factory()->income(50000)->create(['order_id' => null, 'entry_date' => '2026-07-10']);
+    CashFlowMonth::create(['bulan' => '2026-07', 'is_closed' => true, 'closed_at' => now()]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.kas.update', $flow), [
+            'flow_type' => 'income',
+            'entry_date' => '2026-07-15',
+            'amount' => 99999,
+            'description' => 'Coba edit',
+            'kas_category_id' => $this->kasCategory->id,
+            'kas_sub_category_id' => $this->kasSub->id,
+        ])
+        ->assertRedirect();
+
+    expect($flow->fresh()->amount)->toBe(50000);
+});
+
+it('blocks editing order-linked cash flows', function (): void {
+    $order = Order::factory()->create();
+    $flow = CashFlow::factory()->revenue(25000)->create(['order_id' => $order->id, 'entry_date' => now()->toDateString()]);
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.kas.update', $flow), [
+            'flow_type' => 'income',
+            'entry_date' => now()->toDateString(),
+            'amount' => 99999,
+            'description' => 'Coba edit',
+        ])
+        ->assertRedirect();
+
+    expect($flow->fresh()->amount)->toBe(25000);
+});
+
+it('blocks creating entry when month is closed', function (): void {
+    CashFlowMonth::create(['bulan' => '2026-09', 'is_closed' => true, 'closed_at' => now(), 'closed_by' => $this->admin->id]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.store'), [
+            'flow_type' => 'income',
+            'entry_date' => '2026-09-15',
+            'amount' => 50000,
+            'description' => 'Coba',
+            'kas_category_id' => $this->kasCategory->id,
+            'kas_sub_category_id' => $this->kasSub->id,
+        ])
+        ->assertRedirect();
+
+    expect(CashFlow::where('amount', 50000)->exists())->toBeFalse();
+});
+
+it('can close and reopen a month', function (): void {
+    $bulan = '2026-10';
+    CashFlowMonth::create(['bulan' => $bulan, 'is_closed' => false]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.close', $bulan))
+        ->assertRedirect();
+
+    expect(CashFlowMonth::where('bulan', $bulan)->first()->is_closed)->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.reopen', $bulan))
+        ->assertRedirect();
+
+    expect(CashFlowMonth::where('bulan', $bulan)->first()->is_closed)->toBeFalse();
+});
+
+it('creates close record for implicit month (only cash flows)', function (): void {
+    CashFlow::factory()->income(10000)->create(['order_id' => null, 'entry_date' => '2026-11-05']);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.kas.close', '2026-11'))
+        ->assertRedirect();
+
+    expect(CashFlowMonth::where('bulan', '2026-11')->first()->is_closed)->toBeTrue();
+});
+
+it('allows deleting manual entry before month is closed', function (): void {
+    $flow = CashFlow::factory()->income(75000)->create(['order_id' => null, 'entry_date' => '2026-08-12', 'kas_category_id' => $this->kasCategory->id, 'kas_sub_category_id' => $this->kasSub->id]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.kas.destroy', $flow))
+        ->assertRedirect();
+
+    expect(CashFlow::where('id', $flow->id)->exists())->toBeFalse();
+});
+
+it('blocks deleting when month is closed', function (): void {
+    $flow = CashFlow::factory()->expense(40000)->create(['order_id' => null, 'entry_date' => '2026-07-12', 'kas_category_id' => $this->kasCategory->id, 'kas_sub_category_id' => $this->kasSub->id]);
+    CashFlowMonth::create(['bulan' => '2026-07', 'is_closed' => true, 'closed_at' => now()]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.kas.destroy', $flow))
+        ->assertRedirect();
+
+    expect(CashFlow::where('id', $flow->id)->exists())->toBeTrue();
+});
+
+it('blocks deleting order-linked cash flows', function (): void {
+    $order = Order::factory()->create();
+    $flow = CashFlow::factory()->revenue(25000)->create(['order_id' => $order->id, 'entry_date' => now()->toDateString()]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.kas.destroy', $flow))
+        ->assertRedirect();
+
+    expect(CashFlow::where('id', $flow->id)->exists())->toBeTrue();
 });

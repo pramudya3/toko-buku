@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\InventoryMovementRequest;
 use App\Models\Book;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -37,7 +38,7 @@ class InventoryController extends Controller
                 $query->where('stok', '<=', config('pricing.low_stock_threshold'));
             })
             ->orderBy('judul')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         $books->getCollection()->transform(function (Book $book): Book {

@@ -6,7 +6,13 @@ use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\PromotionType;
 use App\Enums\VoucherScope;
+use App\Http\Requests\Storefront\AddToCartRequest;
+use App\Http\Requests\Storefront\BulkAddToCartRequest;
 use App\Http\Requests\Storefront\CheckoutRequest;
+use App\Http\Requests\Storefront\RemoveCartGroupRequest;
+use App\Http\Requests\Storefront\ShippingCostRequest;
+use App\Http\Requests\Storefront\ToggleCartGroupRequest;
+use App\Http\Requests\Storefront\UpdateCartEditionRequest;
 use App\Models\BankAccount;
 use App\Models\Book;
 use App\Models\BookEdition;
@@ -118,13 +124,9 @@ class CheckoutController extends Controller
     /**
      * Tambah buku ke keranjang (session). Cetakan bisa dipilih dari detail buku.
      */
-    public function add(Request $request): RedirectResponse
+    public function add(AddToCartRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'book_id' => ['required', 'exists:books,id'],
-            'book_edition_id' => ['nullable', 'string', 'exists:book_editions,id'],
-            'qty' => ['required', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validated();
 
         $cart = $this->cart();
         $bookId = (string) $validated['book_id'];
@@ -182,12 +184,9 @@ class CheckoutController extends Controller
     /**
      * Tambah beberapa buku sekaligus ke keranjang (qty 1 masing-masing).
      */
-    public function addBulk(Request $request): RedirectResponse
+    public function addBulk(BulkAddToCartRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'book_ids' => ['required', 'array', 'min:1'],
-            'book_ids.*' => ['required', 'string', 'exists:books,id'],
-        ]);
+        $validated = $request->validated();
 
         $books = Book::whereKey($validated['book_ids'])->get()->keyBy('id');
         $cart = $this->cart();
@@ -241,12 +240,9 @@ class CheckoutController extends Controller
     /**
      * Toggle centang satu grup — dipanggil lewat AJAX dari halaman checkout.
      */
-    public function toggleGroup(Request $request): RedirectResponse
+    public function toggleGroup(ToggleCartGroupRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'group_key' => ['required', 'string'],
-            'checked' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $availableKeys = array_column($this->cartGroups(), 'key');
 
@@ -270,11 +266,9 @@ class CheckoutController extends Controller
     /**
      * Hapus satu grup utuh dari keranjang (semua item paket bundle / item lainnya).
      */
-    public function removeGroup(Request $request): RedirectResponse
+    public function removeGroup(RemoveCartGroupRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'group_key' => ['required', 'string'],
-        ]);
+        $validated = $request->validated();
 
         $group = collect($this->cartGroups())->firstWhere('key', $validated['group_key']);
 
@@ -331,11 +325,9 @@ class CheckoutController extends Controller
     /**
      * Ganti cetakan item di keranjang (semua entri buku ini).
      */
-    public function updateEdition(Request $request, string $bookId): RedirectResponse
+    public function updateEdition(UpdateCartEditionRequest $request, string $bookId): RedirectResponse
     {
-        $validated = $request->validate([
-            'book_edition_id' => ['nullable', 'string', 'exists:book_editions,id'],
-        ]);
+        $validated = $request->validated();
 
         $editionId = ! empty($validated['book_edition_id']) ? (string) $validated['book_edition_id'] : null;
 
@@ -614,13 +606,9 @@ class CheckoutController extends Controller
      * Hitung opsi ongkir utk keranjang saat ini (AJAX). Client mengirim
      * kode pos tujuan — server bangun daftar item dari keranjang.
      */
-    public function shippingCosts(Request $request): JsonResponse
+    public function shippingCosts(ShippingCostRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'postal_code' => ['required', 'string', 'max:10'],
-            'selected_groups' => ['sometimes', 'array'],
-            'selected_groups.*' => ['string', 'max:100'],
-        ]);
+        $validated = $request->validated();
 
         $cart = $this->cart();
 
@@ -905,8 +893,17 @@ class CheckoutController extends Controller
             $promo = $bookToPromo[$book->id] ?? null;
             $key = $promo !== null ? 'bundle-'.$promo->id : 'regular';
 
-            $breakdown = $this->pricing->priceBreakdown($book, $item['qty'], $tier);
+            $breakdown = $this->pricing->priceBreakdown($book, $item['qty'], $tier, $item['edition'] ?? null);
             $bundleDiscount = $bundleDiscounts[$book->id] ?? 0;
+
+            // Guru dengan harga khusus tidak ikut bundle (harga guru independen)
+            $guruPrice = $this->pricing->guruPriceFor($book, $tier, $item['edition'] ?? null);
+
+            if ($guruPrice !== null) {
+                $promo = null;
+                $key = 'regular';
+                $bundleDiscount = 0;
+            }
 
             // Buku dalam bundle LENGKAP: HANYA diskon bundle — promo satuan
             // & tier tidak bertumpuk. Diskon berlaku utk 1 SET pertama saja.
@@ -1101,6 +1098,8 @@ class CheckoutController extends Controller
                         'id' => $e->id,
                         'cetakan_ke' => $e->cetakan_ke,
                         'harga_jual' => $e->harga_jual,
+                        'harga_guru_type' => $e->harga_guru_type,
+                        'harga_guru_value' => $e->harga_guru_value,
                         'is_active' => $e->is_active,
                         'stok' => (int) ($e->sellable_total ?? 0),
                     ]

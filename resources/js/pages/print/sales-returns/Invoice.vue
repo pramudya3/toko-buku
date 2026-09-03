@@ -144,7 +144,7 @@ const alasan = computed(() =>
 
             <InvoiceFooter
                 :notes="retur.notes || alasan || null"
-                :signatures="[{ label: 'Penerima' }, { label: 'Petugas' }]"
+                thanks="Jazakumullah Khoiron"
             />
         </InvoiceSheet>
     </div>

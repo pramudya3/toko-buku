@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -13,6 +13,7 @@ defineOptions({
     layout: {
         title: 'Forgot password',
         description: 'Enter your email to receive a password reset link',
+        showLogo: false,
     },
 });
 
@@ -31,36 +32,54 @@ defineProps<{
         {{ status }}
     </div>
 
-    <div class="space-y-6">
-        <Form v-bind="email.form()" v-slot="{ errors, processing }">
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    autocomplete="off"
-                    autofocus
-                    placeholder="email@example.com"
-                />
-                <InputError :message="errors.email" />
-            </div>
+    <Card class="shadow-sm">
+        <CardContent class="pt-6">
+            <Form
+                v-bind="email.form()"
+                v-slot="{ errors, processing }"
+                class="flex flex-col gap-6"
+            >
+                <div class="grid gap-6">
+                    <div class="grid gap-2">
+                        <Label for="email">Email address</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            name="email"
+                            required
+                            autofocus
+                            :tabindex="1"
+                            autocomplete="email"
+                            placeholder="email@example.com"
+                            :aria-invalid="!!errors.email"
+                        />
+                        <p v-if="errors.email" class="text-sm text-destructive">
+                            {{ errors.email }}
+                        </p>
+                    </div>
 
-            <div class="my-6 flex items-center justify-start">
-                <Button
-                    class="w-full"
-                    :disabled="processing"
-                    data-test="email-password-reset-link-button"
-                >
-                    <Spinner v-if="processing" />
-                    Email password reset link
-                </Button>
-            </div>
-        </Form>
+                    <Button
+                        type="submit"
+                        class="mt-2 w-full"
+                        :tabindex="2"
+                        :disabled="processing"
+                        data-test="email-password-reset-link-button"
+                    >
+                        <Spinner v-if="processing" />
+                        Email password reset link
+                    </Button>
+                </div>
 
-        <div class="space-x-1 text-center text-sm text-muted-foreground">
-            <span>Or, return to</span>
-            <TextLink :href="login()">log in</TextLink>
-        </div>
-    </div>
+                <div class="text-center text-sm text-muted-foreground">
+                    Or, return to
+                    <TextLink
+                        :href="login()"
+                        class="underline underline-offset-4"
+                        :tabindex="3"
+                        >log in</TextLink
+                    >
+                </div>
+            </Form>
+        </CardContent>
+    </Card>
 </template>

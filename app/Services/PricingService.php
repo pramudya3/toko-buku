@@ -9,6 +9,8 @@ use App\Models\Book;
 use App\Models\BookEdition;
 use App\Models\Order;
 use App\Models\Promotion;
+use App\Models\TierDiscount;
+use App\Models\User;
 use App\Services\Pricing\PriceBreakdown;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -35,21 +37,72 @@ final class PricingService
     /**
      * Harga final per unit untuk qty & tier tertentu.
      */
-    public function finalPrice(Book $book, int $qty, ?CustomerTier $tier = null): int
+    public function finalPrice(Book $book, int $qty, ?CustomerTier $tier = null, ?BookEdition $edition = null): int
     {
-        return $this->priceBreakdown($book, $qty, $tier)->finalPrice;
+        return $this->priceBreakdown($book, $qty, $tier, $edition)->finalPrice;
+    }
+
+    /**
+     * Harga guru efektif untuk buku/edisi tertentu (null = tidak ada).
+     */
+    public function guruPriceFor(Book $book, ?CustomerTier $tier, ?BookEdition $edition = null): ?int
+    {
+        if ($tier !== CustomerTier::Guru) {
+            return null;
+        }
+
+        $target = $edition;
+
+        if ($target === null) {
+            // Coba dari relasi yang sudah di-load untuk hindari N+1
+            if ($book->relationLoaded('activeEdition') && $book->getRelation('activeEdition') !== null) {
+                $target = $book->getRelation('activeEdition');
+            } elseif ($book->relationLoaded('editions')) {
+                $target = $book->getRelation('editions')->firstWhere('is_active', true)
+                    ?? $book->getRelation('editions')->first();
+            } else {
+                $target = $book->activeEdition()->first() ?? $book->editions()->orderBy('cetakan_ke')->first();
+            }
+        }
+
+        if ($target === null) {
+            return null;
+        }
+
+        return $target->guruPrice();
     }
 
     /**
      * Rincian diskon utk ditampilkan di UI (original, promo, tier, final).
+     * Jika tier Guru dan cetakan punya harga guru, harga guru dipakai sebagai base
+     * lalu promo kalender tetap diterapkan di atasnya (guru juga dapat promo).
      */
-    public function priceBreakdown(Book $book, int $qty, ?CustomerTier $tier = null): PriceBreakdown
+    public function priceBreakdown(Book $book, int $qty, ?CustomerTier $tier = null, ?BookEdition $edition = null): PriceBreakdown
     {
         if ($qty <= 0) {
             throw new \InvalidArgumentException('Jumlah buku harus lebih dari 0.');
         }
 
         $original = $book->harga;
+
+        // Harga guru per-cetakan (percent / fixed) — jadi base untuk tier Guru
+        $guruPrice = $this->guruPriceFor($book, $tier, $edition);
+
+        if ($guruPrice !== null) {
+            $promotion = $this->activePromotion($book);
+            $afterPromo = $this->applyPromotion($promotion, $guruPrice, $qty);
+            $guruDiscount = max(0, $original - $guruPrice);
+            $promoDiscount = max(0, $guruPrice - $afterPromo);
+
+            return new PriceBreakdown(
+                originalPrice: $original,
+                promoDiscount: $promoDiscount,
+                tierDiscount: $guruDiscount,
+                finalPrice: $afterPromo,
+                promoName: $promotion?->promo_name,
+            );
+        }
+
         $promotion = $this->activePromotion($book);
         $afterPromo = $this->applyPromotion($promotion, $original, $qty);
         $promoName = $promotion?->promo_name;
@@ -120,14 +173,32 @@ final class PricingService
 
     /**
      * Price breakdown dengan promo yang sudah di-preload (hindari N+1).
+     * Guru base + promo tetap berlaku.
      */
-    public function priceBreakdownWithPromo(Book $book, ?Promotion $promo, int $qty = 1, ?CustomerTier $tier = null): PriceBreakdown
+    public function priceBreakdownWithPromo(Book $book, ?Promotion $promo, int $qty = 1, ?CustomerTier $tier = null, ?BookEdition $edition = null): PriceBreakdown
     {
         if ($qty <= 0) {
             throw new \InvalidArgumentException('Jumlah buku harus lebih dari 0.');
         }
 
         $original = $book->harga;
+
+        $guruPrice = $this->guruPriceFor($book, $tier, $edition);
+
+        if ($guruPrice !== null) {
+            $afterPromo = $this->applyPromotion($promo, $guruPrice, $qty);
+            $guruDiscount = max(0, $original - $guruPrice);
+            $promoDiscount = max(0, $guruPrice - $afterPromo);
+
+            return new PriceBreakdown(
+                originalPrice: $original,
+                promoDiscount: $promoDiscount,
+                tierDiscount: $guruDiscount,
+                finalPrice: $afterPromo,
+                promoName: $promo?->promo_name,
+            );
+        }
+
         $afterPromo = $this->applyPromotion($promo, $original, $qty);
         $tierDiscount = $this->tierDiscountAmount($tier, $qty, $afterPromo);
 
@@ -151,7 +222,7 @@ final class PricingService
             return 0;
         }
 
-        $discountPercent = (int) (DB::table('tier_discounts')
+        $discountPercent = (int) (TierDiscount::query()
             ->where('tier', $tier->value)
             ->where('min_qty', '<=', $qty)
             ->orderByDesc('min_qty')
@@ -166,6 +237,8 @@ final class PricingService
      */
     public function applyToOrder(Order $order): void
     {
+        $order->loadMissing(['items.book', 'items.edition', 'user']);
+
         $tier = $order->user?->status_pelanggan;
 
         // Harga dasar mengikuti cetakan terpilih bila ada (snapshot harga edisi)
@@ -189,9 +262,24 @@ final class PricingService
         $total = 0;
 
         foreach ($order->items as $item) {
-            $breakdown = $this->priceBreakdown($item->book, $item->qty, $tier);
+            // Harga insidentil (custom / promo expired) — jangan hitung ulang, pakai nilai tersimpan + keterangan
+            if ($item->is_custom_price) {
+                $total += $item->price_final * $item->qty;
+
+                continue;
+            }
+            // Harga guru per-cetakan harus ikut dalam breakdown (bukan hanya harga_jual normal)
+            $breakdown = $this->priceBreakdown($item->book, $item->qty, $tier, $item->edition);
 
             $bundleDiscountAmount = $bundleDiscounts[$item->id] ?? 0;
+
+            // Jika harga guru aktif, bundle tidak stack (harga guru independen)
+            $isGuruPrice = $this->guruPriceFor($item->book, $tier, $item->edition) !== null;
+
+            if ($isGuruPrice) {
+                $bundleDiscountAmount = 0;
+            }
+
             $inBundle = $bundleDiscountAmount > 0;
 
             $item->judul_snapshot = $item->book->judul;
@@ -397,8 +485,9 @@ final class PricingService
 
     /**
      * Simpan order beserta item-nya dengan perhitungan harga otomatis, dalam 1 transaksi.
+     * Mendukung harga insidentil: normal / promo expired / custom editable + keterangan.
      *
-     * @param  array<int, array{book_id: int, qty: int, book_edition_id?: int|null, edition_snapshot?: string|null, is_preorder?: bool}>  $items
+     * @param  array<int, array{book_id: int, qty: int, book_edition_id?: int|null, edition_snapshot?: string|null, is_preorder?: bool, price_type?: string, promo_id?: string|null, custom_price?: int|null, price_note?: string|null}>  $items
      */
     public function storeOrderWithItems(Order $order, array $items): Order
     {
@@ -407,6 +496,21 @@ final class PricingService
 
             $bookIds = collect($items)->pluck('book_id')->unique()->values();
             $books = Book::query()->whereKey($bookIds)->get()->keyBy('id');
+
+            // Preload promos for expired_promo (termasuk yang sudah expired)
+            $promoIds = collect($items)->pluck('promo_id')->filter()->unique()->values();
+            $promos = $promoIds->isNotEmpty()
+                ? Promotion::query()->whereIn('id', $promoIds)->with('books:id')->get()->keyBy('id')
+                : collect();
+
+            $tier = $order->user?->status_pelanggan;
+            // Jika order manual belum punya user (guest), coba ambil dari tier yang akan diset? fallback null
+            if ($tier === null && isset($order->user_id)) {
+                $tier = User::whereKey($order->user_id)->value('status_pelanggan');
+                if (is_string($tier)) {
+                    $tier = CustomerTier::tryFrom($tier);
+                }
+            }
 
             foreach ($items as $row) {
                 $book = $books->get($row['book_id']);
@@ -428,6 +532,59 @@ final class PricingService
                     $book->harga = $edition->harga_jual;
                 }
 
+                $priceType = $row['price_type'] ?? 'normal';
+                $isCustom = in_array($priceType, ['custom', 'expired_promo'], true);
+
+                if ($isCustom) {
+                    $original = $book->harga;
+                    $promoSnapshot = null;
+                    $final = $original;
+                    $promoDiscount = 0;
+                    $tierDiscount = 0;
+
+                    if ($priceType === 'expired_promo' && ! empty($row['promo_id'])) {
+                        $promoSnapshot = $promos->get($row['promo_id']);
+                        if ($promoSnapshot === null) {
+                            throw new RuntimeException('Promo tidak ditemukan.');
+                        }
+                        // Base untuk promo expired: guru price jika ada, else original
+                        $baseForPromo = $this->guruPriceFor($book, $tier, $edition) ?? $original;
+                        $final = $this->applyPromotion($promoSnapshot, $baseForPromo, (int) $row['qty']);
+                        // Untuk expired_promo, tierDiscount = guru discount (jika ada), promoDiscount = base - final
+                        $guruBase = $this->guruPriceFor($book, $tier, $edition);
+                        if ($guruBase !== null) {
+                            $tierDiscount = max(0, $original - $guruBase);
+                            $promoDiscount = max(0, $guruBase - $final);
+                        } else {
+                            $promoDiscount = max(0, $original - $final);
+                        }
+                    } elseif ($priceType === 'custom' && isset($row['custom_price'])) {
+                        $final = (int) $row['custom_price'];
+                        $promoDiscount = max(0, $original - $final);
+                    }
+
+                    $order->items()->create([
+                        'book_id' => $book->id,
+                        'book_edition_id' => $edition?->id,
+                        'is_preorder' => $row['is_preorder'] ?? $book->is_preorder,
+                        'judul_snapshot' => $book->judul,
+                        'harga_snapshot' => $edition?->harga_jual ?? $book->harga,
+                        'harga_beli_snapshot' => $edition?->harga_beli ?? 0,
+                        'edition_snapshot' => $edition !== null ? "Cetakan ke-{$edition->cetakan_ke}" : null,
+                        'qty' => $row['qty'],
+                        'price_original' => $original,
+                        'promo_discount_amount' => $promoDiscount,
+                        'tier_discount_amount' => $tierDiscount,
+                        'price_final' => $final,
+                        'is_custom_price' => true,
+                        'custom_price' => $row['custom_price'] ?? $final,
+                        'price_note' => $row['price_note'] ?? null,
+                        'promo_id_snapshot' => $row['promo_id'] ?? null,
+                    ]);
+
+                    continue;
+                }
+
                 $order->items()->create([
                     'book_id' => $book->id,
                     'book_edition_id' => $edition?->id,
@@ -441,13 +598,17 @@ final class PricingService
                     'promo_discount_amount' => 0,
                     'tier_discount_amount' => 0,
                     'price_final' => 0,
+                    'is_custom_price' => false,
+                    'custom_price' => null,
+                    'price_note' => $row['price_note'] ?? null,
+                    'promo_id_snapshot' => null,
                 ]);
             }
 
-            $order->load('items.book');
+            $order->load(['items.book', 'items.edition']);
             $this->applyToOrder($order);
         });
 
-        return $order->fresh(['items.book', 'user']);
+        return $order->fresh(['items.book', 'items.edition', 'user']);
     }
 }

@@ -137,6 +137,10 @@ function applyFilters() {
                 warehouse_id:
                     warehouseId.value === 'all' ? undefined : warehouseId.value,
                 search: search.value || undefined,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             { preserveState: true, replace: true },
         );
@@ -197,7 +201,7 @@ const typeLabel: Record<string, string> = {
 <template>
     <Head title="Laporan Mutasi" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
@@ -326,8 +330,8 @@ const typeLabel: Record<string, string> = {
             :data="movements.data"
             :columns="columns"
             :paginator="movements"
-            empty-title="Tidak ada mutasi"
-            empty-description="Tidak ada pergerakan stok pada periode & filter ini."
+            empty-title="Gunakan filter tanggal"
+            empty-description="Gunakan filter tanggal untuk menampilkan data laporan"
         >
             <template #cell-buku="{ row }">
                 <p class="truncate font-medium">{{ row.book?.judul ?? '—' }}</p>

@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\PromotionRequest;
 use App\Models\Book;
 use App\Models\Promotion;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -277,7 +278,7 @@ class PromotionController extends Controller
                 $query->whereLike('promo_name', '%'.$request->string('search')->toString().'%');
             })
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/promotions/Index', [
@@ -315,7 +316,7 @@ class PromotionController extends Controller
                 });
             })
             ->orderBy('judul')
-            ->paginate(20)
+            ->paginate(Pagination::perPage($request, 20))
             ->withQueryString();
 
         return response()->json([

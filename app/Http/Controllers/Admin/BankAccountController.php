@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BankAccountRequest;
 use App\Models\BankAccount;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,14 +31,9 @@ class BankAccountController extends Controller
     /**
      * Simpan rekening bank baru.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(BankAccountRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'bank_name' => ['required', 'string', 'max:100'],
-            'account_number' => ['required', 'string', 'max:50'],
-            'account_holder' => ['required', 'string', 'max:150'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $account = BankAccount::create([
             ...$validated,
@@ -59,14 +54,9 @@ class BankAccountController extends Controller
     /**
      * Update rekening bank.
      */
-    public function update(Request $request, BankAccount $bankAccount): RedirectResponse
+    public function update(BankAccountRequest $request, BankAccount $bankAccount): RedirectResponse
     {
-        $validated = $request->validate([
-            'bank_name' => ['required', 'string', 'max:100'],
-            'account_number' => ['required', 'string', 'max:50'],
-            'account_holder' => ['required', 'string', 'max:150'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $bankAccount->update($validated);
 

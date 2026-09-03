@@ -5,7 +5,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 const page = usePage();
 const name = computed(() => page.props.storeName ?? page.props.name);
-const logoUrl = computed(() => page.props.storeLogoUrl ?? '');
+const logoUrl = computed(() => page.props.storeLogoUrl || '/logo-pcp.png');
 </script>
 
 <template>

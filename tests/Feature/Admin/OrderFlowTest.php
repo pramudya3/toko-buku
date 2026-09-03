@@ -91,6 +91,42 @@ it('filters the order list by sales channel', function (): void {
         );
 });
 
+it('filters the order list by date range (from/to)', function (): void {
+    Order::factory()->create(['nama_pembeli' => 'Agustus Awal', 'created_at' => '2026-08-02 09:00:00']);
+    Order::factory()->create(['nama_pembeli' => 'Agustus Akhir', 'created_at' => '2026-08-20 13:00:00']);
+    Order::factory()->create(['nama_pembeli' => 'Juli Malam', 'created_at' => '2026-07-31 23:59:59']);
+
+    // Rentang lengkap: batas atas menyertakan order pada hari "to" itu sendiri.
+    $this->actingAs($this->admin)
+        ->get(route('admin.orders.index', ['from' => '2026-08-01', 'to' => '2026-08-14']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('admin/orders/Index')
+            ->where('filters.from', '2026-08-01')
+            ->where('filters.to', '2026-08-14')
+            ->has('orders.data', 1)
+            ->where('orders.data.0.nama_pembeli', 'Agustus Awal')
+        );
+
+    // Hanya "from" — semua order mulai tanggal tersebut.
+    $this->actingAs($this->admin)
+        ->get(route('admin.orders.index', ['from' => '2026-08-15']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('orders.data', 1)
+            ->where('orders.data.0.nama_pembeli', 'Agustus Akhir')
+        );
+
+    // Hanya "to" — semua order sampai tanggal tersebut.
+    $this->actingAs($this->admin)
+        ->get(route('admin.orders.index', ['to' => '2026-07-31']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('orders.data', 1)
+            ->where('orders.data.0.nama_pembeli', 'Juli Malam')
+        );
+});
+
 it('checks shipping cost from admin endpoint (cached shared)', function (): void {
     createLocalVillages();
     fakeRajaOngkirApi();
@@ -312,9 +348,8 @@ it('completes an order: stock was reserved at processing, selesai records 2 cash
 
     expect($book->fresh()->stok)->toBe(8)
         ->and($book->fresh()->inventoryStocks()->sum('qty'))->toBe(8)
-        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'revenue')->exists())->toBeTrue()
-        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'shipping')->exists())->toBeTrue()
-        ->and(CashFlow::where('order_id', $order->id)->sum('amount'))->toBe(115000);
+        // OPSI A: Kas mandiri — order selesai tidak buat cash flow otomatis.
+        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0);
 });
 
 it('is idempotent: completing twice does not double deduct or duplicate entries (ORD-07)', function (): void {
@@ -356,7 +391,7 @@ it('is idempotent: completing twice does not double deduct or duplicate entries 
 
     expect($book->fresh()->stok)->toBe(9)
         ->and($order->fresh()->status)->toBe(OrderStatus::Selesai)
-        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(2);
+        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0);
 });
 
 it('does not duplicate completion side effects from a stale order model', function (): void {
@@ -386,7 +421,7 @@ it('does not duplicate completion side effects from a stale order model', functi
         ->toThrow(RuntimeException::class);
 
     expect($book->fresh()->stok)->toBe(10)
-        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(2);
+        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0);
 });
 
 it('restores reserved stock when cancelling a processed order', function (): void {
@@ -420,9 +455,8 @@ it('restores reserved stock when cancelling a processed order', function (): voi
     expect($order->fresh()->status)->toBe(OrderStatus::Batal)
         ->and($book->fresh()->stok)->toBe(10)
         ->and($book->fresh()->inventoryStocks()->sum('qty'))->toBe(10)
-        // Order lunas yang dibatalkan → refund otomatis dicatat di arus kas.
-        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'refund')->count())->toBe(1)
-        ->and(CashFlow::where('order_id', $order->id)->sum('amount'))->toBe(110000)
+        // OPSI A: Kas mandiri — batal tidak buat refund otomatis.
+        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'refund')->count())->toBe(0)
         // Ada mutasi masuk (restore) setelah mutasi keluar (reserve).
         ->and(InventoryMovement::where('book_id', $book->id)->where('type', 'in')->count())->toBe(1);
 });
@@ -503,8 +537,8 @@ it('cancels a paid order and records an automatic refund (CF-04)', function (): 
 
     expect($order->fresh()->status)->toBe(OrderStatus::Batal)
         ->and($book->fresh()->stok)->toBe(10)
-        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'refund')->count())->toBe(1)
-        ->and(CashFlow::where('order_id', $order->id)->sum('amount'))->toBe(50000);
+        // OPSI A: Kas mandiri — batal tidak buat refund.
+        ->and(CashFlow::where('order_id', $order->id)->where('flow_type', 'refund')->count())->toBe(0);
 });
 
 it('does not record a refund when cancelling an unpaid order', function (): void {
@@ -804,7 +838,7 @@ it('processes a marketplace order without payment, booking, then completes direc
         ->assertRedirect();
 
     expect($order->fresh()->status)->toBe(OrderStatus::Selesai)
-        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(2);
+        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0);
 });
 
 it('processes a toko order without Biteship booking', function (): void {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, Link, router, useHttp } from '@inertiajs/vue3';
+import { Form, Head, Link, router, useHttp, usePage } from '@inertiajs/vue3';
 import { Loader2, Minus, PackageCheck, Plus, Trash2, Truck } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -23,6 +23,41 @@ import {
 } from '@/components/ui/select';
 import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 
+const page = usePage();
+const isGuru = computed(
+    () => (page.props as any)?.auth?.user?.status_pelanggan === 'guru',
+);
+
+function guruPriceForEdition(
+    ed: CartEdition | null | undefined,
+): number | null {
+    if (!ed || !ed.harga_guru_type || !ed.harga_guru_value) {
+        return null;
+    }
+
+    if (ed.harga_guru_type === 'percent') {
+        const p = Math.min(100, Math.max(1, Number(ed.harga_guru_value)));
+
+        return Math.floor((ed.harga_jual * (100 - p)) / 100);
+    }
+
+    if (ed.harga_guru_type === 'fixed') {
+        return Number(ed.harga_guru_value);
+    }
+
+    return null;
+}
+
+function editionPriceLabel(ed: CartEdition): string {
+    const guru = isGuru.value ? guruPriceForEdition(ed) : null;
+
+    if (guru !== null) {
+        return `Rp ${guru.toLocaleString('id-ID')} (dari Rp ${ed.harga_jual.toLocaleString('id-ID')})`;
+    }
+
+    return `Rp ${ed.harga_jual.toLocaleString('id-ID')}`;
+}
+
 type CartBook = {
     id: string;
     judul: string;
@@ -37,6 +72,8 @@ type CartEdition = {
     id: string;
     cetakan_ke: number;
     harga_jual: number;
+    harga_guru_type?: string | null;
+    harga_guru_value?: number | null;
     is_active: boolean;
     stok: number;
 };
@@ -313,12 +350,21 @@ const hasActiveGroup = computed(() => props.selectedGroups.length > 0);
 // Data pembeli — diikat via v-model agar tombol submit bisa dicek.
 const namaPembeli = ref(props.user?.name ?? '');
 
-// Tombol "Buat Pesanan" aktif hanya saat data pembeli + alamat lengkap.
+// Tombol "Buat Pesanan" aktif saat data pembeli lengkap — alamat hanya
+// wajib utk mode kirim; ambil sendiri tanpa alamat & ongkir (validasi
+// server: CheckoutRequest alamat nullable, ekspedisi requiredIf bukan ambil).
 const isFormComplete = computed(() => {
+    if (namaPembeli.value.trim() === '') {
+        return false;
+    }
+
+    if (isAmbil.value) {
+        return true;
+    }
+
     const a = address.value;
 
     return (
-        namaPembeli.value.trim() !== '' &&
         a.provinsi !== '' &&
         a.kabupaten_kota !== '' &&
         a.kecamatan !== '' &&
@@ -327,6 +373,13 @@ const isFormComplete = computed(() => {
         a.alamat.trim() !== ''
     );
 });
+
+// Pesan form belum lengkap — menyesuaikan metode pengambilan.
+const formIncompleteMessage = computed(() =>
+    isAmbil.value
+        ? 'Lengkapi nama pembeli.'
+        : 'Lengkapi data pembeli & alamat.',
+);
 
 // ── Ongkos kirim (RajaOngkir) ──
 const shippingCosts = ref<ShippingOption[]>([]);
@@ -611,810 +664,861 @@ function onFormError() {
                     Checkout
                 </h1>
                 <p class="mt-1 text-sm text-article-muted">
-                    Lengkapi data diri dan alamat pengiriman.
+                    {{
+                        isAmbil
+                            ? 'Lengkapi data diri — pesanan diambil langsung di toko.'
+                            : 'Lengkapi data diri dan alamat pengiriman.'
+                    }}
                 </p>
             </div>
 
-        <Form
-            :action="CartController.store().url"
-            method="post"
-            class="flex flex-col gap-6"
-            v-slot="{ errors, processing }"
-            @error="onFormError"
-        >
-            <div
-                v-if="groups.length"
-                class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+            <Form
+                :action="CartController.store().url"
+                method="post"
+                class="flex flex-col gap-6"
+                v-slot="{ errors, processing }"
+                @error="onFormError"
             >
-                <div class="flex flex-col gap-6">
-                    <Card>
-                        <CardContent class="flex flex-col gap-6">
-                            <div>
-                                <h2 class="text-sm font-semibold">
-                                    Data Pembeli
-                                </h2>
-                                <div
-                                    class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
-                                >
-                                    <div class="grid gap-2">
-                                        <Label for="nama_pembeli"
-                                            >Nama Lengkap *</Label
-                                        >
-                                        <Input
-                                            id="nama_pembeli"
-                                            name="nama_pembeli"
-                                            v-model="namaPembeli"
-                                            required
-                                        />
-                                        <InputError
-                                            :message="errors.nama_pembeli"
-                                        />
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="whatsapp_pembeli"
-                                            >WhatsApp</Label
-                                        >
-                                        <Input
-                                            id="whatsapp_pembeli"
-                                            name="whatsapp_pembeli"
-                                            :default-value="
-                                                user?.whatsapp_number ??
-                                                undefined
-                                            "
-                                            placeholder="08xxxxxxxxxx"
-                                        />
-                                    </div>
-                                    <div class="grid gap-2 md:col-span-2">
-                                        <Label for="email_pembeli"
-                                            >Email (opsional)</Label
-                                        >
-                                        <Input
-                                            id="email_pembeli"
-                                            name="email_pembeli"
-                                            type="email"
-                                            :default-value="
-                                                user?.email ?? undefined
-                                            "
-                                        />
-                                        <InputError
-                                            :message="errors.email_pembeli"
-                                        />
+                <div
+                    v-if="groups.length"
+                    class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+                >
+                    <div class="flex flex-col gap-6">
+                        <Card>
+                            <CardContent class="flex flex-col gap-6">
+                                <div>
+                                    <h2 class="text-sm font-semibold">
+                                        Data Pembeli
+                                    </h2>
+                                    <div
+                                        class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
+                                    >
+                                        <div class="grid gap-2">
+                                            <Label for="nama_pembeli"
+                                                >Nama Lengkap *</Label
+                                            >
+                                            <Input
+                                                id="nama_pembeli"
+                                                name="nama_pembeli"
+                                                v-model="namaPembeli"
+                                                required
+                                            />
+                                            <InputError
+                                                :message="errors.nama_pembeli"
+                                            />
+                                        </div>
+                                        <div class="grid gap-2">
+                                            <Label for="whatsapp_pembeli"
+                                                >WhatsApp</Label
+                                            >
+                                            <Input
+                                                id="whatsapp_pembeli"
+                                                name="whatsapp_pembeli"
+                                                :default-value="
+                                                    user?.whatsapp_number ??
+                                                    undefined
+                                                "
+                                                placeholder="08xxxxxxxxxx"
+                                            />
+                                        </div>
+                                        <div class="grid gap-2 md:col-span-2">
+                                            <Label for="email_pembeli"
+                                                >Email (opsional)</Label
+                                            >
+                                            <Input
+                                                id="email_pembeli"
+                                                name="email_pembeli"
+                                                type="email"
+                                                :default-value="
+                                                    user?.email ?? undefined
+                                                "
+                                            />
+                                            <InputError
+                                                :message="errors.email_pembeli"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="border-t pt-6">
-                                <h2 class="text-sm font-semibold">
-                                    Metode Pengambilan
-                                </h2>
-                                <div class="mt-3 grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
-                                        :class="
-                                            !isAmbil
-                                                ? 'border-primary bg-primary/5'
-                                                : ''
-                                        "
-                                        @click="chooseFulfillment('kirim')"
-                                    >
-                                        <Truck class="size-4 shrink-0" />
-                                        <span>
-                                            <span class="block font-medium">
-                                                Kirim
+                                <div class="border-t pt-6">
+                                    <h2 class="text-sm font-semibold">
+                                        Metode Pengambilan
+                                    </h2>
+                                    <div class="mt-3 grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
+                                            :class="
+                                                !isAmbil
+                                                    ? 'border-primary bg-primary/5'
+                                                    : ''
+                                            "
+                                            @click="chooseFulfillment('kirim')"
+                                        >
+                                            <Truck class="size-4 shrink-0" />
+                                            <span>
+                                                <span class="block font-medium">
+                                                    Kirim
+                                                </span>
+                                                <span
+                                                    class="text-xs text-muted-foreground"
+                                                >
+                                                    Via ekspedisi
+                                                </span>
                                             </span>
-                                            <span
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                Via ekspedisi
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
+                                            :class="
+                                                isAmbil
+                                                    ? 'border-primary bg-primary/5'
+                                                    : ''
+                                            "
+                                            @click="chooseFulfillment('ambil')"
+                                        >
+                                            <PackageCheck
+                                                class="size-4 shrink-0"
+                                            />
+                                            <span>
+                                                <span class="block font-medium">
+                                                    Ambil Sendiri
+                                                </span>
+                                                <span
+                                                    class="text-xs text-muted-foreground"
+                                                >
+                                                    Di toko, tanpa ongkir
+                                                </span>
                                             </span>
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors"
-                                        :class="
-                                            isAmbil
-                                                ? 'border-primary bg-primary/5'
-                                                : ''
-                                        "
-                                        @click="chooseFulfillment('ambil')"
-                                    >
-                                        <PackageCheck class="size-4 shrink-0" />
-                                        <span>
-                                            <span class="block font-medium">
-                                                Ambil Sendiri
-                                            </span>
-                                            <span
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                Di toko, tanpa ongkir
-                                            </span>
-                                        </span>
-                                    </button>
-                                </div>
-                                <input
-                                    type="hidden"
-                                    name="metode_pengambilan"
-                                    :value="fulfillmentMethod"
-                                />
-                            </div>
-
-                            <div v-if="!isAmbil" class="border-t pt-6">
-                                <h2 class="text-sm font-semibold">
-                                    Alamat Pengiriman
-                                </h2>
-                                <div class="mt-3">
-                                    <AddressFields
-                                        v-model="address"
-                                        :endpoint="'public'"
+                                        </button>
+                                    </div>
+                                    <input
+                                        type="hidden"
+                                        name="metode_pengambilan"
+                                        :value="fulfillmentMethod"
                                     />
                                 </div>
-                            </div>
 
-                            <div class="border-t pt-6">
-                                <h2 class="text-sm font-semibold">
-                                    Pembayaran & Pengiriman
-                                </h2>
-                                <div
-                                    class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
-                                >
-                                    <div class="grid gap-2">
-                                        <Label for="metode_bayar"
-                                            >Metode Bayar *</Label
-                                        >
-                                        <Select
-                                            v-model="selectedPayment"
-                                            name="metode_bayar"
-                                        >
-                                            <SelectTrigger id="metode_bayar">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem
-                                                    v-for="(
-                                                        label, value
-                                                    ) in paymentOptions"
-                                                    :key="value"
-                                                    :value="value"
-                                                >
-                                                    {{ label }}
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError
-                                            :message="errors.metode_bayar"
+                                <div v-if="!isAmbil" class="border-t pt-6">
+                                    <h2 class="text-sm font-semibold">
+                                        Alamat Pengiriman
+                                    </h2>
+                                    <div class="mt-3">
+                                        <AddressFields
+                                            v-model="address"
+                                            :endpoint="'public'"
                                         />
-                                        <div
-                                            v-if="
-                                                selectedPayment ===
-                                                    'transfer' &&
-                                                bankAccounts.length
-                                            "
-                                            class="mt-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
-                                        >
-                                            <p
-                                                class="mb-1 font-medium text-foreground"
-                                            >
-                                                Transfer ke rekening:
-                                            </p>
-                                            <p
-                                                v-for="account in bankAccounts"
-                                                :key="account.id"
-                                                class="flex flex-wrap items-center gap-2"
-                                            >
-                                                <span class="font-medium">
-                                                    {{ account.bank_name }}
-                                                </span>
-                                                <span
-                                                    class="font-mono break-all"
-                                                >
-                                                    {{ account.account_number }}
-                                                </span>
-                                                <span
-                                                    class="text-muted-foreground"
-                                                >
-                                                    a.n.
-                                                    {{ account.account_holder }}
-                                                </span>
-                                            </p>
-                                        </div>
                                     </div>
+                                </div>
+
+                                <div class="border-t pt-6">
+                                    <h2 class="text-sm font-semibold">
+                                        Pembayaran & Pengiriman
+                                    </h2>
                                     <div
-                                        v-if="!isAmbil"
-                                        class="grid gap-2 md:col-span-2"
+                                        class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2"
                                     >
-                                        <Label for="ekspedisi"
-                                            >Ekspedisi & Ongkir</Label
-                                        >
-                                        <div class="flex items-end gap-2">
-                                            <div
-                                                class="grid min-w-0 flex-1 gap-2"
+                                        <div class="grid gap-2">
+                                            <Label for="metode_bayar"
+                                                >Metode Bayar *</Label
                                             >
-                                                <Select
-                                                    v-model="
-                                                        selectedShippingValue
-                                                    "
-                                                    :disabled="
-                                                        ongkirLoading ||
-                                                        shippingCosts.length ===
-                                                            0
-                                                    "
-                                                    @update:model-value="
-                                                        (val) => {
-                                                            const value =
-                                                                String(
-                                                                    val ?? '',
-                                                                );
-                                                            const [courier] =
-                                                                value.split(
-                                                                    ':',
-                                                                );
-                                                            selectedShippingValue =
-                                                                value;
-                                                            selectedCourier =
-                                                                courier ?? '';
-                                                        }
-                                                    "
+                                            <Select
+                                                v-model="selectedPayment"
+                                                name="metode_bayar"
+                                            >
+                                                <SelectTrigger
+                                                    id="metode_bayar"
                                                 >
-                                                    <SelectTrigger
-                                                        id="ekspedisi"
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem
+                                                        v-for="(
+                                                            label, value
+                                                        ) in paymentOptions"
+                                                        :key="value"
+                                                        :value="value"
                                                     >
-                                                        <SelectValue
-                                                            :placeholder="
-                                                                ongkirLoading
-                                                                    ? 'Menghitung ongkir...'
-                                                                    : address.kelurahan
-                                                                      ? 'Pilih ekspedisi'
-                                                                      : 'Pilih alamat lengkap dulu'
-                                                            "
-                                                        />
-                                                    </SelectTrigger>
-                                                    <SelectContent
-                                                        class="max-h-64"
-                                                    >
-                                                        <SelectItem
-                                                            v-for="option in shippingCosts"
-                                                            :key="`${option.courier_code}:${option.service_code}`"
-                                                            :value="`${option.courier_code}:${option.service_code}`"
-                                                        >
-                                                            {{
-                                                                option.courier_name
-                                                            }}
-                                                            — Rp
-                                                            {{
-                                                                option.price.toLocaleString(
-                                                                    'id-ID',
-                                                                )
-                                                            }}
-                                                            <span
-                                                                v-if="
-                                                                    option.estimation
-                                                                "
-                                                                class="text-xs text-muted-foreground"
-                                                            >
-                                                                ({{
-                                                                    option.estimation
-                                                                }})
-                                                            </span>
-                                                        </SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <input
-                                                    type="hidden"
-                                                    name="ekspedisi"
-                                                    :value="selectedCourier"
-                                                />
-                                                <input
-                                                    type="hidden"
-                                                    name="courier_service_code"
-                                                    :value="selectedServiceCode"
-                                                />
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                :disabled="
-                                                    ongkirLoading ||
-                                                    !address.kode_pos
+                                                        {{ label }}
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError
+                                                :message="errors.metode_bayar"
+                                            />
+                                            <div
+                                                v-if="
+                                                    selectedPayment ===
+                                                        'transfer' &&
+                                                    bankAccounts.length
                                                 "
-                                                @click="checkOngkir"
+                                                class="mt-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
                                             >
-                                                <Loader2
-                                                    v-if="ongkirLoading"
-                                                    class="size-4 animate-spin"
-                                                />
-                                                {{
-                                                    ongkirLoading
-                                                        ? 'Menghitung...'
-                                                        : 'Cek Ongkir'
-                                                }}
-                                            </Button>
-                                        </div>
-                                        <p
-                                            v-if="ongkirLoading"
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Menghitung ongkir ke
-                                            {{ address.kelurahan }}...
-                                        </p>
-                                        <p
-                                            v-else-if="ongkirError"
-                                            class="text-xs text-destructive"
-                                        >
-                                            {{ ongkirError }}
-                                        </p>
-                                        <p
-                                            v-else-if="ongkirStale"
-                                            class="text-xs text-amber-600 dark:text-amber-400"
-                                        >
-                                            Berat berubah — tekan Cek Ongkir
-                                            lagi.
-                                        </p>
-                                        <p
-                                            v-else-if="
-                                                shippingCosts.length &&
-                                                shippingWeight !== null
-                                            "
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Berat paket {{ shippingWeight }} kg
-                                            ·
-                                            {{ shippingCosts.length }} ekspedisi
-                                            tersedia
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div
-                    class="order-first h-fit lg:sticky lg:top-20 lg:order-last"
-                >
-                    <Card v-if="vouchers.length">
-                        <CardHeader>
-                            <CardTitle class="text-base font-medium"
-                                >Voucher Diskon</CardTitle
-                            >
-                        </CardHeader>
-                        <CardContent class="flex flex-col gap-2">
-                            <label
-                                v-for="voucher in vouchers"
-                                :key="voucher.id"
-                                class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition-colors"
-                                :class="[
-                                    selectedVoucherId === voucher.id
-                                        ? 'border-primary bg-primary/5'
-                                        : 'hover:bg-accent',
-                                    !voucherUsable(voucher) && 'opacity-60',
-                                ]"
-                            >
-                                <input
-                                    type="radio"
-                                    name="voucher_pick"
-                                    class="mt-0.5"
-                                    :value="voucher.id"
-                                    v-model="selectedVoucherId"
-                                    :disabled="!voucherUsable(voucher)"
-                                />
-                                <span class="min-w-0 flex-1">
-                                    <span class="block font-medium">
-                                        {{ voucher.nama }}
-                                    </span>
-                                    <span
-                                        class="block text-xs text-muted-foreground"
-                                    >
-                                        {{ voucherDiscountLabel(voucher) }}
-                                        <template
-                                            v-if="voucher.min_order_amount > 0"
-                                        >
-                                            · min. belanja
-                                            {{
-                                                voucher.min_order_amount.toLocaleString(
-                                                    'id-ID',
-                                                )
-                                            }}
-                                        </template>
-                                        <template v-if="voucher.max_uses">
-                                            · sisa
-                                            {{
-                                                voucher.max_uses -
-                                                voucher.usages_count
-                                            }}/{{ voucher.max_uses }}
-                                        </template>
-                                    </span>
-                                    <span
-                                        v-if="voucherReason(voucher)"
-                                        class="block text-xs font-medium text-destructive"
-                                    >
-                                        {{ voucherReason(voucher) }}
-                                    </span>
-                                </span>
-                            </label>
-                            <input
-                                type="hidden"
-                                name="voucher_id"
-                                :value="selectedVoucherId"
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle class="text-base font-medium"
-                                >Ringkasan Pesanan</CardTitle
-                            >
-                        </CardHeader>
-                        <CardContent class="flex flex-col gap-4">
-                            <!-- ── Grup item + checkbox pilih proses ── -->
-                            <div
-                                v-for="group in groups"
-                                :key="group.key"
-                                class="flex flex-col gap-2 rounded-lg border p-3 transition-opacity"
-                                :class="
-                                    !props.selectedGroups.includes(group.key) &&
-                                    'opacity-60'
-                                "
-                            >
-                                <div class="flex items-center gap-2">
-                                    <label
-                                        class="flex min-w-0 cursor-pointer items-center gap-2"
-                                    >
-                                        <Checkbox
-                                            :model-value="
-                                                props.selectedGroups.includes(
-                                                    group.key,
-                                                )
-                                            "
-                                            @update:model-value="
-                                                (
-                                                    v:
-                                                        | boolean
-                                                        | 'indeterminate',
-                                                ) =>
-                                                    toggleGroup(
-                                                        group.key,
-                                                        v === true,
-                                                    )
-                                            "
-                                        />
-                                        <span
-                                            class="min-w-0 text-sm font-semibold"
-                                        >
-                                            {{ group.name }}
-                                        </span>
-                                    </label>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        class="ml-auto size-8 shrink-0 text-destructive"
-                                        title="Hapus seluruh grup"
-                                        @click="removeGroup(group)"
-                                    >
-                                        <Trash2 class="size-4" />
-                                    </Button>
-                                </div>
-
-                                <ul class="flex flex-col gap-2">
-                                    <li
-                                        v-for="item in group.items"
-                                        :key="`${item.book.id}-${item.edition_label ?? ''}`"
-                                        class="rounded-lg bg-muted/30 px-3 py-2.5"
-                                    >
-                                        <div
-                                            class="flex items-start justify-between gap-2"
-                                        >
-                                            <p
-                                                class="line-clamp-2 min-w-0 flex-1 text-sm font-medium"
-                                            >
-                                                {{ item.book.judul }}
-                                                <span
-                                                    v-if="item.book.is_preorder"
-                                                    class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
-                                                >
-                                                    Pre-Order
-                                                </span>
-                                            </p>
-                                            <Button
-                                                v-if="group.key === 'regular'"
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                class="size-7 shrink-0 text-destructive"
-                                                title="Hapus item"
-                                                @click="removeItem(item)"
-                                            >
-                                                <Trash2 class="size-3.5" />
-                                            </Button>
-                                        </div>
-                                        <div
-                                            class="mt-1.5 flex items-center justify-between gap-2"
-                                        >
-                                            <div
-                                                class="flex min-w-0 items-center gap-1.5"
-                                            >
-                                                <Select
-                                                    v-if="
-                                                        group.key ===
-                                                            'regular' &&
-                                                        item.editions.length > 1
-                                                    "
-                                                    :model-value="
-                                                        currentEditionId(item)
-                                                    "
-                                                    @update:model-value="
-                                                        (val) =>
-                                                            changeEdition(
-                                                                item,
-                                                                val as string,
-                                                            )
-                                                    "
-                                                >
-                                                    <SelectTrigger
-                                                        class="h-7 w-auto max-w-44 min-w-0 gap-1 rounded-md border px-1.5 text-xs"
-                                                    >
-                                                        <SelectValue
-                                                            placeholder="Cetakan"
-                                                        />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem
-                                                            v-for="edition in item.editions"
-                                                            :key="edition.id"
-                                                            :value="edition.id"
-                                                            :disabled="
-                                                                !item.book
-                                                                    .is_preorder &&
-                                                                edition.stok <=
-                                                                    0
-                                                            "
-                                                        >
-                                                            Cetakan ke-{{
-                                                                edition.cetakan_ke
-                                                            }}
-                                                            ·
-                                                            {{
-                                                                edition.harga_jual.toLocaleString(
-                                                                    'id-ID',
-                                                                )
-                                                            }}
-                                                        </SelectItem>
-                                                    </SelectContent>
-                                                </Select>
                                                 <p
-                                                    v-else
-                                                    class="min-w-0 truncate text-xs text-muted-foreground"
+                                                    class="mb-1 font-medium text-foreground"
                                                 >
-                                                    <template
-                                                        v-if="
-                                                            item.edition_label
-                                                        "
+                                                    Transfer ke rekening:
+                                                </p>
+                                                <p
+                                                    v-for="account in bankAccounts"
+                                                    :key="account.id"
+                                                    class="flex flex-wrap items-center gap-2"
+                                                >
+                                                    <span class="font-medium">
+                                                        {{ account.bank_name }}
+                                                    </span>
+                                                    <span
+                                                        class="font-mono break-all"
                                                     >
-                                                        {{ item.edition_label }}
-                                                        ·
-                                                    </template>
-                                                    <Money
-                                                        :value="
-                                                            item.price_original
-                                                        "
-                                                    />
-                                                    <span>
-                                                        × {{ item.qty }}
+                                                        {{
+                                                            account.account_number
+                                                        }}
+                                                    </span>
+                                                    <span
+                                                        class="text-muted-foreground"
+                                                    >
+                                                        a.n.
+                                                        {{
+                                                            account.account_holder
+                                                        }}
                                                     </span>
                                                 </p>
                                             </div>
-                                            <div
-                                                v-if="group.key === 'regular'"
-                                                class="flex shrink-0 items-center gap-1 rounded-md border px-0.5 py-0.5"
+                                        </div>
+                                        <div
+                                            v-if="!isAmbil"
+                                            class="grid gap-2 md:col-span-2"
+                                        >
+                                            <Label for="ekspedisi"
+                                                >Ekspedisi & Ongkir</Label
                                             >
+                                            <div class="flex items-end gap-2">
+                                                <div
+                                                    class="grid min-w-0 flex-1 gap-2"
+                                                >
+                                                    <Select
+                                                        v-model="
+                                                            selectedShippingValue
+                                                        "
+                                                        :disabled="
+                                                            ongkirLoading ||
+                                                            shippingCosts.length ===
+                                                                0
+                                                        "
+                                                        @update:model-value="
+                                                            (val) => {
+                                                                const value =
+                                                                    String(
+                                                                        val ??
+                                                                            '',
+                                                                    );
+                                                                const [
+                                                                    courier,
+                                                                ] =
+                                                                    value.split(
+                                                                        ':',
+                                                                    );
+                                                                selectedShippingValue =
+                                                                    value;
+                                                                selectedCourier =
+                                                                    courier ??
+                                                                    '';
+                                                            }
+                                                        "
+                                                    >
+                                                        <SelectTrigger
+                                                            id="ekspedisi"
+                                                        >
+                                                            <SelectValue
+                                                                :placeholder="
+                                                                    ongkirLoading
+                                                                        ? 'Menghitung ongkir...'
+                                                                        : address.kelurahan
+                                                                          ? 'Pilih ekspedisi'
+                                                                          : 'Pilih alamat lengkap dulu'
+                                                                "
+                                                            />
+                                                        </SelectTrigger>
+                                                        <SelectContent
+                                                            class="max-h-64"
+                                                        >
+                                                            <SelectItem
+                                                                v-for="option in shippingCosts"
+                                                                :key="`${option.courier_code}:${option.service_code}`"
+                                                                :value="`${option.courier_code}:${option.service_code}`"
+                                                            >
+                                                                {{
+                                                                    option.courier_name
+                                                                }}
+                                                                — Rp
+                                                                {{
+                                                                    option.price.toLocaleString(
+                                                                        'id-ID',
+                                                                    )
+                                                                }}
+                                                                <span
+                                                                    v-if="
+                                                                        option.estimation
+                                                                    "
+                                                                    class="text-xs text-muted-foreground"
+                                                                >
+                                                                    ({{
+                                                                        option.estimation
+                                                                    }})
+                                                                </span>
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <input
+                                                        type="hidden"
+                                                        name="ekspedisi"
+                                                        :value="selectedCourier"
+                                                    />
+                                                    <input
+                                                        type="hidden"
+                                                        name="courier_service_code"
+                                                        :value="
+                                                            selectedServiceCode
+                                                        "
+                                                    />
+                                                </div>
                                                 <Button
                                                     type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    class="size-6"
-                                                    :disabled="item.qty <= 1"
-                                                    @click="updateQty(item, -1)"
-                                                >
-                                                    <Minus class="size-3.5" />
-                                                </Button>
-                                                <span
-                                                    class="w-6 text-center text-sm tabular-nums"
-                                                    >{{ item.qty }}</span
-                                                >
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    class="size-6"
+                                                    variant="outline"
                                                     :disabled="
-                                                        item.qty >=
-                                                        item.book.stok
+                                                        ongkirLoading ||
+                                                        !address.kode_pos
                                                     "
-                                                    @click="updateQty(item, 1)"
+                                                    @click="checkOngkir"
                                                 >
-                                                    <Plus class="size-3.5" />
+                                                    <Loader2
+                                                        v-if="ongkirLoading"
+                                                        class="size-4 animate-spin"
+                                                    />
+                                                    {{
+                                                        ongkirLoading
+                                                            ? 'Menghitung...'
+                                                            : 'Cek Ongkir'
+                                                    }}
                                                 </Button>
                                             </div>
-                                            <Money
-                                                :value="item.item_total"
-                                                class="shrink-0 text-sm font-medium"
-                                            />
+                                            <p
+                                                v-if="ongkirLoading"
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Menghitung ongkir ke
+                                                {{ address.kelurahan }}...
+                                            </p>
+                                            <p
+                                                v-else-if="ongkirError"
+                                                class="text-xs text-destructive"
+                                            >
+                                                {{ ongkirError }}
+                                            </p>
+                                            <p
+                                                v-else-if="ongkirStale"
+                                                class="text-xs text-amber-600 dark:text-amber-400"
+                                            >
+                                                Berat berubah — tekan Cek Ongkir
+                                                lagi.
+                                            </p>
+                                            <p
+                                                v-else-if="
+                                                    shippingCosts.length &&
+                                                    shippingWeight !== null
+                                                "
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Berat paket
+                                                {{ shippingWeight }} kg ·
+                                                {{ shippingCosts.length }}
+                                                ekspedisi tersedia
+                                            </p>
                                         </div>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <!-- ── Ringkasan (grup tercentang saja) ── -->
-                            <div
-                                class="flex items-center justify-between border-t pt-3"
-                            >
-                                <span class="text-sm text-muted-foreground"
-                                    >Subtotal</span
-                                >
-                                <Money
-                                    :value="subtotal"
-                                    class="font-semibold"
-                                />
-                            </div>
-                            <div
-                                v-for="discount in promoDiscountsByName"
-                                :key="discount.name"
-                                class="flex items-center justify-between text-sm"
-                            >
-                                <span class="text-muted-foreground">
-                                    {{ discount.name }}
-                                </span>
-                                <Money
-                                    :value="-discount.value"
-                                    class="font-medium text-destructive"
-                                />
-                            </div>
-                            <div
-                                v-for="discount in bundleDiscountsByName"
-                                :key="discount.name"
-                                class="flex items-center justify-between text-sm"
-                            >
-                                <span class="text-muted-foreground">
-                                    {{ discount.name }} (bundle)
-                                </span>
-                                <Money
-                                    :value="-discount.value"
-                                    class="font-medium text-destructive"
-                                />
-                            </div>
-                            <div
-                                v-if="tierDiscountTotal > 0"
-                                class="flex items-center justify-between text-sm"
-                            >
-                                <span class="text-muted-foreground"
-                                    >Diskon tier</span
-                                >
-                                <Money
-                                    :value="-tierDiscountTotal"
-                                    class="font-medium text-destructive"
-                                />
-                            </div>
-                            <div
-                                v-if="voucherDiscount > 0"
-                                class="flex items-center justify-between text-sm"
-                            >
-                                <span class="text-muted-foreground"
-                                    >Voucher {{ selectedVoucher?.nama
-                                    }}<template
-                                        v-if="
-                                            selectedVoucher?.discount_scope ===
-                                            'ongkir'
-                                        "
-                                    >
-                                        (ongkir)</template
-                                    ></span
-                                >
-                                <Money
-                                    :value="-voucherDiscount"
-                                    class="font-medium text-destructive"
-                                />
-                            </div>
-                            <div
-                                v-if="!isAmbil && selectedCourier"
-                                class="flex items-center justify-between text-sm"
-                            >
-                                <span class="text-muted-foreground"
-                                    >Ongkir ({{
-                                        selectedShippingOption?.courier_name
-                                    }})</span
-                                >
-                                <Money
-                                    :value="shippingCost"
-                                    class="font-medium"
-                                />
-                            </div>
-                            <div
-                                class="flex items-center justify-between border-t pt-3"
-                            >
-                                <span class="text-sm font-semibold">Total</span>
-                                <Money
-                                    :value="grandTotal"
-                                    class="font-semibold"
-                                />
-                            </div>
-                            <p
-                                v-if="!hasActiveGroup"
-                                class="text-xs font-medium text-destructive"
-                            >
-                                Pilih minimal 1 grup
-                            </p>
-                            <p
-                                v-else-if="!isFormComplete"
-                                class="text-xs font-medium text-destructive"
-                            >
-                                Lengkapi data pembeli & alamat.
-                            </p>
-                            <Button
-                                type="submit"
-                                size="lg"
-                                class="hidden lg:inline-flex"
-                                :disabled="
-                                    processing ||
-                                    !hasActiveGroup ||
-                                    !isFormComplete
-                                "
-                            >
-                                {{
-                                    processing ? 'Memproses...' : 'Buat Pesanan'
-                                }}
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-
-            <!-- Bottom bar mobile: total + tombol submit selalu terlihat -->
-            <div
-                v-if="groups.length"
-                class="fixed inset-x-0 bottom-16 z-50 border-t border-b bg-background/95 p-4 backdrop-blur lg:hidden"
-            >
-                <div
-                    class="mx-auto flex max-w-2xl items-center justify-between gap-3"
-                >
-                    <div>
-                        <p class="text-xs text-muted-foreground">Total</p>
-                        <Money
-                            :value="grandTotal"
-                            class="text-lg font-semibold"
-                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
-                    <Button
-                        type="submit"
-                        size="lg"
-                        :disabled="
-                            processing || !hasActiveGroup || !isFormComplete
-                        "
-                    >
-                        {{ processing ? 'Memproses...' : 'Buat Pesanan' }}
-                    </Button>
-                </div>
-                <span
-                    v-if="!isFormComplete"
-                    class="text-xs font-medium text-destructive"
-                >
-                    Lengkapi data pembeli & alamat.
-                </span>
-            </div>
 
-            <EmptyState
-                v-else
-                icon="/img/empty-cart.png"
-                title="Keranjang kosong"
-                description="Belum ada buku di keranjang."
-            >
-                <Button size="sm" as-child>
-                    <Link :href="'/buku'">Lihat Katalog</Link>
-                </Button>
-            </EmptyState>
-            <InputError :message="errors.items" />
-        </Form>
+                    <div
+                        class="order-first h-fit lg:sticky lg:top-20 lg:order-last"
+                    >
+                        <Card v-if="vouchers.length">
+                            <CardHeader>
+                                <CardTitle class="text-base font-medium"
+                                    >Voucher Diskon</CardTitle
+                                >
+                            </CardHeader>
+                            <CardContent class="flex flex-col gap-2">
+                                <label
+                                    v-for="voucher in vouchers"
+                                    :key="voucher.id"
+                                    class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition-colors"
+                                    :class="[
+                                        selectedVoucherId === voucher.id
+                                            ? 'border-primary bg-primary/5'
+                                            : 'hover:bg-accent',
+                                        !voucherUsable(voucher) && 'opacity-60',
+                                    ]"
+                                >
+                                    <input
+                                        type="radio"
+                                        name="voucher_pick"
+                                        class="mt-0.5"
+                                        :value="voucher.id"
+                                        v-model="selectedVoucherId"
+                                        :disabled="!voucherUsable(voucher)"
+                                    />
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block font-medium">
+                                            {{ voucher.nama }}
+                                        </span>
+                                        <span
+                                            class="block text-xs text-muted-foreground"
+                                        >
+                                            {{ voucherDiscountLabel(voucher) }}
+                                            <template
+                                                v-if="
+                                                    voucher.min_order_amount > 0
+                                                "
+                                            >
+                                                · min. belanja
+                                                {{
+                                                    voucher.min_order_amount.toLocaleString(
+                                                        'id-ID',
+                                                    )
+                                                }}
+                                            </template>
+                                            <template v-if="voucher.max_uses">
+                                                · sisa
+                                                {{
+                                                    voucher.max_uses -
+                                                    voucher.usages_count
+                                                }}/{{ voucher.max_uses }}
+                                            </template>
+                                        </span>
+                                        <span
+                                            v-if="voucherReason(voucher)"
+                                            class="block text-xs font-medium text-destructive"
+                                        >
+                                            {{ voucherReason(voucher) }}
+                                        </span>
+                                    </span>
+                                </label>
+                                <input
+                                    type="hidden"
+                                    name="voucher_id"
+                                    :value="selectedVoucherId"
+                                />
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle class="text-base font-medium"
+                                    >Ringkasan Pesanan</CardTitle
+                                >
+                            </CardHeader>
+                            <CardContent class="flex flex-col gap-4">
+                                <!-- ── Grup item + checkbox pilih proses ── -->
+                                <div
+                                    v-for="group in groups"
+                                    :key="group.key"
+                                    class="flex flex-col gap-2 rounded-lg border p-3 transition-opacity"
+                                    :class="
+                                        !props.selectedGroups.includes(
+                                            group.key,
+                                        ) && 'opacity-60'
+                                    "
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <label
+                                            class="flex min-w-0 cursor-pointer items-center gap-2"
+                                        >
+                                            <Checkbox
+                                                :model-value="
+                                                    props.selectedGroups.includes(
+                                                        group.key,
+                                                    )
+                                                "
+                                                @update:model-value="
+                                                    (
+                                                        v:
+                                                            | boolean
+                                                            | 'indeterminate',
+                                                    ) =>
+                                                        toggleGroup(
+                                                            group.key,
+                                                            v === true,
+                                                        )
+                                                "
+                                            />
+                                            <span
+                                                class="min-w-0 text-sm font-semibold"
+                                            >
+                                                {{ group.name }}
+                                            </span>
+                                        </label>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            class="ml-auto size-8 shrink-0 text-destructive"
+                                            title="Hapus seluruh grup"
+                                            @click="removeGroup(group)"
+                                        >
+                                            <Trash2 class="size-4" />
+                                        </Button>
+                                    </div>
+
+                                    <ul class="flex flex-col gap-2">
+                                        <li
+                                            v-for="item in group.items"
+                                            :key="`${item.book.id}-${item.edition_label ?? ''}`"
+                                            class="rounded-lg bg-muted/30 px-3 py-2.5"
+                                        >
+                                            <div
+                                                class="flex items-start justify-between gap-2"
+                                            >
+                                                <p
+                                                    class="line-clamp-2 min-w-0 flex-1 text-sm font-medium"
+                                                >
+                                                    {{ item.book.judul }}
+                                                    <span
+                                                        v-if="
+                                                            item.book
+                                                                .is_preorder
+                                                        "
+                                                        class="ml-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800"
+                                                    >
+                                                        Pre-Order
+                                                    </span>
+                                                </p>
+                                                <Button
+                                                    v-if="
+                                                        group.key === 'regular'
+                                                    "
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    class="size-7 shrink-0 text-destructive"
+                                                    title="Hapus item"
+                                                    @click="removeItem(item)"
+                                                >
+                                                    <Trash2 class="size-3.5" />
+                                                </Button>
+                                            </div>
+                                            <div
+                                                class="mt-1.5 flex items-center justify-between gap-2"
+                                            >
+                                                <div
+                                                    class="flex min-w-0 items-center gap-1.5"
+                                                >
+                                                    <Select
+                                                        v-if="
+                                                            group.key ===
+                                                                'regular' &&
+                                                            item.editions
+                                                                .length > 1
+                                                        "
+                                                        :model-value="
+                                                            currentEditionId(
+                                                                item,
+                                                            )
+                                                        "
+                                                        @update:model-value="
+                                                            (val) =>
+                                                                changeEdition(
+                                                                    item,
+                                                                    val as string,
+                                                                )
+                                                        "
+                                                    >
+                                                        <SelectTrigger
+                                                            class="h-7 w-auto max-w-44 min-w-0 gap-1 rounded-md border px-1.5 text-xs"
+                                                        >
+                                                            <SelectValue
+                                                                placeholder="Cetakan"
+                                                            />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem
+                                                                v-for="edition in item.editions"
+                                                                :key="
+                                                                    edition.id
+                                                                "
+                                                                :value="
+                                                                    edition.id
+                                                                "
+                                                                :disabled="
+                                                                    !item.book
+                                                                        .is_preorder &&
+                                                                    edition.stok <=
+                                                                        0
+                                                                "
+                                                            >
+                                                                Cetakan ke-{{
+                                                                    edition.cetakan_ke
+                                                                }}
+                                                                ·
+                                                                {{
+                                                                    editionPriceLabel(
+                                                                        edition as any,
+                                                                    )
+                                                                }}
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p
+                                                        v-else
+                                                        class="min-w-0 truncate text-xs text-muted-foreground"
+                                                    >
+                                                        <template
+                                                            v-if="
+                                                                item.edition_label
+                                                            "
+                                                        >
+                                                            {{
+                                                                item.edition_label
+                                                            }}
+                                                            ·
+                                                        </template>
+                                                        <Money
+                                                            :value="
+                                                                item.price_original
+                                                            "
+                                                        />
+                                                        <span>
+                                                            × {{ item.qty }}
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    v-if="
+                                                        group.key === 'regular'
+                                                    "
+                                                    class="flex shrink-0 items-center gap-1 rounded-md border px-0.5 py-0.5"
+                                                >
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        class="size-6"
+                                                        :disabled="
+                                                            item.qty <= 1
+                                                        "
+                                                        @click="
+                                                            updateQty(item, -1)
+                                                        "
+                                                    >
+                                                        <Minus
+                                                            class="size-3.5"
+                                                        />
+                                                    </Button>
+                                                    <span
+                                                        class="w-6 text-center text-sm tabular-nums"
+                                                        >{{ item.qty }}</span
+                                                    >
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        class="size-6"
+                                                        :disabled="
+                                                            item.qty >=
+                                                            item.book.stok
+                                                        "
+                                                        @click="
+                                                            updateQty(item, 1)
+                                                        "
+                                                    >
+                                                        <Plus
+                                                            class="size-3.5"
+                                                        />
+                                                    </Button>
+                                                </div>
+                                                <Money
+                                                    :value="item.item_total"
+                                                    class="shrink-0 text-sm font-medium"
+                                                />
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <!-- ── Ringkasan (grup tercentang saja) ── -->
+                                <div
+                                    class="flex items-center justify-between border-t pt-3"
+                                >
+                                    <span class="text-sm text-muted-foreground"
+                                        >Subtotal</span
+                                    >
+                                    <Money
+                                        :value="subtotal"
+                                        class="font-semibold"
+                                    />
+                                </div>
+                                <div
+                                    v-for="discount in promoDiscountsByName"
+                                    :key="discount.name"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground">
+                                        {{ discount.name }}
+                                    </span>
+                                    <Money
+                                        :value="-discount.value"
+                                        class="font-medium text-destructive"
+                                    />
+                                </div>
+                                <div
+                                    v-for="discount in bundleDiscountsByName"
+                                    :key="discount.name"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground">
+                                        {{ discount.name }} (bundle)
+                                    </span>
+                                    <Money
+                                        :value="-discount.value"
+                                        class="font-medium text-destructive"
+                                    />
+                                </div>
+                                <div
+                                    v-if="tierDiscountTotal > 0"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground"
+                                        >Diskon tier</span
+                                    >
+                                    <Money
+                                        :value="-tierDiscountTotal"
+                                        class="font-medium text-destructive"
+                                    />
+                                </div>
+                                <div
+                                    v-if="voucherDiscount > 0"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground"
+                                        >Voucher {{ selectedVoucher?.nama
+                                        }}<template
+                                            v-if="
+                                                selectedVoucher?.discount_scope ===
+                                                'ongkir'
+                                            "
+                                        >
+                                            (ongkir)</template
+                                        ></span
+                                    >
+                                    <Money
+                                        :value="-voucherDiscount"
+                                        class="font-medium text-destructive"
+                                    />
+                                </div>
+                                <div
+                                    v-if="!isAmbil && selectedCourier"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground"
+                                        >Ongkir ({{
+                                            selectedShippingOption?.courier_name
+                                        }})</span
+                                    >
+                                    <Money
+                                        :value="shippingCost"
+                                        class="font-medium"
+                                    />
+                                </div>
+                                <div
+                                    class="flex items-center justify-between border-t pt-3"
+                                >
+                                    <span class="text-sm font-semibold"
+                                        >Total</span
+                                    >
+                                    <Money
+                                        :value="grandTotal"
+                                        class="font-semibold"
+                                    />
+                                </div>
+                                <p
+                                    v-if="!hasActiveGroup"
+                                    class="text-xs font-medium text-destructive"
+                                >
+                                    Pilih minimal 1 grup
+                                </p>
+                                <p
+                                    v-else-if="!isFormComplete"
+                                    class="text-xs font-medium text-destructive"
+                                >
+                                    {{ formIncompleteMessage }}
+                                </p>
+                                <Button
+                                    type="submit"
+                                    size="lg"
+                                    class="hidden lg:inline-flex"
+                                    :disabled="
+                                        processing ||
+                                        !hasActiveGroup ||
+                                        !isFormComplete
+                                    "
+                                >
+                                    {{
+                                        processing
+                                            ? 'Memproses...'
+                                            : 'Buat Pesanan'
+                                    }}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <!-- Bottom bar mobile: total + tombol submit selalu terlihat -->
+                <div
+                    v-if="groups.length"
+                    class="fixed inset-x-0 bottom-16 z-50 border-t border-b bg-background/95 p-4 backdrop-blur lg:hidden"
+                >
+                    <div
+                        class="mx-auto flex max-w-2xl items-center justify-between gap-3"
+                    >
+                        <div>
+                            <p class="text-xs text-muted-foreground">Total</p>
+                            <Money
+                                :value="grandTotal"
+                                class="text-lg font-semibold"
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            size="lg"
+                            :disabled="
+                                processing || !hasActiveGroup || !isFormComplete
+                            "
+                        >
+                            {{ processing ? 'Memproses...' : 'Buat Pesanan' }}
+                        </Button>
+                    </div>
+                    <span
+                        v-if="!isFormComplete"
+                        class="text-xs font-medium text-destructive"
+                    >
+                        {{ formIncompleteMessage }}
+                    </span>
+                </div>
+
+                <EmptyState
+                    v-else
+                    icon="/img/empty-cart.png"
+                    title="Keranjang kosong"
+                    description="Belum ada buku di keranjang."
+                >
+                    <Button size="sm" as-child>
+                        <Link :href="'/buku'">Lihat Katalog</Link>
+                    </Button>
+                </EmptyState>
+                <InputError :message="errors.items" />
+            </Form>
         </div>
     </div>
 </template>

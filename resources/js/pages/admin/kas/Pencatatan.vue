@@ -8,14 +8,18 @@ defineOptions({
     },
 });
 
-import { Form, Head } from '@inertiajs/vue3';
-import { ArrowDownCircle, ArrowUpCircle, Plus } from '@lucide/vue';
+import { Form, Head, Link } from '@inertiajs/vue3';
+import {
+    ArrowDownCircle,
+    ArrowUpCircle,
+    Plus,
+    SquareArrowOutUpRight,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import CashFlowController from '@/actions/App/Http/Controllers/Admin/CashFlowController';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
-import DataTableActions from '@/components/DataTableActions.vue';
 import Money from '@/components/Money.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,6 +39,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { todayWIB } from '@/lib/date';
 import { detail as detailRoute } from '@/routes/admin/kas';
 
 type MonthRow = {
@@ -45,24 +56,24 @@ type MonthRow = {
     keluar: number;
 };
 
-defineProps<{
+const props = defineProps<{
     months: MonthRow[];
     summary: { masuk: number; keluar: number };
 }>();
 
 const columns: DataTableColumn[] = [
-    { key: 'label', header: 'Bulan', cellClass: 'font-medium' },
+    { key: 'label', header: 'Periode', cellClass: 'font-medium' },
     {
         key: 'masuk',
-        header: 'Total Uang Masuk',
+        header: 'Pemasukan',
         cellClass: 'text-right tabular-nums',
     },
     {
         key: 'keluar',
-        header: 'Total Uang Keluar',
+        header: 'Pengeluaran',
         cellClass: 'text-right tabular-nums',
     },
-    { key: 'aksi', header: 'Aksi', srOnly: true, cellClass: 'text-right' },
+    { key: 'aksi', header: '', cellClass: 'text-center w-[60px]' },
 ];
 
 // --- Dialog tambah bulan ---
@@ -82,42 +93,56 @@ const monthNames = [
     'Desember',
 ];
 
-const currentYear = new Date().getFullYear();
-// 7 opsi: tahun berjalan ± (terbaru dulu).
-const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i);
+function getCurrentWIB(): { year: string; month: string } {
+    const [y, m] = todayWIB().split('-');
 
-const bulan = ref('01');
-const tahun = ref(String(currentYear));
+    return { year: y, month: m };
+}
+
+const initWIB = getCurrentWIB();
+// 7 opsi: tahun berjalan ± (terbaru dulu) berbasis WIB.
+const yearOptions = Array.from(
+    { length: 7 },
+    (_, i) => Number(initWIB.year) + 1 - i,
+);
+
+const bulan = ref(initWIB.month);
+const tahun = ref(initWIB.year);
 
 const bulanValue = computed(() => `${tahun.value}-${bulan.value}`);
 
+const existingKeys = computed(() => new Set(props.months.map((m) => m.key)));
+const isDuplicate = computed(() => existingKeys.value.has(bulanValue.value));
+
 function openDialog() {
-    bulan.value = '01';
-    tahun.value = String(currentYear);
+    const { year, month } = getCurrentWIB();
+    tahun.value = year;
+    bulan.value = month;
     dialogOpen.value = true;
 }
 
 function onFormError() {
-    toast.error('Gagal membuka bulan — periksa kembali isian.');
+    toast.error('Gagal membuka periode — mohon periksa kembali isian.');
 }
 </script>
 
 <template>
     <Head title="Pencatatan Kas" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
                     Pencatatan Kas
                 </h1>
                 <p class="text-sm text-muted-foreground">
-                    Rekap uang masuk & uang keluar per bulan
+                    Rekapitulasi pemasukan dan pengeluaran kas per periode
+                    bulanan.
                 </p>
             </div>
             <Button @click="openDialog">
                 <Plus class="size-4" />
-                Tambah Bulan
+                Tambah Periode
             </Button>
         </div>
 
@@ -126,7 +151,7 @@ function onFormError() {
                 <CardContent class="flex items-center gap-3 p-4 text-sm">
                     <ArrowDownCircle class="size-5 shrink-0 text-green-600" />
                     <div>
-                        <p class="text-muted-foreground">Total Uang Masuk</p>
+                        <p class="text-muted-foreground">Pemasukan</p>
                         <p class="text-lg font-semibold">
                             <Money :value="summary.masuk" />
                         </p>
@@ -137,7 +162,7 @@ function onFormError() {
                 <CardContent class="flex items-center gap-3 p-4 text-sm">
                     <ArrowUpCircle class="size-5 shrink-0 text-destructive" />
                     <div>
-                        <p class="text-muted-foreground">Total Uang Keluar</p>
+                        <p class="text-muted-foreground">Pengeluaran</p>
                         <p class="text-lg font-semibold">
                             <Money :value="summary.keluar" />
                         </p>
@@ -168,14 +193,11 @@ function onFormError() {
             :data="months"
             :columns="columns"
             key-field="key"
-            empty-title="Belum ada pencatatan kas"
-            empty-description="Pencatatan muncul setelah ada transaksi penjualan, entri kas manual, atau bulan dibuka manual."
+            empty-title="Belum Ada Pencatatan Kas"
+            empty-description="Belum terdapat pencatatan pada periode ini. Silakan buka periode baru atau lakukan pencatatan manual."
         >
             <template #cell-label="{ row }">
                 {{ row.label }}
-                <span class="ml-2 text-xs text-muted-foreground">
-                    {{ row.count }} entri
-                </span>
             </template>
             <template #cell-masuk="{ row }">
                 <span class="text-green-600">
@@ -188,14 +210,28 @@ function onFormError() {
                 </span>
             </template>
             <template #cell-aksi="{ row }">
-                <DataTableActions
-                    :actions="[
-                        {
-                            label: 'Lihat Detail',
-                            href: detailRoute(row.key).url,
-                        },
-                    ]"
-                />
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="size-7"
+                                as-child
+                            >
+                                <Link
+                                    :href="
+                                        detailRoute((row as MonthRow).key).url
+                                    "
+                                    aria-label="Lihat detail periode"
+                                >
+                                    <SquareArrowOutUpRight class="size-4" />
+                                </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Lihat Detail Periode</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </template>
         </DataTable>
     </div>
@@ -203,10 +239,10 @@ function onFormError() {
     <Dialog v-model:open="dialogOpen">
         <DialogContent class="sm:max-w-xs">
             <DialogHeader>
-                <DialogTitle>Tambah Bulan</DialogTitle>
+                <DialogTitle>Tambah Periode</DialogTitle>
                 <DialogDescription>
-                    Buka bulan baru untuk pencatatan kas — bulan yang sudah
-                    punya entri tidak bisa dibuka lagi.
+                    Buka periode pencatatan baru. Periode yang telah memiliki
+                    pencatatan tidak dapat dibuka kembali.
                 </DialogDescription>
             </DialogHeader>
 
@@ -218,6 +254,14 @@ function onFormError() {
                 @success="dialogOpen = false"
             >
                 <input type="hidden" name="bulan" :value="bulanValue" />
+
+                <p
+                    v-if="isDuplicate"
+                    class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                >
+                    Periode {{ bulanValue }} telah tersedia. Silakan pilih
+                    periode lain.
+                </p>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div class="grid gap-2">
@@ -257,8 +301,8 @@ function onFormError() {
                 </div>
 
                 <DialogFooter>
-                    <Button type="submit" :disabled="processing">
-                        {{ processing ? 'Menyimpan...' : 'Tambah Bulan' }}
+                    <Button type="submit" :disabled="processing || isDuplicate">
+                        {{ processing ? 'Menyimpan…' : 'Tambah Periode' }}
                     </Button>
                 </DialogFooter>
             </Form>

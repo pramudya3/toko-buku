@@ -17,7 +17,7 @@ class ArticleImageUploadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'image' => ['required', 'image', 'max:2048'],
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
         ];
     }
 }

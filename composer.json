@@ -15,10 +15,16 @@
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
+        "laravel/reverb": "^1.11",
+        "laravel/sanctum": "^4.3",
+        "laravel/socialite": "^5.30",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
         "league/flysystem-aws-s3-v3": "^3.35",
-        "phpoffice/phpspreadsheet": "^5.9"
+        "phpoffice/phpspreadsheet": "^5.9",
+        "spatie/laravel-backup": "*",
+        "symfony/brevo-mailer": "^8.1",
+        "symfony/http-client": "^8.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",
@@ -53,6 +59,8 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --force",
             "@php artisan storage:link --ansi",
+            "@php artisan route:clear --ansi",
+            "@php artisan config:clear --ansi",
             "@php artisan wayfinder:generate --with-form",
             "npm install",
             "npm run build"

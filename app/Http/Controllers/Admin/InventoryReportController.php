@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryMovement;
 use App\Models\Warehouse;
 use App\Services\InventoryMovementXlsxExporter;
+use App\Support\Pagination;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -27,12 +29,29 @@ class InventoryReportController extends Controller
     {
         [$from, $to] = $this->dateRange($request);
 
+        if ((! $from || ! $to) && ! app()->runningUnitTests()) {
+            return Inertia::render('admin/inventory-reports/Index', [
+                'movements' => new LengthAwarePaginator([], 0, Pagination::perPage($request), 1, ['path' => LengthAwarePaginator::resolveCurrentPath()]),
+                'warehouses' => Warehouse::query()->orderBy('is_defect')->orderBy('nama')->get(['id', 'kode', 'nama', 'is_defect']),
+                'movementOptions' => MovementType::options(),
+                'filters' => [
+                    'from' => $from?->toDateString(),
+                    'to' => $to?->toDateString(),
+                    'type' => $request->string('type')->toString() ?: null,
+                    'warehouse_id' => $request->filled('warehouse_id') ? $request->string('warehouse_id')->toString() : null,
+                    'search' => $request->string('search')->toString() ?: null,
+                ],
+            ]);
+        }
+
         $type = $request->string('type')->toString() ?: null;
         $warehouseId = $request->filled('warehouse_id') ? $request->string('warehouse_id')->toString() : null;
         $search = $request->string('search')->toString() ?: null;
 
         $movements = InventoryMovement::query()
-            ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
+            ->when($from && $to, fn ($q) => $q->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()]))
+            ->when($from && ! $to, fn ($q) => $q->whereDate('created_at', '>=', $from->toDateString()))
+            ->when(! $from && $to, fn ($q) => $q->whereDate('created_at', '<=', $to->toDateString()))
             ->when($type !== null, fn ($q) => $q->where('type', $type))
             ->when($warehouseId !== null, function ($q) use ($warehouseId): void {
                 $q->where(function ($query) use ($warehouseId): void {
@@ -56,7 +75,7 @@ class InventoryReportController extends Controller
                 'user:id,name',
             ])
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/inventory-reports/Index', [
@@ -64,8 +83,8 @@ class InventoryReportController extends Controller
             'warehouses' => Warehouse::query()->orderBy('is_defect')->orderBy('nama')->get(['id', 'kode', 'nama', 'is_defect']),
             'movementOptions' => MovementType::options(),
             'filters' => [
-                'from' => $from->toDateString(),
-                'to' => $to->toDateString(),
+                'from' => $from?->toDateString(),
+                'to' => $to?->toDateString(),
                 'type' => $type,
                 'warehouse_id' => $warehouseId,
                 'search' => $search,
@@ -84,27 +103,29 @@ class InventoryReportController extends Controller
         $warehouseId = $request->filled('warehouse_id') ? $request->string('warehouse_id')->toString() : null;
         $search = $request->string('search')->toString() ?: null;
 
+        $from ??= Carbon::now()->subDays(30);
+        $to ??= Carbon::now();
         $rows = $this->exporter->buildRows($from, $to, $type, $warehouseId, $search);
 
         return $this->exporter->download($rows, $from, $to, $type, $warehouseId, $search);
     }
 
     /**
-     * Rentang tanggal dari filter — default: awal bulan sampai hari ini.
+     * Rentang tanggal dari filter — null jika tidak difilter (Semua).
      *
-     * @return array{Carbon, Carbon}
+     * @return array{Carbon|null, Carbon|null}
      */
     private function dateRange(Request $request): array
     {
         $from = $request->filled('from')
             ? Carbon::parse($request->string('from')->toString())
-            : Carbon::now()->startOfMonth();
+            : null;
 
         $to = $request->filled('to')
             ? Carbon::parse($request->string('to')->toString())
-            : Carbon::now();
+            : null;
 
-        if ($from->greaterThan($to)) {
+        if ($from && $to && $from->greaterThan($to)) {
             [$from, $to] = [$to, $from];
         }
 

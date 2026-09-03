@@ -21,6 +21,10 @@ type OrderItemRow = {
     promo_discount_amount: number;
     tier_discount_amount: number;
     price_final: number;
+    is_custom_price?: boolean;
+    price_note?: string | null;
+    promo_id_snapshot?: string | null;
+    promoSnapshot?: { promo_name: string } | null;
 };
 
 type OrderProps = {
@@ -130,7 +134,13 @@ const columns: InvoiceColumn[] = [
 const rows = computed(() =>
     props.order.items.map((item, i) => ({
         no: String(i + 1),
-        buku: item.judul_snapshot,
+        buku:
+            item.judul_snapshot +
+            (item.price_note ? `\n[${item.price_note}]` : '') +
+            (item.promoSnapshot
+                ? `\nPromo: ${item.promoSnapshot.promo_name}`
+                : '') +
+            (item.is_custom_price ? ' (Insidentil)' : ''),
         cetakan: item.edition_snapshot ?? '—',
         qty: String(item.qty),
         harga: idr(item.price_final),
@@ -254,10 +264,7 @@ const kirimLines = computed(() => [
                 />
             </div>
 
-            <InvoiceFooter
-                :signatures="[{ label: 'Penerima' }, { label: 'Hormat kami' }]"
-                thanks="Terima kasih sudah berbelanja di toko kami!"
-            />
+            <InvoiceFooter thanks="Jazakumullah Khoiron" />
         </InvoiceSheet>
     </div>
 </template>

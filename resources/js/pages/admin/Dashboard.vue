@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     Banknote,
@@ -7,11 +7,13 @@ import {
     ShoppingCart,
     TrendingUp,
 } from '@lucide/vue';
+import { ref, watch } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import Money from '@/components/Money.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
     Table,
     TableBody,
@@ -20,6 +22,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { dashboard as dashboardRoute } from '@/routes/admin';
 import { index as booksIndex } from '@/routes/admin/books';
 import { index as ordersIndex } from '@/routes/admin/orders';
 
@@ -56,9 +59,24 @@ type Props = {
     }>;
     salesChart: SalesPoint[];
     statusOptions: Record<string, string>;
+    monthOptions: string[];
+    filters: {
+        bulan: string;
+    };
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+// Filter bulan/tahun — satu kontrol (YYYY-MM), reload kartu + chart.
+const bulan = ref(props.filters.bulan);
+
+watch(bulan, (val) => {
+    router.get(
+        dashboardRoute().url,
+        { bulan: val },
+        { preserveState: true, replace: true },
+    );
+});
 
 const statusVariant: Record<
     string,
@@ -80,13 +98,21 @@ function shortDate(date: string): string {
 <template>
     <Head title="Dashboard" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">Dashboard</h1>
                 <p class="text-sm text-muted-foreground">
                     Ringkasan operasional toko
                 </p>
+            </div>
+            <div class="md:flex md:items-center">
+                <Input
+                    v-model="bulan"
+                    type="month"
+                    class="h-9 w-44"
+                    aria-label="Filter bulan"
+                />
             </div>
         </div>
 

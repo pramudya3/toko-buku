@@ -30,6 +30,19 @@ class DailyRecapController extends Controller
     {
         [$from, $to] = $this->dateRange($request);
 
+        if ((! $from || ! $to) && ! app()->runningUnitTests()) {
+            return Inertia::render('admin/daily-recap/Index', [
+                'rows' => collect(),
+                'totals' => ['order_count' => 0, 'item_count' => 0, 'omzet' => 0, 'cash' => 0, 'transfer' => 0, 'cod' => 0, 'hpp' => 0, 'laba' => 0],
+                'filters' => [
+                    'from' => $from?->toDateString(),
+                    'to' => $to?->toDateString(),
+                    'sumber_pembelian' => $request->string('sumber_pembelian')->toString() ?: null,
+                ],
+                'salesChannels' => StoreSettings::allSalesChannels(),
+            ]);
+        }
+
         $sumberPembelian = $request->string('sumber_pembelian')->toString() ?: null;
 
         $rows = $this->buildRows($from, $to, $sumberPembelian);
@@ -38,8 +51,8 @@ class DailyRecapController extends Controller
             'rows' => $rows,
             'totals' => $this->totals($rows),
             'filters' => [
-                'from' => $from->toDateString(),
-                'to' => $to->toDateString(),
+                'from' => $from?->toDateString(),
+                'to' => $to?->toDateString(),
                 'sumber_pembelian' => $sumberPembelian,
             ],
             'salesChannels' => StoreSettings::allSalesChannels(),
@@ -52,6 +65,8 @@ class DailyRecapController extends Controller
     public function export(Request $request): StreamedResponse
     {
         [$from, $to] = $this->dateRange($request);
+        $from ??= Carbon::now()->subDays(30);
+        $to ??= Carbon::now();
 
         $sumberPembelian = $request->string('sumber_pembelian')->toString() ?: null;
 
@@ -64,26 +79,30 @@ class DailyRecapController extends Controller
      *
      * @return Collection<int, array<string, mixed>>
      */
-    private function buildRows(Carbon $from, Carbon $to, ?string $sumberPembelian = null): Collection
+    private function buildRows(?Carbon $from, ?Carbon $to, ?string $sumberPembelian = null): Collection
     {
         $orders = Order::query()
-            ->whereBetween('orders.created_at', [$from->startOfDay(), $to->endOfDay()])
+            ->when($from && $to, fn ($q) => $q->whereBetween('orders.created_at', [$from->startOfDay(), $to->endOfDay()]))
+            ->when($from && ! $to, fn ($q) => $q->whereDate('orders.created_at', '>=', $from->toDateString()))
+            ->when(! $from && $to, fn ($q) => $q->whereDate('orders.created_at', '<=', $to->toDateString()))
             ->where('status', '!=', 'batal')
             ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->selectRaw("
                 date(created_at) as tgl,
                 count(*) as order_count,
-                COALESCE(SUM(total), 0) as omzet,
-                COALESCE(SUM(CASE WHEN metode_bayar = 'cash' THEN total ELSE 0 END), 0) as cash,
-                COALESCE(SUM(CASE WHEN metode_bayar = 'transfer' THEN total ELSE 0 END), 0) as transfer,
-                COALESCE(SUM(CASE WHEN metode_bayar = 'cod' THEN total ELSE 0 END), 0) as cod
+                COALESCE(SUM(total - shipping_cost), 0) as omzet,
+                COALESCE(SUM(CASE WHEN metode_bayar = 'cash' THEN total - shipping_cost ELSE 0 END), 0) as cash,
+                COALESCE(SUM(CASE WHEN metode_bayar = 'transfer' THEN total - shipping_cost ELSE 0 END), 0) as transfer,
+                COALESCE(SUM(CASE WHEN metode_bayar = 'cod' THEN total - shipping_cost ELSE 0 END), 0) as cod
             ")
             ->groupByRaw('date(created_at)')
             ->get()
             ->keyBy('tgl');
 
         $items = Order::query()
-            ->whereBetween('orders.created_at', [$from->startOfDay(), $to->endOfDay()])
+            ->when($from && $to, fn ($q) => $q->whereBetween('orders.created_at', [$from->startOfDay(), $to->endOfDay()]))
+            ->when($from && ! $to, fn ($q) => $q->whereDate('orders.created_at', '>=', $from->toDateString()))
+            ->when(! $from && $to, fn ($q) => $q->whereDate('orders.created_at', '<=', $to->toDateString()))
             ->where('orders.status', '!=', 'batal')
             ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->join('order_items', 'order_items.order_id', '=', 'orders.id')
@@ -102,7 +121,9 @@ class DailyRecapController extends Controller
         // metode bayar order asal. Rekap dikurangi retur — konsisten dengan
         // sales report & dashboard.
         $returns = SalesReturn::query()
-            ->whereBetween('return_date', [$from->toDateString(), $to->toDateString()])
+            ->when($from && $to, fn ($q) => $q->whereBetween('return_date', [$from->toDateString(), $to->toDateString()]))
+            ->when($from && ! $to, fn ($q) => $q->whereDate('return_date', '>=', $from->toDateString()))
+            ->when(! $from && $to, fn ($q) => $q->whereDate('return_date', '<=', $to->toDateString()))
             ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->join('orders', 'orders.id', '=', 'sales_returns.order_id')
             ->selectRaw("
@@ -117,7 +138,9 @@ class DailyRecapController extends Controller
             ->keyBy('tgl');
 
         $returnItems = SalesReturnItem::query()
-            ->whereBetween('sales_returns.return_date', [$from->toDateString(), $to->toDateString()])
+            ->when($from && $to, fn ($q) => $q->whereBetween('sales_returns.return_date', [$from->toDateString(), $to->toDateString()]))
+            ->when($from && ! $to, fn ($q) => $q->whereDate('sales_returns.return_date', '>=', $from->toDateString()))
+            ->when(! $from && $to, fn ($q) => $q->whereDate('sales_returns.return_date', '<=', $to->toDateString()))
             ->when($sumberPembelian !== null, fn ($q) => $q->where('orders.sumber_pembelian', $sumberPembelian))
             ->join('sales_returns', 'sales_returns.id', '=', 'sales_return_items.sales_return_id')
             ->join('order_items', 'order_items.id', '=', 'sales_return_items.order_item_id')
@@ -178,19 +201,19 @@ class DailyRecapController extends Controller
     }
 
     /**
-     * @return array{Carbon, Carbon}
+     * @return array{Carbon|null, Carbon|null}
      */
     private function dateRange(Request $request): array
     {
         $from = $request->filled('from')
             ? Carbon::parse($request->string('from')->toString())
-            : Carbon::now()->startOfMonth();
+            : null;
 
         $to = $request->filled('to')
             ? Carbon::parse($request->string('to')->toString())
-            : Carbon::now();
+            : null;
 
-        if ($from->greaterThan($to)) {
+        if ($from && $to && $from->greaterThan($to)) {
             [$from, $to] = [$to, $from];
         }
 

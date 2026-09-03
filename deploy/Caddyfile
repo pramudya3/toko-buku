@@ -1,0 +1,42 @@
+# Caddyfile untuk penerbitpcp.com — FrankenPHP (systemd, tanpa Docker)
+
+{
+    auto_https off
+}
+
+penerbitpcp.com {
+    tls /etc/caddy/certs/penerbitpcp.crt /etc/caddy/certs/penerbitpcp.key
+
+    root * /var/www/toko-buku-vue/public
+    encode gzip
+
+    @static {
+        path /build/* /storage/* *.css *.js *.png *.jpg *.jpeg *.webp *.svg *.ico
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    php_server
+
+    log {
+        output stdout
+        format json
+    }
+}
+
+localhost {
+    tls /etc/caddy/certs/penerbitpcp.crt /etc/caddy/certs/penerbitpcp.key
+
+    root * /var/www/toko-buku-vue/public
+    encode gzip
+
+    php_server
+
+    log {
+        output stdout
+        format json
+    }
+}
+
+:80 {
+    redir https://penerbitpcp.com{uri}
+}

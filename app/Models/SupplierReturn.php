@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property int|null $user_id
  */
-#[Fillable(['supplier_id', 'supplier_purchase_id', 'return_date', 'total', 'notes', 'user_id'])]
+#[Fillable(['supplier_id', 'supplier_purchase_id', 'return_date', 'total', 'shipping_cost', 'notes', 'user_id'])]
 
 class SupplierReturn extends Model
 {
@@ -58,6 +58,7 @@ class SupplierReturn extends Model
         return [
             'return_date' => 'date:Y-m-d',
             'total' => 'integer',
+            'shipping_cost' => 'integer',
         ];
     }
 }

@@ -98,6 +98,10 @@ function applyFilters() {
                 from: from.value || undefined,
                 to: to.value || undefined,
                 status: status.value === allStatuses ? undefined : status.value,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             {
                 preserveState: true,
@@ -131,7 +135,7 @@ const statusVariant: Record<
 <template>
     <Head title="Dropship" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div>
             <h1 class="text-xl font-semibold tracking-tight">Order Dropship</h1>
             <p class="text-sm text-muted-foreground">
@@ -213,8 +217,8 @@ const statusVariant: Record<
             :data="orders.data"
             :columns="columns"
             :paginator="orders"
-            empty-title="Tidak ada order dropship"
-            empty-description="Order dengan is_dropship akan tampil di sini."
+            empty-title="Gunakan filter tanggal"
+            empty-description="Gunakan filter tanggal untuk menampilkan data laporan"
         >
             <template #cell-created_at="{ row }">
                 {{

@@ -53,7 +53,7 @@ defineProps<{
                     {{ promo.discount_percentage }}%
                 </template>
                 <template v-else-if="promo.promo_value">
-                    <Money :amount="promo.promo_value" />
+                    <Money :value="promo.promo_value" />
                 </template>
             </span>
         </div>
@@ -90,7 +90,9 @@ defineProps<{
                         v-if="book.price_breakdown?.promo_discount"
                         class="absolute inset-0 flex items-center justify-center bg-black/50"
                     >
-                        <span class="text-[8px] font-bold text-white">HEMAT</span>
+                        <span class="text-[8px] font-bold text-white"
+                            >HEMAT</span
+                        >
                     </div>
                 </div>
                 <div

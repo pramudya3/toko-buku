@@ -1,0 +1,2686 @@
+{
+ "meta": {
+  "source": "db_penerbitpcp.sql (dump MariaDB 19/08/2026)",
+  "scope": "Penjualan jual_faktur 2026-08-01 s/d 2026-08-14",
+  "jumlah_order": 54,
+  "jumlah_customer": 51,
+  "grand_total": 13003267
+ },
+ "categories": [
+  {
+   "kode": "ALQ",
+   "nama": "Tafsir dan Tadabbur"
+  },
+  {
+   "kode": "ANK",
+   "nama": "Anak-anak"
+  },
+  {
+   "kode": "Bdl",
+   "nama": "Bundling"
+  },
+  {
+   "kode": "BI",
+   "nama": "Buku Islam"
+  },
+  {
+   "kode": "KSH",
+   "nama": "KISAH"
+  },
+  {
+   "kode": "PRN",
+   "nama": "Parenting"
+  },
+  {
+   "kode": "PST",
+   "nama": "Poster"
+  }
+ ],
+ "books": [
+  {
+   "kode_sku": "PRN000008",
+   "judul": "Smart Islamic Parenting",
+   "penulis": "Dr Jasim Al Muthawwa'",
+   "harga": 100000,
+   "harga_beli": 30000,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "PRN000009",
+   "judul": "Wasiat Parenting",
+   "penulis": "Ahmad Fadhail Hosni, Lc ., M.h.",
+   "harga": 70000,
+   "harga_beli": 20000,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "PRN000010",
+   "judul": "Rumahku Sekolahku",
+   "penulis": "Dr. Khalid Ahmad Asy Syantut",
+   "harga": 57000,
+   "harga_beli": 20000,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "ANK000001",
+   "judul": "Tadabbur Kisah Hudhud",
+   "penulis": "Surya Ningsih S.Psi.",
+   "harga": 38000,
+   "harga_beli": 15300,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "ANK000002",
+   "judul": "Tadabbur Kisah Unta",
+   "penulis": "Surya Ningsih S.Psi.",
+   "harga": 38000,
+   "harga_beli": 15300,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "PRN000001",
+   "judul": "Sentuhan Parenting",
+   "penulis": "Budi Ashari, Lc",
+   "harga": 99000,
+   "harga_beli": 79200,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "ALQ000001",
+   "judul": "Fami Bi Syauqin",
+   "penulis": null,
+   "harga": 100000,
+   "harga_beli": 85000,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ANK000003",
+   "judul": "Allah menciptakan malam",
+   "penulis": "Weta Nur Rahmah",
+   "harga": 40000,
+   "harga_beli": 10372,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "ANK000004",
+   "judul": "Allah menciptakan siang",
+   "penulis": "Weta Nur Rahmah",
+   "harga": 60000,
+   "harga_beli": 16000,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "ANK000005",
+   "judul": "Aku tinggalkan sifat buruk",
+   "penulis": "Weta Nur Rahmah",
+   "harga": 50000,
+   "harga_beli": 16600,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "ANK000006",
+   "judul": "Aku bahagia berbuat baik",
+   "penulis": "Weta Nur Rahmah",
+   "harga": 45000,
+   "harga_beli": 14450,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "ANK000007",
+   "judul": "Kisah Yunus",
+   "penulis": "Surya Ningsih, S.Psi",
+   "harga": 60000,
+   "harga_beli": 17256,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "ALQ000002",
+   "judul": "Andapun bisa hafal Al – Quran",
+   "penulis": "Dr. Raghib As-Sirjani",
+   "harga": 60000,
+   "harga_beli": 15400,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ALQ000003",
+   "judul": "Manajemen menghafal Al -Quran",
+   "penulis": "Abduldaem Al-Kaheel",
+   "harga": 50000,
+   "harga_beli": 14900,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ALQ000004",
+   "judul": "Merasakan kekuatan Al -Quran",
+   "penulis": "Dr. Majdi Al-Hilali",
+   "harga": 90000,
+   "harga_beli": 24215,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "BI000001",
+   "judul": "Jejak Pendidikan Kuttab di Haramain",
+   "penulis": "Dr. Abdul Lathif Abdullah bin Dahisy",
+   "harga": 70000,
+   "harga_beli": 17100,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000002",
+   "judul": "Syekh Ahmad Yasin",
+   "penulis": "Amir Syamakh",
+   "harga": 90000,
+   "harga_beli": 23320,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000003",
+   "judul": "Kreativitas wakaf",
+   "penulis": "Dr. Isa Shufan Al-Qaddumi",
+   "harga": 95000,
+   "harga_beli": 31000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "ALQ000005",
+   "judul": "40 Hadits Olahraga",
+   "penulis": "Muhammad Khair Ramadhan Yusuf",
+   "harga": 60000,
+   "harga_beli": 18215,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ALQ000006",
+   "judul": "Tadabbur surah Al – Fatihah",
+   "penulis": "Syaikh Dr. Abdullah bin Ali Bashfar",
+   "harga": 70000,
+   "harga_beli": 30000,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ALQ000007",
+   "judul": "Tadabbur Juz Amma",
+   "penulis": "Ahmad Fadhail Hosni, Lc., M.H.",
+   "harga": 90000,
+   "harga_beli": 32728,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ALQ000008",
+   "judul": "Tadabbur surah Abasa",
+   "penulis": "Weta Nur Rahmah",
+   "harga": 85000,
+   "harga_beli": 34727,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "BI000004",
+   "judul": "Fatihatul Ulum",
+   "penulis": "Abu Hamid Al-Ghazali",
+   "harga": 90000,
+   "harga_beli": 28500,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000005",
+   "judul": "Menikmati shalat",
+   "penulis": "Junaid As-Syaikh Thahir",
+   "harga": 90000,
+   "harga_beli": 25750,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000006",
+   "judul": "Kitabati umum",
+   "penulis": "Ahmad Fadhail Hosni, Lc., M.H.",
+   "harga": 40000,
+   "harga_beli": 16000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000007",
+   "judul": "Raih Kembali Kekuatan Ramadhan",
+   "penulis": "Dr. Raghib As-Sirjani & Dr Majdi Al-Hilali",
+   "harga": 65000,
+   "harga_beli": 21250,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "ALQ000009",
+   "judul": "Iman sebelum Al-Quran",
+   "penulis": "Ahmad Fadhail Hosni, Lc., M.H.",
+   "harga": 70000,
+   "harga_beli": 21410,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "BI000008",
+   "judul": "Nilai-nilai kenabian (Urjuzah)",
+   "penulis": "Dr. Muhammad Sa'id Bakr",
+   "harga": 60000,
+   "harga_beli": 14000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "PRN000002",
+   "judul": "Agar cinta kian bersemi",
+   "penulis": "DR. Jasim Al-Muthawwa'",
+   "harga": 40000,
+   "harga_beli": 19000,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "PRN000003",
+   "judul": "Dialog iman bersama ananda",
+   "penulis": "Ahmad Haidar Rusdi & Weta Nur Rahmah",
+   "harga": 60000,
+   "harga_beli": 19334,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "PRN000004",
+   "judul": "Tadabbur dialog orang tua",
+   "penulis": "Dr. Sarah Helail Al-Muthairi",
+   "harga": 90000,
+   "harga_beli": 24000,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "PRN000005",
+   "judul": "Beginilah menjadi ibu",
+   "penulis": "Prof. Dr. Abdul Karim Bakkar",
+   "harga": 57000,
+   "harga_beli": 13000,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "BI000009",
+   "judul": "Syarah Muqaddimah Jazariyah",
+   "penulis": "Syaikh Dr. Muhammad Mahmud Hawwa",
+   "harga": 80000,
+   "harga_beli": 33000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000010",
+   "judul": "Sirah nabawiyah untuk pemuda",
+   "penulis": "Abul Hasan Ali Al-Hasani An-Nadwi",
+   "harga": 90000,
+   "harga_beli": 17000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "PRN000006",
+   "judul": "Untukmu anakku",
+   "penulis": "Abul Walid Al-Baji Al-Maliki",
+   "harga": 45000,
+   "harga_beli": 15410,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "BI000011",
+   "judul": "5 Menit CLBK",
+   "penulis": "Abu Umar & Waalid Ilham",
+   "harga": 75000,
+   "harga_beli": 60000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "PRN000007",
+   "judul": "Remaja antara Hijaz dan Amerika",
+   "penulis": "Budi Ashari, Lc.",
+   "harga": 79000,
+   "harga_beli": 63200,
+   "kategori_kode": "PRN"
+  },
+  {
+   "kode_sku": "BI000012",
+   "judul": "Kemanakah kulabuhkan hati ini",
+   "penulis": "Budi Ashari, Lc.",
+   "harga": 60000,
+   "harga_beli": 48000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000013",
+   "judul": "Catatan iman",
+   "penulis": "Weta Nur Rahmah",
+   "harga": 90000,
+   "harga_beli": 67500,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000014",
+   "judul": "Inspirasi dari rumah cahaya",
+   "penulis": "Budi Ashari, Lc.",
+   "harga": 82000,
+   "harga_beli": 65600,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000015",
+   "judul": "Mudah berbahasa arab",
+   "penulis": "Herfi Ghulam Faizi, Lc. & Ali Shodiqin, Lc.",
+   "harga": 95000,
+   "harga_beli": 76000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000016",
+   "judul": "Catatan hati ibu",
+   "penulis": "Poppy Yuditya",
+   "harga": 60000,
+   "harga_beli": 45000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000017",
+   "judul": "Ketika hidup selalu terasa sial",
+   "penulis": "Budi Ashari, Lc.",
+   "harga": 120000,
+   "harga_beli": 90000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "Bdl000007",
+   "judul": "Bundling 3 Buku Tadabbur Kisah",
+   "penulis": "Surya Ningsih, S.Psi",
+   "harga": 120000,
+   "harga_beli": 47856,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000008",
+   "judul": "Bundling Allah Menciptakan Siang Malam",
+   "penulis": "Weta Nur Rohmah",
+   "harga": 82000,
+   "harga_beli": 26372,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000009",
+   "judul": "Bundling Serial Menghafal",
+   "penulis": null,
+   "harga": 100000,
+   "harga_beli": 30300,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000010",
+   "judul": "Bundling Serial Parenting",
+   "penulis": "Dr Jasim Al-Muthawwa\", Dr. Khalid Ahmad Asy Syantu",
+   "harga": 200000,
+   "harga_beli": 70000,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000011",
+   "judul": "Bundling Sifat Baik Buruk",
+   "penulis": "Weta Nur Rohmah",
+   "harga": 90000,
+   "harga_beli": 31050,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000012",
+   "judul": "Bundling Trilogi Palestina",
+   "penulis": null,
+   "harga": 250000,
+   "harga_beli": 78800,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "BI000018",
+   "judul": "Belajar Dari Wanita Palestina",
+   "penulis": null,
+   "harga": 90000,
+   "harga_beli": 22100,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "KSH000001",
+   "judul": "Jejak Perjuangan Ismail Haniya",
+   "penulis": null,
+   "harga": 90000,
+   "harga_beli": 28600,
+   "kategori_kode": "KSH"
+  },
+  {
+   "kode_sku": "KSH000002",
+   "judul": "Yahya Sinwar",
+   "penulis": null,
+   "harga": 90000,
+   "harga_beli": 28100,
+   "kategori_kode": "KSH"
+  },
+  {
+   "kode_sku": "BI000019",
+   "judul": "40 Hadits Pengagungan Terhadap  Al-Quran",
+   "penulis": null,
+   "harga": 30000,
+   "harga_beli": 14750,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "PST000001",
+   "judul": "Poster",
+   "penulis": null,
+   "harga": 10000,
+   "harga_beli": 3000,
+   "kategori_kode": "PST"
+  },
+  {
+   "kode_sku": "BI000021",
+   "judul": "Falsafah Pendidikan Islam",
+   "penulis": "Dr Majid Irsan Al Kilani",
+   "harga": 100000,
+   "harga_beli": 17157,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "KSH000003",
+   "judul": "Dibawah Panji Thufan Al-Aqsa",
+   "penulis": "Muhammad Zaki Hamad",
+   "harga": 125000,
+   "harga_beli": 44167,
+   "kategori_kode": "KSH"
+  },
+  {
+   "kode_sku": "BI000022",
+   "judul": "Fatihatul Ulum versi Arab",
+   "penulis": "Imam Al Ghaozali",
+   "harga": 50000,
+   "harga_beli": 23000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "Bdl000001",
+   "judul": "Fami Bi Syauqin & Mudah Tadabbur Juz Amma",
+   "penulis": "Ahmad Fadhail Hosni, Lc ., M.h.",
+   "harga": 150000,
+   "harga_beli": 117728,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000002",
+   "judul": "Fami Bi Syauqin & Tadabbur Surah Al-Fatihah",
+   "penulis": "Syaikh Dr Abdullah bin Ali Bashfar",
+   "harga": 130000,
+   "harga_beli": 115000,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000003",
+   "judul": "Fami Bi Syauqin & Falsafah Pendidikan Islam",
+   "penulis": "Dr Majid Irsan Al Kilani",
+   "harga": 150000,
+   "harga_beli": 102157,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000004",
+   "judul": "Fami Bi Syauqin & Living Ramadhan",
+   "penulis": "Dr Majid Irsan Al Kilani & Dr Raghib As Sirjani",
+   "harga": 130000,
+   "harga_beli": 106600,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000005",
+   "judul": "Fami Bi Syauqin & Merasakan Kekuatan Al-Qur'an",
+   "penulis": "Dr Majdi Al Hilali",
+   "harga": 150000,
+   "harga_beli": 109215,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000006",
+   "judul": "Fami Bi Syauqin & Nikmatnya Belajar Tadabbur surah abasa",
+   "penulis": "Weta Nur Rohmah",
+   "harga": 140000,
+   "harga_beli": 119727,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "Bdl000013",
+   "judul": "Bundling 2 Buku Tadabbur Kisah",
+   "penulis": "Surya Ningsih, S.P.si",
+   "harga": 60800,
+   "harga_beli": 30600,
+   "kategori_kode": "Bdl"
+  },
+  {
+   "kode_sku": "ANK000010",
+   "judul": "Bundling Ku Tahu Menjadi Ibu itu Lelah &  Ku Tahu Menjadi Ayah tidak Mudah",
+   "penulis": "Weta Nur Rohmah",
+   "harga": 35000,
+   "harga_beli": 11889,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "BI000023",
+   "judul": "Kitabati Guru",
+   "penulis": "Ahmad Fadhail Hosni, Lc ., M.h.",
+   "harga": 30000,
+   "harga_beli": 12813,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000024",
+   "judul": "Catatan Kaf Sida",
+   "penulis": "Tim Kaf Sida",
+   "harga": 80000,
+   "harga_beli": 40000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000025",
+   "judul": "Islam Ramah Lingkungan",
+   "penulis": "Syekh Dr. Yususf Al Qaradhawi",
+   "harga": 100000,
+   "harga_beli": 41750,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000026",
+   "judul": "Merencanakan Masa Depan",
+   "penulis": "Dr Jasim Al-Muthawwa\"",
+   "harga": 25000,
+   "harga_beli": 14750,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000027",
+   "judul": "Tadabbur Umrah dan Haji",
+   "penulis": "Dr. Khalid Abu Syadi et,al",
+   "harga": 80000,
+   "harga_beli": 29000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "ALQ000010",
+   "judul": "Pemetaan Surah-Surah Al-Qur'an",
+   "penulis": "Shafiyah Abdurrahman As-Suhaibani",
+   "harga": 30000,
+   "harga_beli": 8500,
+   "kategori_kode": "ALQ"
+  },
+  {
+   "kode_sku": "ANK000008",
+   "judul": "Kisah Dalam Surah Al-Fatihah",
+   "penulis": "Waalid Ilham",
+   "harga": 55000,
+   "harga_beli": 8650,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "BI000028",
+   "judul": "Modul Alam",
+   "penulis": null,
+   "harga": 90000,
+   "harga_beli": 67000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000029",
+   "judul": "Modul Manusia",
+   "penulis": null,
+   "harga": 90000,
+   "harga_beli": 72000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "KSH000004",
+   "judul": "Di Balik Keffiyeh Abu Ubaidah",
+   "penulis": "Tim Penulis",
+   "harga": 90000,
+   "harga_beli": 24000,
+   "kategori_kode": "KSH"
+  },
+  {
+   "kode_sku": "BI000030",
+   "judul": "Aku Sahabatmu, Al-Qur'an",
+   "penulis": "Dr. Ahmad Al 'Arabi",
+   "harga": 60000,
+   "harga_beli": 23625,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "ANK000009",
+   "judul": "Kisah Para Nabi For Kids",
+   "penulis": "Abul Hasan Ali Hasani An Nadwi",
+   "harga": 100000,
+   "harga_beli": 21000,
+   "kategori_kode": "ANK"
+  },
+  {
+   "kode_sku": "BI000020",
+   "judul": "Rahasia Membaca Produktif",
+   "penulis": "Dr. Abdul Karim Bakar",
+   "harga": 45000,
+   "harga_beli": 11000,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000031",
+   "judul": "Mendidik Pemuda Muslim",
+   "penulis": null,
+   "harga": 55000,
+   "harga_beli": null,
+   "kategori_kode": "BI"
+  },
+  {
+   "kode_sku": "BI000032",
+   "judul": "Mendidik Pemudi Muslimah",
+   "penulis": null,
+   "harga": 45000,
+   "harga_beli": null,
+   "kategori_kode": "BI"
+  }
+ ],
+ "customers": [
+  {
+   "kode": "AK.Shp",
+   "nama": "Alvian / Khansa",
+   "alamat": "Jalan Misin No. 76, RT.2/RW.1, Cipayung, Cipayung (Kontrakan hijau no76), CIPAYUNG, KOTA JAKARTA TIMUR, DKI JAKARTA",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "AnS.Shp",
+   "nama": "Andi Sulistyo",
+   "alamat": "Komplek Pasanggrahan Indah, Jalan Cilengkrang I Blok 4 No. 1, Pasanggrahan, Ujung Berung, UJUNG BERUNG, KOTA BANDUNG, JAWA BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "shp.bah",
+   "nama": "Bahri",
+   "alamat": "Kampung losari kel Wonorejo kec selomerto (Dekat masjid Baiturrahman.) Rumah Bahri, SELOMERTO, KAB. WONOSOBO, JAWA TENGAH",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Balqis.Mrf",
+   "nama": "Balqis Ma'ruf",
+   "alamat": "Jln. H. Kodja no 24C RT 01 RW 05 Kukusan Beji Depok Jawa Barat (Library Corner) Patokan: rumah ketiga di belakang Warkop 31",
+   "kota": "085158966624",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "BAZ44",
+   "nama": "Bazaf Bogor",
+   "alamat": "Perumahan Baity Jannati. Blok B No.10.Jalan Gardu Hambulu. Gang Empang. RT.1 RW.6. Desa Pondok Udik.Kemang, Kabupaten BogorJAWA BARAT - 16310",
+   "kota": "085717991798/085397789867",
+   "hp": null,
+   "tier": "bazaf"
+  },
+  {
+   "kode": "BAZ45",
+   "nama": "Bazaf Gresik",
+   "alamat": "Kuttab Al Fatih Gresik, Jl. Permata Boulevard, Perum PPS-2 Ds.Banjarsari, Kec. Manyar, Kabupaten Gresik, Jawa Timur 61151",
+   "kota": "085179523933",
+   "hp": null,
+   "tier": "bazaf"
+  },
+  {
+   "kode": "BAZ50",
+   "nama": "Bazaf Kediri",
+   "alamat": "Jl.cipunegara (pondok alfatih) dsn.templek desa darungan kec.pare kediri jawa timur",
+   "kota": "085736702493",
+   "hp": null,
+   "tier": "bazaf"
+  },
+  {
+   "kode": "BAZ327",
+   "nama": "Bazaf Tangsel",
+   "alamat": "ELAF STORE Depok Kuttab Al-Fatih Depok (Pusat) Jl. Raya Duta Pelni, Tugu, Kec. Sukmajaya, Kota Depok, Jawa Barat 16416",
+   "kota": "081282287657",
+   "hp": null,
+   "tier": "bazaf"
+  },
+  {
+   "kode": "Ifa.shp",
+   "nama": "Bu Ifah",
+   "alamat": "SPXID062985062993 SPXID062985062993 SPXID062985062993  Jl. Kasuari Raya No.145, Kayuringin Jaya, Kec. Bekasi Sel., Kota Bks, Jawa Barat 17144, Indones",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Mira.WSM",
+   "nama": "Bu Mira Walsan Malang",
+   "alamat": "Malang",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "ELaf.Bkasi",
+   "nama": "Elaf Kuttab Bekasi",
+   "alamat": "Jalan H.Misan No. 91 Rt 08 Rw 02, Jawa Barat, Kota Bekasi, Jatiasih, Jatiluhur, 17425",
+   "kota": "085280534083",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Elfa.Tsk",
+   "nama": "Elfa",
+   "alamat": "Rda Islamic Life School, Jalan Letnan Harun, RT.3/RW.10, Kelurahan Sukarindik BUNGURSARI, KOTA TASIKMALAYA, JAWA BARAT, ID 4613",
+   "kota": "085793592500",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Erw.Shp",
+   "nama": "Erwin",
+   "alamat": "Perum Greenland Forestpark Blok Regia no K2, BOJONGSARI, KOTA DEPOK, JAWA BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Ghifa.shp",
+   "nama": "Ghifaria Ayu",
+   "alamat": "Kantor Kua Kecamatan Kalukku, Jalan Poros Majene Mamuju, Sinyonyoi (Kua kec. Kalukku), KALUKKU, KAB. MAMUJU, SULAWESI BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "HAN340",
+   "nama": "Hanif Ciputra",
+   "alamat": "Jl. Cimone Beta - Jayapura No.65, RT.002/RW.5, Cimone, Kec. Karawaci, Kota Tangerang, Banten 15114",
+   "kota": "6289523238935",
+   "hp": null,
+   "tier": "reseller"
+  },
+  {
+   "kode": "HB.Mlg",
+   "nama": "Hery Basuki Walsan KAF Malang",
+   "alamat": "Malang",
+   "kota": "081808199955",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "azza.shp",
+   "nama": "Ibu Azza",
+   "alamat": "Jalan Purnawirawan Raya Gang Swadaya 6 No. 46, RT.3, Gunung Terang (Kiri msjd,tiang tlpn), LANGKAPURA, KOTA BANDAR LAMPUNG, LAMPUNG",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "IN470",
+   "nama": "Indah Naili",
+   "alamat": "Jl. Saroja 44 Pare Kediri 64211 (nefa bouquet)",
+   "kota": "6289683916180",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Isw.Shp",
+   "nama": "Iswandi",
+   "alamat": "Masjid At Taqwa, Jl. Wolter Mongisidi, Bahoue (Samping depot kodal), PETASIA, KAB. MOROWALI UTARA, SULAWESI TENGAH",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "KBb.Bdg",
+   "nama": "Kang Biben (Cekas Soca)",
+   "alamat": "Jalan Menes Komplek Tulip Permai Nomor 56, RT 08, RW 04, Kelurahan Kebonwaru, Kecamatan Batununggal, Bandung, 40272",
+   "kota": "085318367163",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Kha.Shp",
+   "nama": "KhayrunNissa",
+   "alamat": "jln.gagaklumayung no.1413 rt.03 rw.14 kp.sukaregang Gang.madrasah alfurqon, GARUT KOTA, KAB. GARUT, JAWA BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "KN.Mjlk",
+   "nama": "Kiki Nurpadil",
+   "alamat": "RT.3/RW.4, Dusun Cinta Bakti, Desa Mekar Wangi, Lemahsugih, KAB. MAJALENGKA, LEMAHSUGIH, JAWA BARAT, ID, 45465",
+   "kota": "082119395848",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Kus.Klaten",
+   "nama": "Kusyaeni, M.Pd.",
+   "alamat": "Kuttab Ibnu Abbas Klaten Jl. Klaten Solo Km. 3.5, Jawa Tengah, Kab. Klaten, Klaten Utara, Ketandan, 57437",
+   "kota": "081329623260",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "shp.Led",
+   "nama": "Ledy",
+   "alamat": "Jalan Jakarta, Perum Korpri Blok BB No 11, Kelurahan Loa Bakung, SUNGAI KUNJANG, KOTA SAMARINDA, KALIMANTAN TIMUR",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Lul.serang",
+   "nama": "Lulu Lutfiah",
+   "alamat": "Kompleks Permata Safira Regency, Blok E 4, No 20, Banten, Kota Serang, Taktakan, Sepang, 42162",
+   "kota": "081385936632",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "shp.Mar",
+   "nama": "Mardiah",
+   "alamat": "Perumahan Araland, Jalan Raya, Barawaja, Tammua (Araland B16), TALLO, KOTA MAKASSAR, SULAWESI SELATAN",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Maul.Dpk",
+   "nama": "Maulana",
+   "alamat": "Jl. Rukun 4 RT02/05 No. 87 Kelurahan Curug, Kecamatan Bojongsari, Kota Depok 16517 (Samping rumah Bang Kandar)",
+   "kota": "085691064874",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "shp.Nga",
+   "nama": "Ngatmojo",
+   "alamat": "Perum Kariangau Indah/PGRI (Blok i1 No. 21), BALIKPAPAN UTARA, KOTA BALIKPAPAN, KALIMANTAN TIMUR",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Nhs.Shp",
+   "nama": "Nurhasnah",
+   "alamat": "Perumahan Vila dago, cluster alam Asri I,Blok KAB. SIDOARJO H 34 no.2,kelurahan benda baru, PAMULANG, KOTA TANGERANG SELATAN, BANTEN",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "NUW.Mlg",
+   "nama": "Nurul Ummu Wieriz",
+   "alamat": "Malang",
+   "kota": "08986450416",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Kar.bndung",
+   "nama": "P. Kartiwa KAF Bandung",
+   "alamat": "Kuttab Al Fatih Bandung - Cikadut Jl. Cikadut Dalam No.84, Jawa Barat, Kota Bandung, Mandalajati, Karang Pamulang, 40195",
+   "kota": "082115827447",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "S.BZF.KMLG",
+   "nama": "Pak Sukra Bazaf Kemiling",
+   "alamat": "Jalan Raden Imba Kesuma, Gang Keramat, rt 04 Lingkungan 1, Kel. Beringin Jaya, Kemiling, Bandar Lampung.  kode pos 35158",
+   "kota": "0895705967800",
+   "hp": null,
+   "tier": "bazaf"
+  },
+  {
+   "kode": "REN169",
+   "nama": "Renni Rahmiyani",
+   "alamat": "Kuttab Alfatih Tangerang Kota. Komplek Bumi Mas Raya Blok C2 No.3 Cikokol, Tangerang Kota Banten",
+   "kota": "085695265775",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Rind.bndng",
+   "nama": "Rinda Ummu Syamil",
+   "alamat": "Jatihandap Regency A11 Rt 05 Rw 17 Jawa Barat, Kab. Bandung, Cimenyan, Cimenyan, 40197",
+   "kota": "082315100968",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "RA.Shp",
+   "nama": "Riza Arsyi",
+   "alamat": "Jalan Komp Griya Caraka Blok F No. 46 47, Cisaranten Endah, ARCAMANIK, KOTA BANDUNG, JAWA BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "RiM.Shp",
+   "nama": "Rizal Muhamad",
+   "alamat": "Perum Melatih Mas, Jalan Parakanhonje, Sukamaju Kaler, Indihiang (Blok B25 RT/RW 02/15), INDIHIANG, KOTA TASIKMALAYA, JAWA BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "AP.Skbm",
+   "nama": "Ust. Angga Pradana (Bazaf Sukabumi)",
+   "alamat": "Kp Jl. Pondok Tisuk-Kalapa Rea, RT.01/RW.07, Balekambang, Kec. Nagrak, Kabupaten Sukabumi, Jawa Barat 43356",
+   "kota": "085220081450",
+   "hp": null,
+   "tier": "bazaf"
+  },
+  {
+   "kode": "Imam.depok",
+   "nama": "Ustadz Imam",
+   "alamat": "Gedung Wakaf Kuttab Al Fatih Beji, Jawa Barat, Kota Depok, Beji, Tanah Baru, 16426",
+   "kota": "085161685712",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "U.Purnomo",
+   "nama": "Ustadz Purnomo Kepala KAF Malang",
+   "alamat": "Malang",
+   "kota": "",
+   "hp": null,
+   "tier": "reseller"
+  },
+  {
+   "kode": "UST386",
+   "nama": "Ustadzah Euis (Hijaz No. 7)",
+   "alamat": "Tanah Wakaf Pesantren Al Fatih Jl. Keberkahan No.100 RT/RW 17/04, Desa. Situdaun Kec. Tenjolaya Kab.Bogor Jabar 16370",
+   "kota": "085889212825",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "U.Rindy",
+   "nama": "Ustadzah Rindy KAF Malang",
+   "alamat": "Malang",
+   "kota": "",
+   "hp": null,
+   "tier": "reseller"
+  },
+  {
+   "kode": "MNA. Gdbg",
+   "nama": "Usth. Mia Nur Amalia Gedebage",
+   "alamat": "Jalan Melati Utama No 2 RT 001  RW 012 Kuttab Al Fatih Gedebage (Gedung Warna Abu), KOTA BANDUNG, PANYILEUKAN, JAWA BARAT, ID, 40614",
+   "kota": "081313253835",
+   "hp": null,
+   "tier": "reseller"
+  },
+  {
+   "kode": "VPA.Dmk",
+   "nama": "Very Pandhu Annur",
+   "alamat": "Perum Griya Mangunjiwan Permata Asri Blok C No.3 RT.01/08 Mangunjiwan Demak 59515 Jawa Tengah",
+   "kota": "085866693893",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Viv.grobog",
+   "nama": "Vivi Vilasari",
+   "alamat": "RT.5/RW.2, Danyang Utara, Jawa Tengah, Kab. Grobogan, Purwodadi, Danyang, 58113",
+   "kota": "088221879329",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "WAT430",
+   "nama": "Wataf Store",
+   "alamat": "Kuttab Al-Fatih Bekasi \nH. Misan No. 91 RT 08 RW 02 Kelurahan Jatiluhur Kecamatan Jatiasih \nBekasi, Jawa Barat 17425",
+   "kota": "085280534083",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "Yun.jaksel",
+   "nama": "Yuni Koerniawati",
+   "alamat": "Griya Ihsani 1 no A4 Jalan Kecapi 5, Dki Jakarta, Kota Jakarta Selatan, Jagakarsa, Jagakarsa, 12620",
+   "kota": "085779176061",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "AM.Shp",
+   "nama": "agung maryana",
+   "alamat": "Paradise Resort Ciputat blok C7 no 17, CIPUTAT, KOTA TANGERANG SELATAN, BANTEN",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "fiv.kediri",
+   "nama": "fivety",
+   "alamat": "jalan cipunegara (pondok kuttab alfatih kediri) dsn.templek Jawa Timur, Kab. Kediri, Pare, Darungan, 64227",
+   "kota": "082137739325",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "irma.shp",
+   "nama": "irmarita231",
+   "alamat": "Cilendek Indah Green Garden, Blok G2, RT.1/RW.6, Cilendek Barat, BOGOR BARAT - KOTA, KOTA BOGOR, JAWA BARAT",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "wataf.azla",
+   "nama": "muhammad azlan abrizam",
+   "alamat": "Jl raya babatan no 14, wiyung, surabaya (sebelah aqiqah nurul hayat)",
+   "kota": "082233076510",
+   "hp": null,
+   "tier": "reguler"
+  },
+  {
+   "kode": "nur.lpg",
+   "nama": "nurafni",
+   "alamat": "Swadaya 8 No 48 B. Gunung Terang, KOTA BANDAR LAMPUNG, LANGKAPURA, LAMPUNG, ID, 35122",
+   "kota": "",
+   "hp": null,
+   "tier": "reguler"
+  }
+ ],
+ "orders": [
+  {
+   "no_order": "FK26-08-0000001",
+   "tgl": "2026-08-03",
+   "customer_kode": "BAZ45",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 28000,
+   "total": 1149250,
+   "items": [
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 23,
+     "price_original": 65000,
+     "price_final": 48750,
+     "harga_beli": 17000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000002",
+   "tgl": "2026-08-01",
+   "customer_kode": "Balqis.Mrf",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 107000,
+   "items": [
+    {
+     "kode_sku": "BI000008",
+     "judul_snapshot": "Nilai-nilai kenabian (Urjuzah)",
+     "qty": 1,
+     "price_original": 40000,
+     "price_final": 40000,
+     "harga_beli": 14000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 1,
+     "price_original": 60000,
+     "price_final": 60000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000003",
+   "tgl": "2026-08-01",
+   "customer_kode": "nur.lpg",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 52735,
+   "items": [
+    {
+     "kode_sku": "BI000008",
+     "judul_snapshot": "Nilai-nilai kenabian (Urjuzah)",
+     "qty": 1,
+     "price_original": 52735,
+     "price_final": 52735,
+     "harga_beli": 14000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000004",
+   "tgl": "2026-08-03",
+   "customer_kode": "Ghifa.shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "sicepat",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 38445,
+   "items": [
+    {
+     "kode_sku": "PRN000008",
+     "judul_snapshot": "Smart Islamic Parenting",
+     "qty": 1,
+     "price_original": 38445,
+     "price_final": 38445,
+     "harga_beli": 30000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000005",
+   "tgl": "2026-08-05",
+   "customer_kode": "Mira.WSM",
+   "metode_bayar": "qris",
+   "sumber_pembelian": "toko",
+   "ekspedisi": null,
+   "ambil_sendiri": true,
+   "shipping_cost": 0,
+   "total": 100000,
+   "items": [
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 100000,
+     "harga_beli": 44167,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000006",
+   "tgl": "2026-08-05",
+   "customer_kode": "BAZ44",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 25000,
+   "total": 1246746,
+   "items": [
+    {
+     "kode_sku": "Bdl000008",
+     "judul_snapshot": "Bundling Allah Menciptakan Siang Malam",
+     "qty": 2,
+     "price_original": 82000,
+     "price_final": 120124,
+     "harga_beli": 26372,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "Bdl000011",
+     "judul_snapshot": "Bundling Sifat Baik Buruk",
+     "qty": 3,
+     "price_original": 90000,
+     "price_final": 87896,
+     "harga_beli": 31050,
+     "_unit_check": false
+    },
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 10,
+     "price_original": 90000,
+     "price_final": 26368,
+     "harga_beli": 17000,
+     "_unit_check": false
+    },
+    {
+     "kode_sku": "ALQ000006",
+     "judul_snapshot": "Tadabbur surah Al – Fatihah",
+     "qty": 3,
+     "price_original": 70000,
+     "price_final": 68364,
+     "harga_beli": 30000,
+     "_unit_check": false
+    },
+    {
+     "kode_sku": "ALQ000008",
+     "judul_snapshot": "Tadabbur surah Abasa",
+     "qty": 1,
+     "price_original": 85000,
+     "price_final": 249038,
+     "harga_beli": 34727,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000007",
+   "tgl": "2026-08-05",
+   "customer_kode": "Viv.grobog",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 6000,
+   "total": 46500,
+   "items": [
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 1,
+     "price_original": 45000,
+     "price_final": 40500,
+     "harga_beli": null,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000008",
+   "tgl": "2026-08-05",
+   "customer_kode": "Imam.depok",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 44000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000009",
+   "tgl": "2026-08-05",
+   "customer_kode": "Rind.bndng",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 14000,
+   "total": 290300,
+   "items": [
+    {
+     "kode_sku": "KSH000004",
+     "judul_snapshot": "Di Balik Keffiyeh Abu Ubaidah",
+     "qty": 1,
+     "price_original": 70000,
+     "price_final": 63000,
+     "harga_beli": 24000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 1,
+     "price_original": 55000,
+     "price_final": 49500,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 33300,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 1,
+     "price_original": 45000,
+     "price_final": 40500,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 90000,
+     "harga_beli": 44167,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000010",
+   "tgl": "2026-08-05",
+   "customer_kode": "S.BZF.KMLG",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 14000,
+   "total": 391600,
+   "items": [
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 2,
+     "price_original": 65000,
+     "price_final": 52000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000008",
+     "judul_snapshot": "Nilai-nilai kenabian (Urjuzah)",
+     "qty": 2,
+     "price_original": 40000,
+     "price_final": 32000,
+     "harga_beli": 14000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 80000,
+     "harga_beli": 44167,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "Bdl000010",
+     "judul_snapshot": "Bundling Serial Parenting",
+     "qty": 1,
+     "price_original": 162000,
+     "price_final": 129600,
+     "harga_beli": 70000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000011",
+   "tgl": "2026-08-05",
+   "customer_kode": "fiv.kediri",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 14000,
+   "total": 401900,
+   "items": [
+    {
+     "kode_sku": "ALQ000009",
+     "judul_snapshot": "Iman sebelum Al-Quran",
+     "qty": 3,
+     "price_original": 53000,
+     "price_final": 47700,
+     "harga_beli": 21410,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 3,
+     "price_original": 65000,
+     "price_final": 52000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 3,
+     "price_original": 37000,
+     "price_final": 29600,
+     "harga_beli": 11000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000012",
+   "tgl": "2026-08-05",
+   "customer_kode": "shp.bah",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "BI000001",
+     "judul_snapshot": "Jejak Pendidikan Kuttab di Haramain",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 17100,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000013",
+   "tgl": "2026-08-05",
+   "customer_kode": "BAZ50",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 14000,
+   "total": 338000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 3,
+     "price_original": 0,
+     "price_final": -1,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 3,
+     "price_original": 65000,
+     "price_final": 79472,
+     "harga_beli": 17000,
+     "_unit_check": false
+    },
+    {
+     "kode_sku": "ALQ000009",
+     "judul_snapshot": "Iman sebelum Al-Quran",
+     "qty": 3,
+     "price_original": 70000,
+     "price_final": 28529,
+     "harga_beli": 21410,
+     "_unit_check": false
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000014",
+   "tgl": "2026-08-06",
+   "customer_kode": "U.Rindy",
+   "metode_bayar": "qris",
+   "sumber_pembelian": "toko",
+   "ekspedisi": null,
+   "ambil_sendiri": true,
+   "shipping_cost": 0,
+   "total": 80000,
+   "items": [
+    {
+     "kode_sku": "BI000027",
+     "judul_snapshot": "Tadabbur Umrah dan Haji",
+     "qty": 1,
+     "price_original": 80000,
+     "price_final": 80000,
+     "harga_beli": 29000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000015",
+   "tgl": "2026-08-06",
+   "customer_kode": "U.Purnomo",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": null,
+   "ambil_sendiri": true,
+   "shipping_cost": 0,
+   "total": 137000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 1,
+     "price_original": 55000,
+     "price_final": 55000,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 1,
+     "price_original": 45000,
+     "price_final": 45000,
+     "harga_beli": null,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000016",
+   "tgl": "2026-08-07",
+   "customer_kode": "WAT430",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 10000,
+   "total": 452000,
+   "items": [
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 4,
+     "price_original": 65000,
+     "price_final": 65000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 100000,
+     "harga_beli": 44167,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "Bdl000008",
+     "judul_snapshot": "Bundling Allah Menciptakan Siang Malam",
+     "qty": 1,
+     "price_original": 82000,
+     "price_final": 82000,
+     "harga_beli": 26372,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000017",
+   "tgl": "2026-08-07",
+   "customer_kode": "REN169",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 137000,
+   "items": [
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 2,
+     "price_original": 65000,
+     "price_final": 65000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000018",
+   "tgl": "2026-08-07",
+   "customer_kode": "wataf.azla",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 5000,
+   "total": 70000,
+   "items": [
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 1,
+     "price_original": 65000,
+     "price_final": 65000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000019",
+   "tgl": "2026-08-08",
+   "customer_kode": "Kar.bndung",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 32000,
+   "total": 1127200,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 37,
+     "price_original": 37000,
+     "price_final": 29600,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000008",
+     "judul_snapshot": "Nilai-nilai kenabian (Urjuzah)",
+     "qty": 1,
+     "price_original": 60000,
+     "price_final": 0,
+     "harga_beli": 14000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000020",
+   "tgl": "2026-08-08",
+   "customer_kode": "Kus.Klaten",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 6000,
+   "total": 136000,
+   "items": [
+    {
+     "kode_sku": "Bdl000002",
+     "judul_snapshot": "Fami Bi Syauqin & Tadabbur Surah Al-Fatihah",
+     "qty": 1,
+     "price_original": 130000,
+     "price_final": 130000,
+     "harga_beli": 115000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000021",
+   "tgl": "2026-08-08",
+   "customer_kode": "shp.Led",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "halu",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "BI000001",
+     "judul_snapshot": "Jejak Pendidikan Kuttab di Haramain",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 17100,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000022",
+   "tgl": "2026-08-08",
+   "customer_kode": "shp.Nga",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "BI000001",
+     "judul_snapshot": "Jejak Pendidikan Kuttab di Haramain",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 17100,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000023",
+   "tgl": "2026-08-08",
+   "customer_kode": "shp.Nga",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "BI000001",
+     "judul_snapshot": "Jejak Pendidikan Kuttab di Haramain",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 17100,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000024",
+   "tgl": "2026-08-10",
+   "customer_kode": "Yun.jaksel",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 44000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000025",
+   "tgl": "2026-08-10",
+   "customer_kode": "VPA.Dmk",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 6000,
+   "total": 43000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000026",
+   "tgl": "2026-08-10",
+   "customer_kode": "MNA. Gdbg",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 6000,
+   "total": 133000,
+   "items": [
+    {
+     "kode_sku": "ALQ000001",
+     "judul_snapshot": "Fami Bi Syauqin",
+     "qty": 1,
+     "price_original": 90000,
+     "price_final": 90000,
+     "harga_beli": 85000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000027",
+   "tgl": "2026-08-10",
+   "customer_kode": "Maul.Dpk",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 92000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "PRN000005",
+     "judul_snapshot": "Beginilah menjadi ibu",
+     "qty": 1,
+     "price_original": 48000,
+     "price_final": 48000,
+     "harga_beli": 13000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000028",
+   "tgl": "2026-08-10",
+   "customer_kode": "Lul.serang",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 155000,
+   "items": [
+    {
+     "kode_sku": "PRN000005",
+     "judul_snapshot": "Beginilah menjadi ibu",
+     "qty": 1,
+     "price_original": 48000,
+     "price_final": 48000,
+     "harga_beli": 13000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 1,
+     "price_original": 55000,
+     "price_final": 55000,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 1,
+     "price_original": 45000,
+     "price_final": 45000,
+     "harga_beli": null,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000029",
+   "tgl": "2026-08-10",
+   "customer_kode": "IN470",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 9000,
+   "total": 209000,
+   "items": [
+    {
+     "kode_sku": "ANK000009",
+     "judul_snapshot": "Kisah Para Nabi For Kids",
+     "qty": 1,
+     "price_original": 75000,
+     "price_final": 75000,
+     "harga_beli": 21000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000019",
+     "judul_snapshot": "40 Hadits Pengagungan Terhadap  Al-Quran",
+     "qty": 1,
+     "price_original": 25000,
+     "price_final": 25000,
+     "harga_beli": 14750,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 100000,
+     "harga_beli": 44167,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000030",
+   "tgl": "2026-08-10",
+   "customer_kode": "HAN340",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 151000,
+   "items": [
+    {
+     "kode_sku": "BI000005",
+     "judul_snapshot": "Menikmati shalat",
+     "qty": 1,
+     "price_original": 72000,
+     "price_final": 72000,
+     "harga_beli": 25750,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "PST000001",
+     "judul_snapshot": "Poster",
+     "qty": 1,
+     "price_original": 10000,
+     "price_final": 10000,
+     "harga_beli": 3000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000019",
+     "judul_snapshot": "40 Hadits Pengagungan Terhadap  Al-Quran",
+     "qty": 1,
+     "price_original": 25000,
+     "price_final": 25000,
+     "harga_beli": 14750,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000031",
+   "tgl": "2026-08-10",
+   "customer_kode": "azza.shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 36857,
+   "items": [
+    {
+     "kode_sku": "BI000006",
+     "judul_snapshot": "Kitabati umum",
+     "qty": 1,
+     "price_original": 36857,
+     "price_final": 36857,
+     "harga_beli": 16000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000032",
+   "tgl": "2026-08-11",
+   "customer_kode": "irma.shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 54323,
+   "items": [
+    {
+     "kode_sku": "Bdl000008",
+     "judul_snapshot": "Bundling Allah Menciptakan Siang Malam",
+     "qty": 1,
+     "price_original": 54323,
+     "price_final": 54323,
+     "harga_beli": 26372,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000033",
+   "tgl": "2026-08-11",
+   "customer_kode": "KBb.Bdg",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 6000,
+   "total": 106000,
+   "items": [
+    {
+     "kode_sku": "ALQ000001",
+     "judul_snapshot": "Fami Bi Syauqin",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 100000,
+     "harga_beli": 85000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000034",
+   "tgl": "2026-08-11",
+   "customer_kode": "Kus.Klaten",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 6000,
+   "total": 106000,
+   "items": [
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 100000,
+     "price_final": 100000,
+     "harga_beli": 44167,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000035",
+   "tgl": "2026-08-11",
+   "customer_kode": "AP.Skbm",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 28000,
+   "total": 697750,
+   "items": [
+    {
+     "kode_sku": "Bdl000011",
+     "judul_snapshot": "Bundling Sifat Baik Buruk",
+     "qty": 1,
+     "price_original": 68000,
+     "price_final": 51000,
+     "harga_beli": 31050,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "ALQ000008",
+     "judul_snapshot": "Tadabbur surah Abasa",
+     "qty": 2,
+     "price_original": 72000,
+     "price_final": 54000,
+     "harga_beli": 34727,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 3,
+     "price_original": 37000,
+     "price_final": 27750,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 2,
+     "price_original": 45000,
+     "price_final": 33750,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 3,
+     "price_original": 55000,
+     "price_final": 41250,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000006",
+     "judul_snapshot": "Kitabati umum",
+     "qty": 4,
+     "price_original": 30000,
+     "price_final": 22500,
+     "harga_beli": 16000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 3,
+     "price_original": 65000,
+     "price_final": 48750,
+     "harga_beli": 17000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000036",
+   "tgl": "2026-08-11",
+   "customer_kode": "HB.Mlg",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": null,
+   "ambil_sendiri": true,
+   "shipping_cost": 0,
+   "total": 37000,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000037",
+   "tgl": "2026-08-12",
+   "customer_kode": "AM.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "sicepat",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 51941,
+   "items": [
+    {
+     "kode_sku": "PRN000010",
+     "judul_snapshot": "Rumahku Sekolahku",
+     "qty": 1,
+     "price_original": 51941,
+     "price_final": 51941,
+     "harga_beli": 20000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000038",
+   "tgl": "2026-08-12",
+   "customer_kode": "RA.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "sicepat",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 78140,
+   "items": [
+    {
+     "kode_sku": "PRN000008",
+     "judul_snapshot": "Smart Islamic Parenting",
+     "qty": 1,
+     "price_original": 78140,
+     "price_final": 78140,
+     "harga_beli": 30000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000039",
+   "tgl": "2026-08-12",
+   "customer_kode": "Nhs.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "sicepat",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 51941,
+   "items": [
+    {
+     "kode_sku": "PRN000010",
+     "judul_snapshot": "Rumahku Sekolahku",
+     "qty": 1,
+     "price_original": 51941,
+     "price_final": 51941,
+     "harga_beli": 20000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000040",
+   "tgl": "2026-08-12",
+   "customer_kode": "Ifa.shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 178170,
+   "items": [
+    {
+     "kode_sku": "ALQ000001",
+     "judul_snapshot": "Fami Bi Syauqin",
+     "qty": 1,
+     "price_original": 89085,
+     "price_final": 89085,
+     "harga_beli": 85000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 89085,
+     "price_final": 89085,
+     "harga_beli": 44167,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000041",
+   "tgl": "2026-08-12",
+   "customer_kode": "AnS.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "BI000001",
+     "judul_snapshot": "Jejak Pendidikan Kuttab di Haramain",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 17100,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000042",
+   "tgl": "2026-08-12",
+   "customer_kode": "Isw.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "KSH000004",
+     "judul_snapshot": "Di Balik Keffiyeh Abu Ubaidah",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 24000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000043",
+   "tgl": "2026-08-12",
+   "customer_kode": "shp.Mar",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 38365,
+   "items": [
+    {
+     "kode_sku": "BI000008",
+     "judul_snapshot": "Nilai-nilai kenabian (Urjuzah)",
+     "qty": 1,
+     "price_original": 38365,
+     "price_final": 38365,
+     "harga_beli": 14000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000044",
+   "tgl": "2026-08-12",
+   "customer_kode": "Kha.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 95350,
+   "items": [
+    {
+     "kode_sku": "KSH000003",
+     "judul_snapshot": "Dibawah Panji Thufan Al-Aqsa",
+     "qty": 1,
+     "price_original": 95350,
+     "price_final": 95350,
+     "harga_beli": 44167,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000045",
+   "tgl": "2026-08-13",
+   "customer_kode": "RiM.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 62262,
+   "items": [
+    {
+     "kode_sku": "BI000001",
+     "judul_snapshot": "Jejak Pendidikan Kuttab di Haramain",
+     "qty": 1,
+     "price_original": 62262,
+     "price_final": 62262,
+     "harga_beli": 17100,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000046",
+   "tgl": "2026-08-13",
+   "customer_kode": "Erw.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 51941,
+   "items": [
+    {
+     "kode_sku": "PRN000010",
+     "judul_snapshot": "Rumahku Sekolahku",
+     "qty": 1,
+     "price_original": 51941,
+     "price_final": 51941,
+     "harga_beli": 20000,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000047",
+   "tgl": "2026-08-12",
+   "customer_kode": "S.BZF.KMLG",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 10000,
+   "total": 247600,
+   "items": [
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 29600,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 2,
+     "price_original": 45000,
+     "price_final": 36000,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 2,
+     "price_original": 55000,
+     "price_final": 44000,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000030",
+     "judul_snapshot": "Aku Sahabatmu, Al-Qur'an",
+     "qty": 1,
+     "price_original": 60000,
+     "price_final": 48000,
+     "harga_beli": 23625,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000048",
+   "tgl": "2026-08-12",
+   "customer_kode": "KN.Mjlk",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 9000,
+   "total": 39000,
+   "items": [
+    {
+     "kode_sku": "BI000019",
+     "judul_snapshot": "40 Hadits Pengagungan Terhadap  Al-Quran",
+     "qty": 1,
+     "price_original": 30000,
+     "price_final": 30000,
+     "harga_beli": 14750,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000049",
+   "tgl": "2026-08-14",
+   "customer_kode": "Elfa.Tsk",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 9000,
+   "total": 162000,
+   "items": [
+    {
+     "kode_sku": "BI000004",
+     "judul_snapshot": "Fatihatul Ulum",
+     "qty": 1,
+     "price_original": 63000,
+     "price_final": 63000,
+     "harga_beli": 28500,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000020",
+     "judul_snapshot": "Rahasia Membaca Produktif",
+     "qty": 1,
+     "price_original": 37000,
+     "price_final": 37000,
+     "harga_beli": 11000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "ALQ000009",
+     "judul_snapshot": "Iman sebelum Al-Quran",
+     "qty": 1,
+     "price_original": 53000,
+     "price_final": 53000,
+     "harga_beli": 21410,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000050",
+   "tgl": "2026-08-14",
+   "customer_kode": "ELaf.Bkasi",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 7000,
+   "total": 272000,
+   "items": [
+    {
+     "kode_sku": "BI000010",
+     "judul_snapshot": "Sirah nabawiyah untuk pemuda",
+     "qty": 1,
+     "price_original": 65000,
+     "price_final": 65000,
+     "harga_beli": 17000,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 2,
+     "price_original": 55000,
+     "price_final": 55000,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 2,
+     "price_original": 45000,
+     "price_final": 45000,
+     "harga_beli": null,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000051",
+   "tgl": "2026-08-14",
+   "customer_kode": "UST386",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 54323,
+   "items": [
+    {
+     "kode_sku": "Bdl000008",
+     "judul_snapshot": "Bundling Allah Menciptakan Siang Malam",
+     "qty": 1,
+     "price_original": 54323,
+     "price_final": 54323,
+     "harga_beli": 26372,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000052",
+   "tgl": "2026-08-14",
+   "customer_kode": "AK.Shp",
+   "metode_bayar": "shopee",
+   "sumber_pembelian": "shopee",
+   "ekspedisi": "spx",
+   "ambil_sendiri": false,
+   "shipping_cost": 0,
+   "total": 76552,
+   "items": [
+    {
+     "kode_sku": "BI000021",
+     "judul_snapshot": "Falsafah Pendidikan Islam",
+     "qty": 1,
+     "price_original": 76552,
+     "price_final": 76552,
+     "harga_beli": 17157,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000053",
+   "tgl": "2026-08-14",
+   "customer_kode": "BAZ327",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": "wahana",
+   "ambil_sendiri": false,
+   "shipping_cost": 52500,
+   "total": 2929500,
+   "items": [
+    {
+     "kode_sku": "BI000031",
+     "judul_snapshot": "Mendidik Pemuda Muslim",
+     "qty": 42,
+     "price_original": 55000,
+     "price_final": 38500,
+     "harga_beli": null,
+     "_unit_check": true
+    },
+    {
+     "kode_sku": "BI000032",
+     "judul_snapshot": "Mendidik Pemudi Muslimah",
+     "qty": 40,
+     "price_original": 45000,
+     "price_final": 31500,
+     "harga_beli": null,
+     "_unit_check": true
+    }
+   ]
+  },
+  {
+   "no_order": "FK26-08-0000054",
+   "tgl": "2026-08-14",
+   "customer_kode": "NUW.Mlg",
+   "metode_bayar": "bsi",
+   "sumber_pembelian": "toko",
+   "ekspedisi": null,
+   "ambil_sendiri": true,
+   "shipping_cost": 0,
+   "total": 30000,
+   "items": [
+    {
+     "kode_sku": "BI000023",
+     "judul_snapshot": "Kitabati Guru",
+     "qty": 1,
+     "price_original": 30000,
+     "price_final": 30000,
+     "harga_beli": 12813,
+     "_unit_check": true
+    }
+   ]
+  }
+ ]
+}

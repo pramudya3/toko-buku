@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             CourierSeeder::class,
             PaymentMethodSeeder::class,
             SalesChannelSeeder::class,
+            KasCategorySeeder::class,
             SuperAdminSeeder::class,
             // Akun customer demo — untuk mencoba alur storefront sebagai pembeli.
             CustomerSeeder::class,

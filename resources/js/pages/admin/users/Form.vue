@@ -10,7 +10,10 @@ defineOptions({
 });
 
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
+import AddressFields from '@/components/AddressFields.vue';
+import type { AddressValue } from '@/components/AddressFields.vue';
 import FieldHint from '@/components/FieldHint.vue';
 import FormErrorAlert from '@/components/FormErrorAlert.vue';
 import { Button } from '@/components/ui/button';
@@ -31,6 +34,13 @@ type User = {
     name: string;
     email: string;
     is_active: boolean;
+    alamat: string | null;
+    provinsi: string | null;
+    kabupaten_kota: string | null;
+    kecamatan: string | null;
+    kelurahan: string | null;
+    village_code: string | null;
+    kode_pos: string | null;
 };
 
 const props = defineProps<{
@@ -41,24 +51,46 @@ const isEdit = Boolean(props.user);
 const action = isEdit
     ? UserController.update.form(props.user!.id)
     : UserController.store.form();
+
+const address = ref<AddressValue>({
+    provinsi: props.user?.provinsi ?? '',
+    kabupaten_kota: props.user?.kabupaten_kota ?? '',
+    kecamatan: props.user?.kecamatan ?? '',
+    kelurahan: props.user?.kelurahan ?? '',
+    village_code: props.user?.village_code ?? '',
+    kode_pos: props.user?.kode_pos ?? '',
+    alamat: props.user?.alamat ?? '',
+});
 </script>
 
 <template>
     <Head :title="isEdit ? `Edit Staf: ${user?.name}` : 'Buat Staf'" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-semibold tracking-tight">
-                    {{ isEdit ? 'Edit Staf' : 'Buat Staf' }}
-                </h1>
-                <p class="text-sm text-muted-foreground">
-                    {{
-                        isEdit
-                            ? `Memperbarui akun ${user?.name}`
-                            : 'Menambahkan user yang dapat login sebagai admin'
-                    }}
-                </p>
+            <div class="flex items-center gap-2">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 shrink-0"
+                    as-child
+                >
+                    <Link :href="indexRoute().url"
+                        ><ArrowLeft class="size-4"
+                    /></Link>
+                </Button>
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight">
+                        {{ isEdit ? 'Edit Staf' : 'Buat Staf' }}
+                    </h1>
+                    <p class="text-sm text-muted-foreground">
+                        {{
+                            isEdit
+                                ? `Memperbarui akun ${user?.name}`
+                                : 'Menambahkan user yang dapat login sebagai admin'
+                        }}
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -140,6 +172,15 @@ const action = isEdit
                             </SelectContent>
                         </Select>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle class="text-base font-medium">Alamat</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <AddressFields v-model="address" />
                 </CardContent>
             </Card>
 

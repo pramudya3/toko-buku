@@ -52,8 +52,7 @@ class ProcessAndShipRequest extends FormRequest
             'courier_service_code' => ['nullable', 'string', 'max:50'],
             'warehouse_origin' => [
                 Rule::requiredIf($needsProcess),
-                // Hindari bind `false` (di SQLite jadi '') — pakai 0.
-                Rule::exists('warehouses', 'kode')->where('is_defect', 0),
+                Rule::exists('warehouses', 'kode'),
             ],
             'collection_method' => ['nullable', Rule::in(['pickup', 'drop_off'])],
             'pickup_date' => ['nullable', 'date'],

@@ -79,24 +79,36 @@ const tierVariant = computed(() => {
         :title="isEdit ? `Edit Pelanggan: ${customer?.name}` : 'Buat Pelanggan'"
     />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-semibold tracking-tight">
-                    {{ isEdit ? 'Edit Pelanggan' : 'Buat Pelanggan' }}
-                </h1>
-                <p v-if="customer" class="text-sm text-muted-foreground">
-                    <StatusBadge
-                        :variant="tierVariant"
-                        :label="
-                            tierOptions[customer.status_pelanggan] ??
-                            customer.status_pelanggan
-                        "
-                    />
-                </p>
-                <p v-else class="text-sm text-muted-foreground">
-                    Menambahkan pelanggan baru ke toko
-                </p>
+            <div class="flex items-center gap-2">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 shrink-0"
+                    as-child
+                >
+                    <Link :href="indexRoute().url"
+                        ><ArrowLeft class="size-4"
+                    /></Link>
+                </Button>
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight">
+                        {{ isEdit ? 'Edit Pelanggan' : 'Buat Pelanggan' }}
+                    </h1>
+                    <p v-if="customer" class="text-sm text-muted-foreground">
+                        <StatusBadge
+                            :variant="tierVariant"
+                            :label="
+                                tierOptions[customer.status_pelanggan] ??
+                                customer.status_pelanggan
+                            "
+                        />
+                    </p>
+                    <p v-else class="text-sm text-muted-foreground">
+                        Menambahkan pelanggan baru ke toko
+                    </p>
+                </div>
             </div>
         </div>
 

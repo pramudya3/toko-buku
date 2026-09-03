@@ -10,7 +10,7 @@ defineOptions({
 });
 
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { Plus, Trash2, X } from '@lucide/vue';
+import { ArrowLeft, Plus, Trash2, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import BookController from '@/actions/App/Http/Controllers/Admin/BookController';
@@ -67,6 +67,8 @@ type BookEdition = {
     cetakan_ke: number;
     harga_beli: number;
     harga_jual: number;
+    harga_guru_type: 'percent' | 'fixed' | null;
+    harga_guru_value: number | null;
     is_active: boolean;
 };
 
@@ -351,9 +353,15 @@ const submitArgs = isEdit ? props.book?.id : undefined;
 
 const editions = ref<BookEdition[]>(
     (props.editions ?? []).length > 0
-        ? props.editions.map((e) => ({
-              ...e,
+        ? props.editions.map((e: any) => ({
               nama: e.nama ?? `Cetakan ke-${e.cetakan_ke}`,
+              cetakan_ke: e.cetakan_ke,
+              harga_beli: e.harga_beli,
+              harga_jual: e.harga_jual,
+              harga_guru_type: e.harga_guru_type ?? null,
+              harga_guru_value: e.harga_guru_value ?? null,
+              is_active: !!e.is_active,
+              id: e.id,
           }))
         : [
               {
@@ -361,10 +369,40 @@ const editions = ref<BookEdition[]>(
                   cetakan_ke: 1,
                   harga_beli: 0,
                   harga_jual: 0,
+                  harga_guru_type: null,
+                  harga_guru_value: null,
                   is_active: true,
               },
           ],
 );
+
+function guruPreview(edition: BookEdition): string | null {
+    if (!edition.harga_guru_type || !edition.harga_guru_value) {
+        return null;
+    }
+
+    if (edition.harga_guru_type === 'percent') {
+        const p = Math.min(100, Math.max(1, Number(edition.harga_guru_value)));
+        const hit = Math.floor((edition.harga_jual * (100 - p)) / 100);
+
+        return `→ Rp ${hit.toLocaleString('id-ID')} (${p}%)`;
+    }
+
+    return `→ Rp ${Number(edition.harga_guru_value).toLocaleString('id-ID')}`;
+}
+
+function onGuruTypeChange(edition: BookEdition, newType: string) {
+    if (newType === '' || newType === '__none__') {
+        edition.harga_guru_type = null;
+        edition.harga_guru_value = null;
+    } else {
+        edition.harga_guru_type = newType as 'percent' | 'fixed';
+
+        if (!edition.harga_guru_value) {
+            edition.harga_guru_value = newType === 'percent' ? 10 : 0;
+        }
+    }
+}
 
 function addEdition() {
     const maxCetakan = Math.max(...editions.value.map((e) => e.cetakan_ke), 0);
@@ -373,6 +411,8 @@ function addEdition() {
         cetakan_ke: maxCetakan + 1,
         harga_beli: 0,
         harga_jual: 0,
+        harga_guru_type: null,
+        harga_guru_value: null,
         is_active: false,
     });
 }
@@ -402,14 +442,28 @@ function onFormError() {
 <template>
     <Head :title="isEdit ? 'Edit Buku' : 'Buat Buku'" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
-        <div>
-            <h1 class="text-xl font-semibold tracking-tight">
-                {{ isEdit ? `Edit Buku: ${book?.judul}` : 'Buat Buku Baru' }}
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                SKU otomatis dibuat bila kolom dikosongkan
-            </p>
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
+        <div class="flex items-center gap-2">
+            <Button
+                variant="ghost"
+                size="icon"
+                class="size-8 shrink-0"
+                as-child
+            >
+                <Link :href="indexRoute().url"
+                    ><ArrowLeft class="size-4"
+                /></Link>
+            </Button>
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">
+                    {{
+                        isEdit ? `Edit Buku: ${book?.judul}` : 'Buat Buku Baru'
+                    }}
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    SKU otomatis dibuat bila kolom dikosongkan
+                </p>
+            </div>
         </div>
 
         <Form
@@ -444,6 +498,16 @@ function onFormError() {
                     type="hidden"
                     :name="`editions[${i}][harga_jual]`"
                     :value="edition.harga_jual"
+                />
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][harga_guru_type]`"
+                    :value="edition.harga_guru_type ?? ''"
+                />
+                <input
+                    type="hidden"
+                    :name="`editions[${i}][harga_guru_value]`"
+                    :value="edition.harga_guru_value ?? ''"
                 />
                 <input
                     type="hidden"
@@ -717,95 +781,209 @@ function onFormError() {
                         Tambah Cetakan
                     </Button>
                 </CardHeader>
-                <CardContent>
-                    <p class="mb-3 text-xs text-muted-foreground">
-                        Atur nama, harga beli & jual tiap cetakan. Cetakan
-                        <strong class="text-foreground">aktif</strong> akan
-                        tampil sebagai harga default di katalog.
-                    </p>
+                <CardContent class="space-y-4">
+                    <div class="space-y-1">
+                        <p
+                            class="text-xs leading-relaxed text-muted-foreground"
+                        >
+                            Atur nama, harga beli &amp; jual tiap cetakan.
+                            Cetakan
+                            <strong class="font-medium text-foreground"
+                                >aktif</strong
+                            >
+                            akan tampil sebagai harga default di katalog.
+                        </p>
+                        <p
+                            class="text-xs leading-relaxed text-muted-foreground"
+                        >
+                            <span class="font-medium text-foreground"
+                                >Harga Guru</span
+                            >
+                            opsional — pilih <em>%</em> (diskon dari Harga Jual)
+                            atau <em>Rp</em> (harga tetap). Kosongkan untuk ikut
+                            Harga Jual.
+                        </p>
+                    </div>
 
-                    <div class="overflow-x-auto">
+                    <!-- Desktop: tabel (md+) -->
+                    <div
+                        class="hidden overflow-x-auto rounded-lg border md:block"
+                    >
                         <table
-                            class="w-full border-separate border-spacing-0 text-sm"
+                            class="w-full min-w-[860px] border-separate border-spacing-0 text-sm"
                         >
                             <thead>
-                                <tr>
+                                <tr class="bg-muted/40">
                                     <th
-                                        class="border-b px-2 pb-2 text-left font-medium whitespace-nowrap text-muted-foreground"
+                                        class="border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground"
                                     >
                                         Nama Cetakan
                                     </th>
                                     <th
-                                        class="border-b px-2 pb-2 text-left font-medium whitespace-nowrap text-muted-foreground"
+                                        class="border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground"
                                     >
                                         Harga Beli
                                     </th>
                                     <th
-                                        class="border-b px-2 pb-2 text-left font-medium whitespace-nowrap text-muted-foreground"
+                                        class="border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground"
                                     >
                                         Harga Jual
                                     </th>
                                     <th
-                                        class="border-b px-2 pb-2 text-center font-medium whitespace-nowrap text-muted-foreground"
+                                        class="border-b px-3 py-2.5 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground"
+                                    >
+                                        Harga Guru
+                                    </th>
+                                    <th
+                                        class="border-b px-3 py-2.5 text-center text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground"
                                     >
                                         Default
                                     </th>
-                                    <th class="w-10 border-b px-2 pb-2"></th>
+                                    <th class="w-10 border-b px-3 py-2.5"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr
                                     v-for="(edition, i) in editions"
                                     :key="edition.cetakan_ke"
-                                    class="border-b border-border/60 last:border-0"
+                                    class="border-b border-border/60 last:border-0 hover:bg-muted/20"
                                 >
-                                    <td class="px-2 py-2">
+                                    <td class="px-3 py-3 align-top">
                                         <Input
                                             v-model="edition.nama"
                                             :placeholder="`Cetakan ke-${edition.cetakan_ke}`"
                                             aria-label="Nama cetakan"
-                                            class="h-8 w-44"
+                                            class="h-9 w-[180px] text-sm"
                                         />
                                     </td>
-                                    <td class="px-2 py-2">
+                                    <td class="px-3 py-3 align-top">
                                         <CurrencyInput
                                             v-model="edition.harga_beli"
-                                            input-class="h-8 w-28"
+                                            input-class="h-9 w-[148px] text-sm"
                                         />
                                     </td>
-                                    <td class="px-2 py-2">
+                                    <td class="px-3 py-3 align-top">
                                         <CurrencyInput
                                             v-model="edition.harga_jual"
-                                            input-class="h-8 w-28"
+                                            input-class="h-9 w-[148px] text-sm"
                                         />
                                     </td>
-                                    <td class="px-2 py-2 text-center">
-                                        <Checkbox
-                                            :model-value="edition.is_active"
-                                            @update:model-value="
-                                                (
-                                                    val:
-                                                        | boolean
-                                                        | 'indeterminate',
-                                                ) => {
-                                                    if (val === true)
-                                                        setActive(i);
-                                                }
-                                            "
-                                        />
+                                    <td class="px-3 py-3 align-top">
+                                        <div
+                                            class="flex w-[240px] flex-col gap-1.5"
+                                        >
+                                            <div
+                                                class="flex items-center gap-1.5"
+                                            >
+                                                <select
+                                                    :value="
+                                                        edition.harga_guru_type ??
+                                                        '__none__'
+                                                    "
+                                                    class="h-9 w-[96px] shrink-0 rounded-md border border-input bg-background px-2 text-xs font-medium shadow-xs focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+                                                    @change="
+                                                        onGuruTypeChange(
+                                                            edition,
+                                                            (
+                                                                $event.target as HTMLSelectElement
+                                                            ).value,
+                                                        )
+                                                    "
+                                                >
+                                                    <option value="__none__">
+                                                        —
+                                                    </option>
+                                                    <option value="percent">
+                                                        %
+                                                    </option>
+                                                    <option value="fixed">
+                                                        Rp
+                                                    </option>
+                                                </select>
+                                                <div class="min-w-0 flex-1">
+                                                    <template
+                                                        v-if="
+                                                            edition.harga_guru_type ===
+                                                            'percent'
+                                                        "
+                                                    >
+                                                        <div class="relative">
+                                                            <Input
+                                                                v-model.number="
+                                                                    edition.harga_guru_value
+                                                                "
+                                                                type="number"
+                                                                min="1"
+                                                                max="100"
+                                                                placeholder="10"
+                                                                class="h-9 pr-7 text-sm"
+                                                            />
+                                                            <span
+                                                                class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                                                                >%</span
+                                                            >
+                                                        </div>
+                                                    </template>
+                                                    <template
+                                                        v-else-if="
+                                                            edition.harga_guru_type ===
+                                                            'fixed'
+                                                        "
+                                                    >
+                                                        <CurrencyInput
+                                                            v-model="
+                                                                edition.harga_guru_value
+                                                            "
+                                                            placeholder="0"
+                                                            input-class="h-9 text-sm"
+                                                        />
+                                                    </template>
+                                                    <template v-else>
+                                                        <div
+                                                            class="flex h-9 items-center rounded-md border border-dashed bg-muted/30 px-2 text-xs text-muted-foreground"
+                                                        >
+                                                            Tidak ada
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <span
+                                                v-if="guruPreview(edition)"
+                                                class="line-clamp-1 text-[11px] leading-none font-medium text-emerald-600 dark:text-emerald-400"
+                                            >
+                                                {{ guruPreview(edition) }}
+                                            </span>
+                                        </div>
                                     </td>
-                                    <td
-                                        v-if="
-                                            editions.length > 1 &&
-                                            i === editions.length - 1
-                                        "
-                                        class="px-2 py-2"
-                                    >
+                                    <td class="px-3 py-3 text-center align-top">
+                                        <div
+                                            class="flex h-9 items-center justify-center"
+                                        >
+                                            <Checkbox
+                                                :model-value="edition.is_active"
+                                                @update:model-value="
+                                                    (
+                                                        val:
+                                                            | boolean
+                                                            | 'indeterminate',
+                                                    ) => {
+                                                        if (val === true)
+                                                            setActive(i);
+                                                    }
+                                                "
+                                            />
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-3 align-top">
                                         <Button
+                                            v-if="
+                                                editions.length > 1 &&
+                                                i === editions.length - 1
+                                            "
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            class="size-8 text-muted-foreground hover:text-destructive"
+                                            class="size-8 shrink-0 text-muted-foreground hover:text-destructive"
                                             @click="removeEdition(i)"
                                         >
                                             <Trash2 class="size-4" />
@@ -814,6 +992,182 @@ function onFormError() {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile: stacked cards -->
+                    <div class="grid gap-3 md:hidden">
+                        <div
+                            v-for="(edition, i) in editions"
+                            :key="'m-' + edition.cetakan_ke"
+                            class="rounded-lg border bg-card p-3 shadow-sm"
+                        >
+                            <div
+                                class="mb-3 flex items-center justify-between gap-2"
+                            >
+                                <span
+                                    class="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold"
+                                    >Cetakan {{ edition.cetakan_ke }}</span
+                                >
+                                <div class="flex items-center gap-2">
+                                    <label
+                                        class="flex items-center gap-1.5 text-xs font-medium"
+                                    >
+                                        <Checkbox
+                                            :model-value="edition.is_active"
+                                            @update:model-value="
+                                                (val) => {
+                                                    if (val === true)
+                                                        setActive(i);
+                                                }
+                                            "
+                                        />
+                                        Default
+                                    </label>
+                                    <Button
+                                        v-if="editions.length > 1"
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        class="size-7 text-muted-foreground hover:text-destructive"
+                                        @click="removeEdition(i)"
+                                    >
+                                        <Trash2 class="size-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <div class="grid gap-1.5">
+                                    <Label class="text-xs font-medium"
+                                        >Nama Cetakan</Label
+                                    >
+                                    <Input
+                                        v-model="edition.nama"
+                                        :placeholder="`Cetakan ke-${edition.cetakan_ke}`"
+                                        class="h-9 text-sm"
+                                    />
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-3">
+                                    <div class="grid gap-1.5">
+                                        <Label class="text-xs font-medium"
+                                            >Harga Beli</Label
+                                        >
+                                        <CurrencyInput
+                                            v-model="edition.harga_beli"
+                                            input-class="h-9 text-sm"
+                                        />
+                                    </div>
+                                    <div class="grid gap-1.5">
+                                        <Label class="text-xs font-medium"
+                                            >Harga Jual</Label
+                                        >
+                                        <CurrencyInput
+                                            v-model="edition.harga_jual"
+                                            input-class="h-9 text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="rounded-md border border-dashed bg-muted/20 p-2.5"
+                                >
+                                    <Label
+                                        class="mb-1.5 flex items-center gap-1 text-xs font-semibold"
+                                        >Harga Guru
+                                        <span
+                                            class="font-normal text-muted-foreground"
+                                            >(opsional)</span
+                                        ></Label
+                                    >
+                                    <div class="flex items-center gap-2">
+                                        <select
+                                            :value="
+                                                edition.harga_guru_type ??
+                                                '__none__'
+                                            "
+                                            class="h-9 w-[96px] shrink-0 rounded-md border border-input bg-background px-2 text-sm font-medium shadow-xs"
+                                            @change="
+                                                onGuruTypeChange(
+                                                    edition,
+                                                    (
+                                                        $event.target as HTMLSelectElement
+                                                    ).value,
+                                                )
+                                            "
+                                        >
+                                            <option value="__none__">
+                                                — Tidak ada
+                                            </option>
+                                            <option value="percent">
+                                                % Diskon
+                                            </option>
+                                            <option value="fixed">
+                                                Rp Tetap
+                                            </option>
+                                        </select>
+                                        <div class="min-w-0 flex-1">
+                                            <template
+                                                v-if="
+                                                    edition.harga_guru_type ===
+                                                    'percent'
+                                                "
+                                            >
+                                                <div class="relative">
+                                                    <Input
+                                                        v-model.number="
+                                                            edition.harga_guru_value
+                                                        "
+                                                        type="number"
+                                                        min="1"
+                                                        max="100"
+                                                        placeholder="10"
+                                                        class="h-9 pr-7 text-sm"
+                                                    />
+                                                    <span
+                                                        class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                                                        >%</span
+                                                    >
+                                                </div>
+                                            </template>
+                                            <template
+                                                v-else-if="
+                                                    edition.harga_guru_type ===
+                                                    'fixed'
+                                                "
+                                            >
+                                                <CurrencyInput
+                                                    v-model="
+                                                        edition.harga_guru_value
+                                                    "
+                                                    placeholder="0"
+                                                    input-class="h-9 text-sm"
+                                                />
+                                            </template>
+                                            <template v-else>
+                                                <div
+                                                    class="flex h-9 items-center rounded-md border bg-background px-3 text-xs text-muted-foreground"
+                                                >
+                                                    Ikut Harga Jual
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <p
+                                        v-if="guruPreview(edition)"
+                                        class="mt-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+                                    >
+                                        {{ guruPreview(edition) }}
+                                    </p>
+                                    <p
+                                        v-else-if="edition.harga_guru_type"
+                                        class="mt-1.5 text-[11px] leading-relaxed text-muted-foreground"
+                                    >
+                                        Isi nilai untuk mengaktifkan harga guru.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

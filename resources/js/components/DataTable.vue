@@ -242,10 +242,7 @@ function toggleRow(row: T) {
                 <slot name="empty" />
             </EmptyState>
 
-            <Pagination
-                v-if="paginator && paginator.last_page > 1"
-                :paginator="paginator"
-            />
+            <Pagination v-if="paginator" :paginator="paginator" />
         </div>
 
         <p

@@ -15,6 +15,7 @@ use App\Models\Province;
 use App\Models\User;
 use App\Models\Village;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,13 +45,16 @@ class CustomerController extends Controller
                         ->orWhereLike('whatsapp_number', "%{$search}%");
                 });
             })
-            ->orderByDesc('created_at')
-            ->paginate(10)
+            ->when($request->filled('tier'), fn ($q) => $q->where('status_pelanggan', $request->string('tier')->toString()))
+            ->when($request->filled('is_active'), fn ($q) => $q->where('is_active', $request->string('is_active')->toString() === '1'))
+            ->orderBy('name', 'asc')
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/customers/Index', [
             'customers' => $customers,
-            'filters' => $request->only(['search']),
+            'filters' => $request->only(['search', 'tier', 'is_active']),
+            'tierOptions' => CustomerTier::options(),
         ]);
     }
 
@@ -102,6 +106,10 @@ class CustomerController extends Controller
         abort_if($user->is_admin, 403, 'Akun admin tidak dapat diedit dari halaman customer.');
 
         $data = $request->validated();
+
+        if (blank($data['password'] ?? null)) {
+            unset($data['password']);
+        }
 
         $user->update($data);
 

@@ -175,7 +175,7 @@ it('allows http images but strips non-http and event handlers from img', functio
 });
 
 it('uploads an inline article image to r2', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     $response = $this->actingAs($this->admin)
         ->post(route('admin.articles.upload-image'), [
@@ -189,7 +189,7 @@ it('uploads an inline article image to r2', function (): void {
     // Fake disk mengembalikan path lokal, bukan R2 URL asli — cukup pastikan
     // file tersimpan dan path mengarah ke folder article-images.
     expect($url)->toContain('article-images/')
-        ->and(Storage::disk('r2')->files('article-images'))->not->toBeEmpty();
+        ->and(Storage::disk('public')->files('article-images'))->not->toBeEmpty();
 });
 
 it('appends a suffix when the slug is already taken', function (): void {

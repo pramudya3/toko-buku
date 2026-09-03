@@ -9,8 +9,9 @@ defineOptions({
     },
 });
 
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, Link } from '@inertiajs/vue3';
 import {
+    ArrowLeft,
     ArrowRight,
     Ban,
     Check,
@@ -64,6 +65,11 @@ type OrderItem = {
     price_final: number;
     edition_snapshot: string | null;
     harga_beli_snapshot: number | null;
+    is_custom_price?: boolean;
+    custom_price?: number | null;
+    price_note?: string | null;
+    promo_id_snapshot?: string | null;
+    promoSnapshot?: { id: string; promo_name: string } | null;
     book: {
         id: string;
         judul: string;
@@ -235,6 +241,7 @@ function formatAddressBlock(data: {
 // ── Dialog Proses Order ──
 const processOpen = ref(false);
 const processCourier = ref(props.order.ekspedisi ?? '');
+const processWarehouse = ref(props.order.warehouse_origin ?? '');
 
 // ── Dialog Proses Kirim (input resi — pengiriman manual via ekspedisi) ──
 const shippingOpen = ref(false);
@@ -297,9 +304,19 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
 <template>
     <Head :title="`Order ${order.no_order}`" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 shrink-0"
+                    as-child
+                >
+                    <Link href="/admin/orders"
+                        ><ArrowLeft class="size-4"
+                    /></Link>
+                </Button>
                 <h1 class="text-xl font-semibold tracking-tight">
                     {{ order.no_order }}
                 </h1>
@@ -798,6 +815,11 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
                                             >
                                                 Pre-Order
                                             </span>
+                                            <span
+                                                v-if="item.is_custom_price"
+                                                class="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                                                >Insidentil</span
+                                            >
                                         </p>
                                         <p
                                             class="text-xs text-muted-foreground"
@@ -809,6 +831,19 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
                                             class="text-xs text-muted-foreground"
                                         >
                                             {{ item.edition_snapshot }}
+                                        </p>
+                                        <p
+                                            v-if="item.promoSnapshot"
+                                            class="text-xs font-medium text-primary"
+                                        >
+                                            Promo:
+                                            {{ item.promoSnapshot.promo_name }}
+                                        </p>
+                                        <p
+                                            v-if="item.price_note"
+                                            class="mt-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                                        >
+                                            {{ item.price_note }}
                                         </p>
                                     </TableCell>
                                     <TableCell>{{ item.qty }}</TableCell>
@@ -1025,7 +1060,7 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
                     </div>
                     <div class="grid gap-2">
                         <Label for="warehouse_origin">Gudang Asal *</Label>
-                        <Select name="warehouse_origin">
+                        <Select v-model="processWarehouse">
                             <SelectTrigger id="warehouse_origin">
                                 <SelectValue placeholder="Pilih gudang" />
                             </SelectTrigger>
@@ -1039,6 +1074,11 @@ const paymentLabel = computed(() => props.paymentMethods ?? {});
                                 </SelectItem>
                             </SelectContent>
                         </Select>
+                        <input
+                            type="hidden"
+                            name="warehouse_origin"
+                            :value="processWarehouse"
+                        />
                         <span
                             v-if="errors.warehouse_origin"
                             class="text-sm text-destructive"

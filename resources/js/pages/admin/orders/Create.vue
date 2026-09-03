@@ -11,6 +11,7 @@ defineOptions({
 
 import { Form, Head, Link, useHttp } from '@inertiajs/vue3';
 import {
+    ArrowLeft,
     CheckCircle2,
     Loader2,
     Minus,
@@ -27,6 +28,7 @@ import AddressFields from '@/components/AddressFields.vue';
 import type { AddressValue } from '@/components/AddressFields.vue';
 import BookPicker from '@/components/BookPicker.vue';
 import type { BookOption } from '@/components/BookPicker.vue';
+import CurrencyInput from '@/components/CurrencyInput.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FormErrorAlert from '@/components/FormErrorAlert.vue';
 import Money from '@/components/Money.vue';
@@ -51,6 +53,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { todayWIB } from '@/lib/date';
 import { index as indexRoute } from '@/routes/admin/orders';
 import {
     books as bookOptions,
@@ -82,6 +85,8 @@ type Book = {
         id: string;
         cetakan_ke: number;
         harga_jual: number;
+        harga_guru_type: string | null;
+        harga_guru_value: number | null;
         is_active: boolean;
     }[];
 };
@@ -90,12 +95,27 @@ type CartItem = {
     book: Book;
     qty: number;
     edition_id: string | null;
+    price_type: 'normal' | 'expired_promo' | 'custom';
+    promo_id: string | null;
+    custom_price: number | null;
+    price_note: string | null;
 };
 
 type TierDiscountRule = {
     tier: string;
     min_qty: number;
     discount_percent: number;
+};
+
+type ExpiredPromo = {
+    id: string;
+    promo_name: string;
+    promo_type: string;
+    discount_percentage: number | null;
+    promo_value: number | null;
+    end_date: string;
+    is_active: boolean;
+    books: { id: string }[];
 };
 
 const props = defineProps<{
@@ -105,6 +125,7 @@ const props = defineProps<{
     couriers: Record<string, string>;
     salesChannels: Record<string, string>;
     tierDiscounts: TierDiscountRule[];
+    expiredPromos: ExpiredPromo[];
 }>();
 
 const customerSearch = ref('');
@@ -132,6 +153,14 @@ const subtotal = computed(() =>
     cart.value.reduce((sum, item) => sum + itemPrice(item) * item.qty, 0),
 );
 
+// Subtotal untuk tampilan guru (sudah termasuk harga guru)
+const displaySubtotal = computed(() =>
+    cart.value.reduce(
+        (sum, item) => sum + itemDisplayPrice(item) * item.qty,
+        0,
+    ),
+);
+
 /**
  * Harga item mengikuti cetakan terpilih (fallback: harga buku).
  */
@@ -139,6 +168,134 @@ function itemPrice(item: CartItem): number {
     const edition = item.book.editions?.find((e) => e.id === item.edition_id);
 
     return edition?.harga_jual ?? item.book.harga;
+}
+
+/**
+ * Harga guru efektif untuk cetakan ini (null = tidak ada).
+ */
+function guruPriceForEdition(
+    edition:
+        | {
+              harga_jual: number;
+              harga_guru_type: string | null;
+              harga_guru_value: number | null;
+          }
+        | undefined,
+): number | null {
+    if (!edition || !edition.harga_guru_type || !edition.harga_guru_value) {
+        return null;
+    }
+
+    if (edition.harga_guru_type === 'percent') {
+        const p = Math.min(100, Math.max(1, Number(edition.harga_guru_value)));
+
+        return Math.floor((edition.harga_jual * (100 - p)) / 100);
+    }
+
+    if (edition.harga_guru_type === 'fixed') {
+        return Number(edition.harga_guru_value);
+    }
+
+    return null;
+}
+
+function guruPriceForItem(item: CartItem): number | null {
+    const edition = item.book.editions?.find((e) => e.id === item.edition_id);
+
+    return guruPriceForEdition(edition as any);
+}
+
+function expiredPromoForItem(item: CartItem): ExpiredPromo | null {
+    if (item.price_type !== 'expired_promo' || !item.promo_id) {
+        return null;
+    }
+
+    return props.expiredPromos.find((p) => p.id === item.promo_id) ?? null;
+}
+
+function itemDisplayPrice(item: CartItem): number {
+    // Custom insidentil paling prioritas
+    if (item.price_type === 'custom' && item.custom_price) {
+        return Number(item.custom_price);
+    }
+
+    if (item.price_type === 'expired_promo') {
+        const promo = expiredPromoForItem(item);
+
+        if (promo) {
+            const base =
+                (selectedTier.value === 'guru'
+                    ? guruPriceForItem(item)
+                    : null) ?? itemPrice(item);
+
+            if (
+                promo.promo_type === 'percentage' &&
+                promo.discount_percentage
+            ) {
+                return Math.floor(
+                    (base * (100 - promo.discount_percentage)) / 100,
+                );
+            }
+
+            if (promo.promo_type === 'fixed' && promo.promo_value) {
+                return Math.min(promo.promo_value, base);
+            }
+        }
+    }
+
+    if (selectedTier.value === 'guru') {
+        const guru = guruPriceForItem(item);
+
+        if (guru !== null) {
+            return guru;
+        }
+    }
+
+    return itemPrice(item);
+}
+
+function itemHasCustomPrice(item: CartItem): boolean {
+    return item.price_type === 'custom' || item.price_type === 'expired_promo';
+}
+
+function itemEffectiveHasDiscount(item: CartItem): boolean {
+    return itemDisplayPrice(item) < itemPrice(item);
+}
+
+function applicableExpiredPromos(book: Book): ExpiredPromo[] {
+    return props.expiredPromos.filter(
+        (p) => p.books.length === 0 || p.books.some((b) => b.id === book.id),
+    );
+}
+
+function onPriceTypeChange(item: CartItem, newType: string): void {
+    item.price_type = newType as CartItem['price_type'];
+
+    if (newType === 'expired_promo') {
+        item.custom_price = null;
+        const applicable = applicableExpiredPromos(item.book);
+        item.promo_id = applicable[0]?.id ?? null;
+
+        if (!item.price_note) {
+            item.price_note = applicable[0]?.promo_name
+                ? `Promo expired: ${applicable[0].promo_name}`
+                : '';
+        }
+    } else if (newType === 'custom') {
+        item.promo_id = null;
+
+        if (!item.custom_price) {
+            item.custom_price = itemPrice(item);
+        }
+
+        if (!item.price_note) {
+            item.price_note = '';
+        }
+    } else {
+        item.promo_id = null;
+        item.custom_price = null;
+        item.price_note = null;
+    }
 }
 
 /**
@@ -153,6 +310,22 @@ function tierDiscountPercent(tier: string, qty: number): number {
 }
 
 function itemTierDiscount(item: CartItem): number {
+    // Harga insidentil (custom / expired) tidak pakai diskon tier terpisah
+    if (itemHasCustomPrice(item)) {
+        return 0;
+    }
+
+    // Tier guru: diskon = harga normal - harga guru (per buku, bukan global)
+    if (selectedTier.value === 'guru') {
+        // const guruPrice = guruPriceForItem(item);
+
+        // if (guruPrice !== null) {
+        //     return Math.max(0, itemPrice(item) - guruPrice);
+        // }
+
+        return 0;
+    }
+
     const percent = tierDiscountPercent(selectedTier.value, item.qty);
 
     return Math.floor((itemPrice(item) * percent) / 100);
@@ -174,9 +347,15 @@ const tierDiscountTotal = computed(() =>
     cart.value.reduce((sum, item) => sum + itemTierDiscount(item), 0),
 );
 
+// Untuk guru harga sudah di-displayPrice, jadi total langsung displaySubtotal (tanpa diskon terpisah)
 const totalAfterTierDiscount = computed(() =>
-    Math.max(0, subtotal.value - tierDiscountTotal.value),
+    selectedTier.value === 'guru'
+        ? Math.max(0, displaySubtotal.value)
+        : Math.max(0, subtotal.value - tierDiscountTotal.value),
 );
+
+// Tanggal pesanan khusus admin — default hari ini (WIB), bisa backdate.
+const orderDate = ref(todayWIB());
 
 // ── Ongkir (RajaOngkir) — order manual ──
 type ShippingOption = {
@@ -363,6 +542,10 @@ function addToCart(book: Book) {
             book,
             qty: 1,
             edition_id: book.editions?.find((e) => e.is_active)?.id ?? null,
+            price_type: 'normal',
+            promo_id: null,
+            custom_price: null,
+            price_note: null,
         });
     }
 
@@ -471,8 +654,12 @@ const buyerAddressText = computed(() =>
 <template>
     <Head title="Buat Pesanan" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div>
+            <Button variant="ghost" size="icon" class="size-8 shrink-0" as-child
+                ><Link :href="indexRoute().url"
+                    ><ArrowLeft class="size-4" /></Link
+            ></Button>
             <h1 class="text-xl font-semibold tracking-tight">
                 Buat Pesanan Manual
             </h1>
@@ -646,6 +833,17 @@ const buyerAddressText = computed(() =>
                         </div>
 
                         <div class="grid gap-4 md:grid-cols-2">
+                            <div class="grid gap-2">
+                                <Label for="order_date">Tanggal Pesanan</Label>
+                                <Input
+                                    id="order_date"
+                                    name="order_date"
+                                    type="date"
+                                    v-model="orderDate"
+                                    :max="todayWIB()"
+                                    required
+                                />
+                            </div>
                             <div class="grid gap-2">
                                 <Label for="metode_bayar">Metode Bayar *</Label>
                                 <Select
@@ -890,7 +1088,7 @@ const buyerAddressText = computed(() =>
                             >Item Buku</CardTitle
                         >
                     </CardHeader>
-                    <CardContent class="flex flex-col gap-4">
+                    <CardContent class="flex min-h-[420px] flex-col gap-4">
                         <BookPicker
                             :base-url="bookOptions().url"
                             placeholder="Cari judul / SKU / penulis / penerjemah..."
@@ -928,7 +1126,9 @@ const buyerAddressText = computed(() =>
                                         >
                                             <th class="px-2 py-2"></th>
                                             <th class="px-4 py-2">Buku</th>
-                                            <th class="px-4 py-2">Harga</th>
+                                            <th class="min-w-[260px] px-4 py-2">
+                                                Harga
+                                            </th>
                                             <th class="px-4 py-2">Cetakan</th>
                                             <th class="px-4 py-2">Qty</th>
                                             <th class="px-4 py-2 text-right">
@@ -970,9 +1170,173 @@ const buyerAddressText = computed(() =>
                                                 </p>
                                             </td>
                                             <td class="px-4 py-2">
-                                                <Money
-                                                    :value="itemPrice(item)"
-                                                />
+                                                <div
+                                                    class="flex flex-col gap-1.5"
+                                                >
+                                                    <div class="flex flex-col">
+                                                        <template
+                                                            v-if="
+                                                                itemEffectiveHasDiscount(
+                                                                    item,
+                                                                )
+                                                            "
+                                                        >
+                                                            <Money
+                                                                :value="
+                                                                    itemDisplayPrice(
+                                                                        item,
+                                                                    )
+                                                                "
+                                                                class="font-semibold text-primary"
+                                                            />
+                                                            <Money
+                                                                :value="
+                                                                    itemPrice(
+                                                                        item,
+                                                                    )
+                                                                "
+                                                                class="text-xs text-muted-foreground line-through"
+                                                            />
+                                                        </template>
+                                                        <template v-else>
+                                                            <Money
+                                                                :value="
+                                                                    itemDisplayPrice(
+                                                                        item,
+                                                                    )
+                                                                "
+                                                            />
+                                                        </template>
+                                                    </div>
+                                                    <Select
+                                                        :model-value="
+                                                            item.price_type
+                                                        "
+                                                        @update:model-value="
+                                                            (v) =>
+                                                                onPriceTypeChange(
+                                                                    item,
+                                                                    v as string,
+                                                                )
+                                                        "
+                                                    >
+                                                        <SelectTrigger
+                                                            class="h-7 text-xs"
+                                                        >
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem
+                                                                value="normal"
+                                                                >Normal</SelectItem
+                                                            >
+                                                            <SelectItem
+                                                                value="expired_promo"
+                                                                >Promo
+                                                                Expired</SelectItem
+                                                            >
+                                                            <SelectItem
+                                                                value="custom"
+                                                                >Custom</SelectItem
+                                                            >
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <template
+                                                        v-if="
+                                                            item.price_type ===
+                                                            'expired_promo'
+                                                        "
+                                                    >
+                                                        <Select
+                                                            :model-value="
+                                                                item.promo_id ??
+                                                                undefined
+                                                            "
+                                                            @update:model-value="
+                                                                (v) =>
+                                                                    (item.promo_id =
+                                                                        v as string)
+                                                            "
+                                                        >
+                                                            <SelectTrigger
+                                                                class="h-7 text-xs"
+                                                            >
+                                                                <SelectValue
+                                                                    placeholder="Pilih promo"
+                                                                />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem
+                                                                    v-for="promo in applicableExpiredPromos(
+                                                                        item.book,
+                                                                    )"
+                                                                    :key="
+                                                                        promo.id
+                                                                    "
+                                                                    :value="
+                                                                        promo.id
+                                                                    "
+                                                                >
+                                                                    {{
+                                                                        promo.promo_name
+                                                                    }}
+                                                                    ({{
+                                                                        promo.discount_percentage ??
+                                                                        promo.promo_value
+                                                                    }}{{
+                                                                        promo.promo_type ===
+                                                                        'percentage'
+                                                                            ? '%'
+                                                                            : ''
+                                                                    }}
+                                                                    -
+                                                                    {{
+                                                                        promo.end_date
+                                                                    }})
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <Input
+                                                            v-model="
+                                                                item.price_note
+                                                            "
+                                                            placeholder="Keterangan (wajib)"
+                                                            class="h-7 text-xs"
+                                                        />
+                                                        <span
+                                                            v-if="
+                                                                !applicableExpiredPromos(
+                                                                    item.book,
+                                                                ).length
+                                                            "
+                                                            class="text-[10px] text-destructive"
+                                                            >Tidak ada promo
+                                                            expired untuk buku
+                                                            ini</span
+                                                        >
+                                                    </template>
+                                                    <template
+                                                        v-if="
+                                                            item.price_type ===
+                                                            'custom'
+                                                        "
+                                                    >
+                                                        <CurrencyInput
+                                                            v-model="
+                                                                item.custom_price
+                                                            "
+                                                            placeholder="Harga custom"
+                                                            input-class="h-7 text-xs"
+                                                        />
+                                                        <Input
+                                                            v-model="
+                                                                item.price_note
+                                                            "
+                                                            placeholder="Keterangan (wajib)"
+                                                            class="h-7 text-xs"
+                                                        />
+                                                    </template>
+                                                </div>
                                             </td>
                                             <td class="px-4 py-2">
                                                 <template
@@ -1088,6 +1452,30 @@ const buyerAddressText = computed(() =>
                                                     :name="`items[${index}][qty]`"
                                                     :value="item.qty"
                                                 />
+                                                <input
+                                                    type="hidden"
+                                                    :name="`items[${index}][price_type]`"
+                                                    :value="item.price_type"
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    :name="`items[${index}][promo_id]`"
+                                                    :value="item.promo_id ?? ''"
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    :name="`items[${index}][custom_price]`"
+                                                    :value="
+                                                        item.custom_price ?? ''
+                                                    "
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    :name="`items[${index}][price_note]`"
+                                                    :value="
+                                                        item.price_note ?? ''
+                                                    "
+                                                />
                                             </td>
                                             <td
                                                 class="px-4 py-2 text-right text-destructive tabular-nums"
@@ -1118,7 +1506,7 @@ const buyerAddressText = computed(() =>
                                             >
                                                 <Money
                                                     :value="
-                                                        itemPrice(item) *
+                                                        itemDisplayPrice(item) *
                                                         item.qty
                                                     "
                                                 />
@@ -1160,18 +1548,27 @@ const buyerAddressText = computed(() =>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-muted-foreground">Subtotal</span>
-                            <span class="tabular-nums"
-                                ><Money :value="subtotal"
-                            /></span>
+                            <span class="tabular-nums">
+                                <Money
+                                    :value="
+                                        selectedTier === 'guru'
+                                            ? displaySubtotal
+                                            : subtotal
+                                    "
+                                />
+                            </span>
                         </div>
                         <div
-                            v-if="tierDiscountTotal > 0"
+                            v-if="
+                                selectedTier !== 'guru' && tierDiscountTotal > 0
+                            "
                             class="flex justify-between text-destructive"
                         >
                             <span>Diskon tier ({{ selectedTier }})</span>
                             <span class="tabular-nums"
-                                >-<Money :value="tierDiscountTotal"
-                            /></span>
+                                >-
+                                <Money :value="tierDiscountTotal" />
+                            </span>
                         </div>
                         <div
                             v-if="selectedCourier && !isAmbil"
@@ -1182,17 +1579,17 @@ const buyerAddressText = computed(() =>
                                     selectedShippingOption?.courier_name
                                 }})</span
                             >
-                            <span class="tabular-nums"
-                                ><Money :value="shippingCost"
-                            /></span>
+                            <span class="tabular-nums">
+                                <Money :value="shippingCost" />
+                            </span>
                         </div>
                         <div
                             class="flex justify-between border-t pt-2 font-semibold"
                         >
                             <span>Total</span>
-                            <span class="tabular-nums"
-                                ><Money :value="totalWithShipping"
-                            /></span>
+                            <span class="tabular-nums">
+                                <Money :value="totalWithShipping" />
+                            </span>
                         </div>
                         <div class="mt-2 flex flex-col gap-2 border-t pt-3">
                             <Button
@@ -1278,17 +1675,17 @@ const buyerAddressText = computed(() =>
                                     selectedShippingOption?.courier_name
                                 }})</span
                             >
-                            <span class="tabular-nums"
-                                ><Money :value="shippingCost"
-                            /></span>
+                            <span class="tabular-nums">
+                                <Money :value="shippingCost" />
+                            </span>
                         </div>
                         <div
                             class="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 font-semibold"
                         >
                             <span>Total</span>
-                            <span class="tabular-nums"
-                                ><Money :value="totalWithShipping"
-                            /></span>
+                            <span class="tabular-nums">
+                                <Money :value="totalWithShipping" />
+                            </span>
                         </div>
                     </div>
 

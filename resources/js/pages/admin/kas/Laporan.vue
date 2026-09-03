@@ -30,7 +30,8 @@ type FlowRow = {
     entry_date: string;
     flow_type: string;
     description: string;
-    order: { no_order: string } | null;
+    kas_category?: string | null;
+    kas_sub_category?: string | null;
     amount: number;
 };
 
@@ -50,11 +51,11 @@ const props = defineProps<{
 }>();
 
 const columns: DataTableColumn[] = [
-    { key: 'entry_date', header: 'Tanggal' },
-    { key: 'flow_type', header: 'Tipe' },
+    { key: 'entry_date', header: 'Tanggal Pencatatan' },
+    { key: 'flow_type', header: 'Jenis Transaksi' },
     { key: 'description', header: 'Keterangan' },
-    { key: 'order', header: 'Order' },
-    { key: 'amount', header: 'Nominal', cellClass: 'text-right' },
+    { key: 'kategori', header: 'Kategori' },
+    { key: 'amount', header: 'Nominal', cellClass: 'text-right tabular-nums' },
 ];
 
 const allMonths = 'all';
@@ -63,7 +64,12 @@ const selectedMonth = ref(props.filters.bulan || allMonths);
 watch(selectedMonth, (value) => {
     router.get(
         laporanRoute().url,
-        { bulan: value === allMonths ? undefined : value },
+        {
+            bulan: value === allMonths ? undefined : value,
+            per_page:
+                new URLSearchParams(window.location.search).get('per_page') ||
+                undefined,
+        },
         { preserveState: true, replace: true },
     );
 });
@@ -72,22 +78,23 @@ watch(selectedMonth, (value) => {
 <template>
     <Head title="Laporan Kas" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
                     Laporan Kas
                 </h1>
                 <p class="text-sm text-muted-foreground">
-                    Arus kas per bulan atau keseluruhan
+                    Rekapitulasi arus kas per periode bulanan hingga
+                    keseluruhan.
                 </p>
             </div>
             <Select v-model="selectedMonth">
                 <SelectTrigger class="w-56">
-                    <SelectValue placeholder="Pilih bulan" />
+                    <SelectValue placeholder="Pilih periode" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem :value="allMonths">Keseluruhan</SelectItem>
+                    <SelectItem :value="allMonths">Semua Periode</SelectItem>
                     <SelectItem
                         v-for="month in monthOptions"
                         :key="month.value"
@@ -104,7 +111,7 @@ watch(selectedMonth, (value) => {
                 <CardContent class="flex items-center gap-3 p-4 text-sm">
                     <ArrowDownCircle class="size-5 shrink-0 text-green-600" />
                     <div>
-                        <p class="text-muted-foreground">Uang Masuk</p>
+                        <p class="text-muted-foreground">Pemasukan</p>
                         <p class="text-lg font-semibold">
                             <Money :value="summary.inflow" />
                         </p>
@@ -115,7 +122,7 @@ watch(selectedMonth, (value) => {
                 <CardContent class="flex items-center gap-3 p-4 text-sm">
                     <ArrowUpCircle class="size-5 shrink-0 text-destructive" />
                     <div>
-                        <p class="text-muted-foreground">Uang Keluar</p>
+                        <p class="text-muted-foreground">Pengeluaran</p>
                         <p class="text-lg font-semibold">
                             <Money :value="summary.outflow" />
                         </p>
@@ -157,10 +164,16 @@ watch(selectedMonth, (value) => {
                     <template #cell-flow_type="{ row }">
                         {{ flowOptions[row.flow_type] ?? row.flow_type }}
                     </template>
-                    <template #cell-order="{ row }">
-                        <span class="font-mono">
-                            {{ row.order?.no_order ?? '—' }}
-                        </span>
+                    <template #cell-kategori="{ row }">
+                        <span class="text-sm">{{
+                            (row as FlowRow).kas_category ?? '—'
+                        }}</span>
+                        <span
+                            v-if="(row as FlowRow).kas_sub_category"
+                            class="text-xs text-muted-foreground"
+                        >
+                            / {{ (row as FlowRow).kas_sub_category }}</span
+                        >
                     </template>
                     <template #cell-amount="{ row }">
                         <span

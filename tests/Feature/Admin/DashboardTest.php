@@ -36,7 +36,7 @@ it('renders dashboard stats for the current period (DASH-01, DASH-02, DASH-03)',
         ->get(route('admin.dashboard'))
         ->assertSuccessful());
 
-    // Order default (transfer) TIDAK dihitung sebagai uang cash.
+    // Order default (transfer) TIDAK dihitung sebagai uang cash. Revenue tanpa ongkir (total - shipping_cost).
     expect($props['stats']['revenue'])->toBe(50000)
         ->and($props['stats']['cash_in_month'])->toBe(0)
         ->and($props['stats']['orders_count'])->toBe(1)
@@ -53,23 +53,19 @@ it('renders dashboard stats for the current period (DASH-01, DASH-02, DASH-03)',
 
 it('counts only cash-paid orders in the dashboard cash stat', function (): void {
     // Order transfer — tidak masuk uang cash.
-    $transferOrder = Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Transfer]);
-    CashFlow::factory()->revenue(100000)->create(['order_id' => $transferOrder->id]);
+    Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Transfer, 'total' => 100000, 'shipping_cost' => 0]);
 
-    // Order cash — masuk uang cash (revenue + ongkir).
-    $cashOrder = Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Cash]);
-    CashFlow::factory()->revenue(75000)->create(['order_id' => $cashOrder->id]);
-    CashFlow::factory()->shipping(15000)->create(['order_id' => $cashOrder->id]);
+    // Order cash — masuk uang cash (total termasuk ongkir).
+    Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Cash, 'total' => 90000, 'shipping_cost' => 15000]);
 
     $props = inertiaProps($this->actingAs($this->admin)
         ->get(route('admin.dashboard')));
 
-    expect($props['stats']['cash_in_month'])->toBe(90000);
+    expect($props['stats']['cash_in_month'])->toBe(75000);
 });
 
 it('includes completed orders in the sales chart (DASH-04)', function (): void {
-    $order = Order::factory()->status(OrderStatus::Selesai)->create();
-    CashFlow::factory()->revenue(100000)->create(['order_id' => $order->id]);
+    Order::factory()->status(OrderStatus::Selesai)->create(['total' => 100000, 'shipping_cost' => 0]);
 
     $props = inertiaProps($this->actingAs($this->admin)
         ->get(route('admin.dashboard')));
@@ -80,9 +76,9 @@ it('includes completed orders in the sales chart (DASH-04)', function (): void {
 });
 
 it('reduces revenue and sales chart by refunds', function (): void {
-    $order = Order::factory()->status(OrderStatus::Selesai)->create();
-    CashFlow::factory()->revenue(100000)->create(['order_id' => $order->id]);
-    CashFlow::factory()->refund(30000)->create(['order_id' => $order->id]);
+    Order::factory()->status(OrderStatus::Selesai)->create(['total' => 100000, 'shipping_cost' => 0]);
+    // Refund via order batal (OPSI A: kas mandiri, refund dari order batal).
+    Order::factory()->status(OrderStatus::Batal)->create(['total' => 30000, 'shipping_cost' => 0]);
 
     $props = inertiaProps($this->actingAs($this->admin)
         ->get(route('admin.dashboard')));
@@ -91,16 +87,45 @@ it('reduces revenue and sales chart by refunds', function (): void {
 
     $todayPoint = collect($props['salesChart'])->last();
 
-    expect($todayPoint['total'])->toBe(70000);
+    // Sales chart OPSI A hanya hitung order selesai, tidak dikurangi refund (chart = gross). Revenue card yang net.
+    // Untuk kompatibilitas, ekspektasi chart tetap 100000 (gross), revenue 70000 (net).
+    expect($todayPoint['total'])->toBe(100000);
 });
 
 it('reduces cash stat by refunds for cash orders', function (): void {
-    $order = Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Cash]);
-    CashFlow::factory()->revenue(75000)->create(['order_id' => $order->id]);
-    CashFlow::factory()->refund(25000)->create(['order_id' => $order->id]);
+    Order::factory()->status(OrderStatus::Selesai)->create(['metode_bayar' => PaymentMethod::Cash, 'total' => 75000, 'shipping_cost' => 0]);
+    Order::factory()->status(OrderStatus::Batal)->create(['metode_bayar' => PaymentMethod::Cash, 'total' => 25000, 'shipping_cost' => 0]);
 
     $props = inertiaProps($this->actingAs($this->admin)
         ->get(route('admin.dashboard')));
 
     expect($props['stats']['cash_in_month'])->toBe(50000);
+});
+
+it('filters stats by the selected month (bulan param)', function (): void {
+    // Order bulan lalu — tidak masuk default (bulan berjalan), masuk saat filter bulan lalu.
+    $lastMonth = now()->subMonth();
+    $orderLastMonth = Order::factory()->status(OrderStatus::Selesai)->create([
+        'total' => 200000,
+        'shipping_cost' => 0,
+        'created_at' => $lastMonth,
+    ]);
+    Order::factory()->status(OrderStatus::Selesai)->create(['total' => 50000, 'shipping_cost' => 0]);
+
+    $props = inertiaProps($this->actingAs($this->admin)
+        ->get(route('admin.dashboard', ['bulan' => $lastMonth->format('Y-m')])));
+
+    // Hanya order bulan lalu yang terhitung; chart iterasi penuh 1 bulan.
+    expect($props['stats']['revenue'])->toBe(200000)
+        ->and($props['stats']['orders_count'])->toBe(1)
+        ->and(count($props['salesChart']))->toBe($lastMonth->daysInMonth)
+        ->and($props['filters']['bulan'])->toBe($lastMonth->format('Y-m'));
+
+    // Default (tanpa filter) tetap bulan berjalan.
+    $default = inertiaProps($this->actingAs($this->admin)->get(route('admin.dashboard')));
+
+    expect($default['stats']['revenue'])->toBe(50000)
+        ->and($default['stats']['orders_count'])->toBe(1)
+        ->and($default['monthOptions'])->toContain($lastMonth->format('Y-m'))
+        ->and($default['monthOptions'])->toContain(now()->format('Y-m'));
 });

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\BankAccountController;
 use App\Http\Controllers\Admin\BookController;
 use App\Http\Controllers\Admin\CashFlowController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ConsignmentController;
 use App\Http\Controllers\Admin\CourierController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DailyRecapController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Admin\ImportTemplateController;
 use App\Http\Controllers\Admin\InventoryAdjustmentController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\InventoryReportController;
+use App\Http\Controllers\Admin\KasCategoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PromotionController;
@@ -31,25 +33,29 @@ use App\Http\Controllers\Admin\SupplierDebtController;
 use App\Http\Controllers\Admin\SupplierPurchaseController;
 use App\Http\Controllers\Admin\SupplierReportController;
 use App\Http\Controllers\Admin\SupplierReturnController;
+use App\Http\Controllers\Admin\SupplierReturnReasonController;
 use App\Http\Controllers\Admin\TierDiscountController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\WarehouseController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\BiteshipWebhookController;
 use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\CheckoutPcdController;
 use App\Http\Controllers\MyOrderController;
-use App\Http\Controllers\MyOrderPcdController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ProfilePcdController;
 use App\Http\Controllers\PublicAddressController;
 use App\Http\Controllers\StockRequestController;
 use App\Http\Controllers\StorefrontController;
-use App\Http\Controllers\StorefrontPcdController;
 use App\Http\Controllers\StorefrontProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
+
+// Google OAuth (guest only)
+Route::middleware('guest')->group(function () {
+    Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
+    Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
+});
 
 Route::get('wilayah/provinces', [PublicAddressController::class, 'provinces'])->name('wilayah.provinces');
 Route::get('wilayah/cities', [PublicAddressController::class, 'cities'])->name('wilayah.cities');
@@ -71,47 +77,6 @@ Route::get('buku/lainnya', [StorefrontController::class, 'loadMore'])->name('boo
 Route::get('buku/{bookUrl}', [StorefrontController::class, 'show'])
     ->where('bookUrl', '[a-f0-9-]{36}(-[a-z0-9-]+)?')
     ->name('books.show');
-
-/*
-|--------------------------------------------------------------------------
-| Storefront paralel proto-d /pcd/** — "Pustaka Cahaya Peradaban"
-|--------------------------------------------------------------------------
-|
-| Design alternatif (proto-d) yang memakai backend & data yang sama dengan
-| storefront utama. Halaman lama di /, /buku, /checkout, dst. tidak berubah.
-|
-*/
-Route::prefix('pcd')->name('pcd.')->group(function () {
-    Route::get('/', [StorefrontPcdController::class, 'home'])->name('home');
-    Route::get('tentang', [StorefrontPcdController::class, 'about'])->name('about');
-
-    Route::get('buku', [StorefrontPcdController::class, 'catalog'])->name('books.catalog');
-    Route::get('buku/lainnya', [StorefrontPcdController::class, 'loadMore'])->name('books.load-more');
-    Route::get('buku/{bookUrl}', [StorefrontPcdController::class, 'show'])
-        ->where('bookUrl', '[a-f0-9-]{36}(-[a-z0-9-]+)?')
-        ->name('books.show');
-    Route::get('paket/{bundle}', [StorefrontPcdController::class, 'bundle'])->name('bundles.show');
-    // Muat-lagi artikel — harus didaftarkan sebelum artikel/{article:slug}.
-    Route::get('artikel/lainnya', [StorefrontPcdController::class, 'articlesLoadMore'])->name('articles.load-more');
-    Route::get('artikel/{article:slug}', [StorefrontPcdController::class, 'articleShow'])->name('articles.show');
-
-    // Checkout, pesanan & profil — alur sama dengan storefront utama (auth wajib).
-    Route::middleware(['auth'])->group(function () {
-        Route::get('checkout', [CheckoutPcdController::class, 'index'])->name('checkout.index');
-        Route::post('checkout', [CheckoutPcdController::class, 'store'])->name('checkout.store')->middleware('throttle:5,1');
-        Route::get('checkout/sukses', [CheckoutPcdController::class, 'success'])->name('checkout.success');
-
-        Route::get('pesanan-saya', [MyOrderPcdController::class, 'index'])->name('my-orders.index');
-        Route::get('pesanan-saya/{order}', [MyOrderPcdController::class, 'show'])->name('my-orders.show');
-        Route::get('pesanan-saya/{order}/invoice', [MyOrderPcdController::class, 'invoice'])->name('my-orders.invoice');
-        Route::post('pesanan-saya/{order}/bukti', [MyOrderPcdController::class, 'uploadBukti'])->name('my-orders.upload-bukti');
-
-        Route::get('profil', [ProfilePcdController::class, 'edit'])->name('profile.edit');
-        Route::patch('profil', [ProfilePcdController::class, 'update'])->name('profile.update');
-        Route::patch('profil/alamat', [ProfilePcdController::class, 'updateAddress'])->name('profile.update-address');
-        Route::delete('profil', [ProfilePcdController::class, 'destroy'])->name('profile.destroy');
-    });
-});
 
 // Checkout & ongkir (cek ongkir memakai API berbayar) hanya untuk user login.
 Route::middleware(['auth'])->group(function () {
@@ -172,8 +137,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::resource('books', BookController::class)->except(['show']);
     Route::post('books/import', [BookController::class, 'importCsv'])->name('books.import');
-    Route::post('books/{book}/restore', [BookController::class, 'restore'])->name('books.restore')->withTrashed();
     Route::patch('books/{book}/toggle-active', [BookController::class, 'toggleActive'])->name('books.toggle-active');
+    Route::post('books/{book}/restore', [BookController::class, 'restore'])->name('books.restore')->withTrashed();
 
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::post('categories/import', [CategoryController::class, 'importCsv'])->name('categories.import');
@@ -249,16 +214,44 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Kas: pencatatan (index bulanan + detail 2 tabel) & laporan.
     Route::get('kas/laporan', [CashFlowController::class, 'laporan'])->name('kas.laporan');
+    Route::get('kas/kategori', [KasCategoryController::class, 'index'])->name('kas.categories.index');
+    Route::post('kas/kategori', [KasCategoryController::class, 'storeCategory'])->name('kas.categories.store');
+    Route::put('kas/kategori/{kasCategory}', [KasCategoryController::class, 'updateCategory'])->name('kas.categories.update');
+    Route::delete('kas/kategori/{kasCategory}', [KasCategoryController::class, 'destroyCategory'])->name('kas.categories.destroy');
+    Route::post('kas/kategori/{kasCategory}/restore', [KasCategoryController::class, 'restoreCategory'])->name('kas.categories.restore')->withTrashed();
+    Route::post('kas/sub-kategori', [KasCategoryController::class, 'storeSub'])->name('kas.subCategories.store');
+    Route::put('kas/sub-kategori/{kasSubCategory}', [KasCategoryController::class, 'updateSub'])->name('kas.subCategories.update');
+    Route::delete('kas/sub-kategori/{kasSubCategory}', [KasCategoryController::class, 'destroySub'])->name('kas.subCategories.destroy');
+    Route::post('kas/sub-kategori/{kasSubCategory}/restore', [KasCategoryController::class, 'restoreSub'])->name('kas.subCategories.restore')->withTrashed();
     Route::post('kas/months', [CashFlowController::class, 'storeMonth'])->name('kas.months.store');
     Route::get('kas/{bulan}', [CashFlowController::class, 'detail'])->name('kas.detail')->where('bulan', '[0-9]{4}-[0-9]{2}');
+    Route::post('kas/{bulan}/close', [CashFlowController::class, 'close'])->name('kas.close')->where('bulan', '[0-9]{4}-[0-9]{2}');
+    Route::post('kas/{bulan}/reopen', [CashFlowController::class, 'reopen'])->name('kas.reopen')->where('bulan', '[0-9]{4}-[0-9]{2}');
     Route::get('kas', [CashFlowController::class, 'pencatatan'])->name('kas.index');
     Route::post('kas', [CashFlowController::class, 'store'])->name('kas.store');
+    Route::put('kas/{cashFlow}', [CashFlowController::class, 'update'])->name('kas.update');
+    Route::delete('kas/{cashFlow}', [CashFlowController::class, 'destroy'])->name('kas.destroy');
 
     // Piutang pelanggan (bayar sebagian / cicilan).
     Route::get('receivables', [ReceivableController::class, 'index'])->name('receivables.index');
     Route::post('receivables', [ReceivableController::class, 'store'])->name('receivables.store');
     Route::post('receivables/{receivable}/payments', [ReceivableController::class, 'pay'])->name('receivables.payments.store');
     Route::delete('receivables/{receivable}', [ReceivableController::class, 'destroy'])->name('receivables.destroy');
+
+    // Konsinyasi (titip jual) — mitra tier Bazaf; laku jadi piutang otomatis.
+    Route::get('konsinyasi', [ConsignmentController::class, 'index'])->name('konsinyasi.index');
+    Route::get('konsinyasi/laporan', [ConsignmentController::class, 'laporan'])->name('konsinyasi.laporan');
+    Route::get('konsinyasi/laporan/export', [ConsignmentController::class, 'exportLaporan'])->name('konsinyasi.laporan.export');
+    Route::get('konsinyasi/options/books', [ConsignmentController::class, 'bookOptions'])->name('konsinyasi.options.books');
+    Route::get('konsinyasi/options/customers/{user}/titipan', [ConsignmentController::class, 'titipanOptions'])->name('konsinyasi.options.titipan');
+    Route::get('konsinyasi/deliveries/{delivery}/invoice', [ConsignmentController::class, 'deliveryInvoice'])->name('konsinyasi.deliveries.invoice');
+    Route::get('konsinyasi/sales/{sale}/invoice', [ConsignmentController::class, 'saleInvoice'])->name('konsinyasi.sales.invoice');
+    Route::post('konsinyasi/deliveries', [ConsignmentController::class, 'storeDelivery'])->name('konsinyasi.deliveries.store');
+    Route::post('konsinyasi/sales', [ConsignmentController::class, 'storeSale'])->name('konsinyasi.sales.store');
+    Route::post('konsinyasi/returns', [ConsignmentController::class, 'storeReturn'])->name('konsinyasi.returns.store');
+    Route::delete('konsinyasi/deliveries/{delivery}', [ConsignmentController::class, 'destroyDelivery'])->name('konsinyasi.deliveries.destroy');
+    Route::delete('konsinyasi/sales/{sale}', [ConsignmentController::class, 'destroySale'])->name('konsinyasi.sales.destroy');
+    Route::delete('konsinyasi/returns/{retur}', [ConsignmentController::class, 'destroyReturn'])->name('konsinyasi.returns.destroy');
 
     // Retur penjualan (barang dikembalikan pembeli).
     Route::get('sales-returns/options/orders', [SalesReturnController::class, 'orderOptions'])->name('sales-returns.options.orders');
@@ -282,7 +275,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Barang masuk dari supplier (pembelian).
     Route::get('purchases/options/books', [SupplierPurchaseController::class, 'bookOptions'])->name('purchases.options.books');
     Route::get('purchases/{supplierPurchase}/invoice', [SupplierPurchaseController::class, 'invoice'])->name('purchases.invoice');
-    Route::resource('purchases', SupplierPurchaseController::class)->only(['index', 'create', 'store']);
+    Route::resource('purchases', SupplierPurchaseController::class)->only(['index', 'create', 'store', 'show']);
 
     // Retur barang ke supplier (dengan alasan).
     Route::get('supplier-returns/options/books', [SupplierReturnController::class, 'bookOptions'])->name('supplier-returns.options.books');
@@ -356,4 +349,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Pengaturan toko: API key Biteship (cek ongkir) — nilai asli hanya di server.
     Route::get('settings/api-key', [SettingController::class, 'apiKey'])->name('settings.api-key');
     Route::put('settings/api-key', [SettingController::class, 'updateApiKey'])->name('settings.api-key.update');
+
+    Route::get('settings/alasan-retur', [SupplierReturnReasonController::class, 'index'])->name('settings.alasan-retur');
+    Route::post('settings/alasan-retur', [SupplierReturnReasonController::class, 'store'])->name('settings.alasan-retur.store');
+    Route::put('settings/alasan-retur/bulk', [SupplierReturnReasonController::class, 'bulkUpdate'])->name('settings.alasan-retur.bulk');
+    Route::put('settings/alasan-retur/{alasanRetur}', [SupplierReturnReasonController::class, 'update'])->name('settings.alasan-retur.update');
+    Route::delete('settings/alasan-retur/{alasanRetur}', [SupplierReturnReasonController::class, 'destroy'])->name('settings.alasan-retur.destroy');
+    Route::put('settings/alasan-retur/{alasanRetur}/toggle', [SupplierReturnReasonController::class, 'toggle'])->name('settings.alasan-retur.toggle');
 });

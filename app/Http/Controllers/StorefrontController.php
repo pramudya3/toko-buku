@@ -17,10 +17,12 @@ use App\Models\StockRequest;
 use App\Models\Voucher;
 use App\Services\PricingService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,10 +36,6 @@ class StorefrontController extends Controller
         protected readonly PricingService $pricing,
     ) {}
 
-    /**
-     * Nama komponen Inertia yang dirender — subclass storefront (mis. proto-d)
-     * menimpa ini untuk memakai data yang sama dengan halaman berbeda.
-     */
     protected function page(string $name): string
     {
         return "storefront/{$name}";
@@ -55,7 +53,7 @@ class StorefrontController extends Controller
      */
     protected function articleFeedQuery(Request $request): Builder
     {
-        return Article::published()
+        return Article::query()->published()
             ->with('category:id,nama')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
@@ -86,9 +84,11 @@ class StorefrontController extends Controller
      */
     protected function articleFacets(): array
     {
-        return Cache::remember('storefront.article_facets', 3600, function (): array {
+        return Cache::flexible('storefront.article_facets', [3600, 7200], function (): array {
             $articleCategories = ArticleCategory::query()
-                ->withCount(['articles' => fn (Builder $query) => $query->published()])
+                ->withCount(['articles' => fn (Builder $query) => $query->where('is_active', true)->where(function (Builder $q): void {
+                    $q->whereNull('published_at')->orWhereDate('published_at', '<=', today());
+                })])
                 ->orderBy('nama')
                 ->get(['id', 'nama'])
                 ->map(fn (ArticleCategory $category): array => [
@@ -98,26 +98,28 @@ class StorefrontController extends Controller
                 ])
                 ->all();
 
-            $dateFacets = Article::published()
-                ->whereNotNull('published_at')
-                ->pluck('published_at')
-                ->map(fn (string $date): array => [
-                    'year' => (int) substr($date, 0, 4),
-                    'month' => (int) substr($date, 5, 2),
-                ])
-                ->countBy(fn (array $ym): string => $ym['year'].'-'.$ym['month'])
-                ->map(function (int $count, string $ym): array {
-                    [$year, $month] = explode('-', $ym);
+            // DB-side aggregation — avoid pluck + collection countBy on large tables.
+            $driver = DB::getDriverName();
+            $isSqlite = $driver === 'sqlite';
 
-                    return [
-                        'year' => (int) $year,
-                        'month' => (int) $month,
-                        'count' => $count,
-                    ];
-                })
-                ->sortByDesc(fn (array $facet): string => $facet['year'].'-'.str_pad((string) $facet['month'], 2, '0', STR_PAD_LEFT))
-                ->values()
-                ->all();
+            $dateFacetsQuery = Article::query()->published()
+                ->whereNotNull('published_at')
+                ->selectRaw($isSqlite
+                    ? "CAST(strftime('%Y', published_at) AS INTEGER) as year, CAST(strftime('%m', published_at) AS INTEGER) as month, COUNT(*) as count"
+                    : 'YEAR(published_at) as year, MONTH(published_at) as month, COUNT(*) as count'
+                )
+                ->groupByRaw($isSqlite ? "strftime('%Y-%m', published_at)" : 'YEAR(published_at), MONTH(published_at)')
+                ->orderByDesc('year')
+                ->orderByDesc('month');
+
+            $dateFacets = $dateFacetsQuery->get()->map(function ($row): array {
+                /** @var object{year: int, month: int, count: int} $row */
+                return [
+                    'year' => (int) $row->year,
+                    'month' => (int) $row->month,
+                    'count' => (int) $row->count,
+                ];
+            })->all();
 
             return compact('articleCategories', 'dateFacets');
         });
@@ -137,14 +139,14 @@ class StorefrontController extends Controller
         $filtered = $request->filled('search') || $request->filled('category_id');
 
         // Saat ada filter pencarian/kategori, hero unggulan disembunyikan
-        // agar hasil pencarian fokus (konsisten dengan beranda proto-d /pcd).
+        // agar hasil pencarian fokus.
         $featured = $filtered ? null : $this->featuredArticle();
 
         // 5 artikel terbaru upload (created_at desc) — tanpa unggulan.
         // Saat ada filter pencarian/kategori, section "Terbaru" disembunyikan
         // dan feed menampilkan SEMUA artikel yang cocok (tanpa eksklusi terbaru).
         $recentModels = ! $filtered
-            ? Article::published()
+            ? Article::query()->published()
                 ->with('category:id,nama')
                 ->when($featured, fn (Builder $query) => $query->whereKeyNot($featured['id']))
                 ->orderByDesc('created_at')
@@ -162,12 +164,19 @@ class StorefrontController extends Controller
         // pencarian/kategori dari query bila ada.
         $articles = $this->homeFeedQuery($request)->paginate(6)->withQueryString();
 
+        // Buku di beranda: saat pencarian aktif → hasil pencarian buku (judul/penulis)
+        // agar filter menampilkan artikel DAN buku. Di toko (/buku) hanya buku —
+        // sudah ditangani di Catalog. Tanpa pencarian → buku pilihan (iklan).
+        $books = $request->filled('search')
+            ? $this->searchBooksForHome($request->string('search')->toString())
+            : $this->featuredBooksForStorefront();
+
         return Inertia::render($this->page('Home'), [
             'featured' => $featured,
             'recent' => $recent,
             'articles' => $articles->through(fn (Article $article): array => $this->articleCard($article)),
             'categories' => $this->articleCategoriesForStorefront(),
-            'books' => $this->featuredBooksForStorefront(),
+            'books' => $books,
             'filters' => $request->only(['search', 'category_id']),
             'tagline' => Setting::get('store_tagline') ?: 'Pustaka Cahaya Peradaban',
         ]);
@@ -182,14 +191,14 @@ class StorefrontController extends Controller
      */
     protected function featuredArticle(): ?array
     {
-        $article = Article::published()
+        $article = Article::query()->published()
             ->featured()
             ->orderByDesc('created_at')
             ->with('category:id,nama')
             ->first();
 
         if ($article === null) {
-            $article = Article::published()
+            $article = Article::query()->published()
                 ->with('category:id,nama')
                 ->orderByDesc('created_at')
                 ->first();
@@ -206,7 +215,7 @@ class StorefrontController extends Controller
      */
     protected function homeFeedQuery(Request $request): Builder
     {
-        return Article::published()
+        return Article::query()->published()
             ->with('category:id,nama')
             ->orderByDesc('created_at')
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
@@ -243,9 +252,11 @@ class StorefrontController extends Controller
      */
     protected function articleCategoriesForStorefront(): array
     {
-        return Cache::remember('storefront.article_categories', 3600, function (): array {
+        return Cache::flexible('storefront.article_categories', [3600, 7200], function (): array {
             return ArticleCategory::query()
-                ->withCount(['articles' => fn (Builder $query) => $query->published()])
+                ->withCount(['articles' => fn (Builder $query) => $query->where('is_active', true)->where(function (Builder $q): void {
+                    $q->whereNull('published_at')->orWhereDate('published_at', '<=', today());
+                })])
                 ->get(['id', 'slug', 'nama'])
                 ->map(fn (ArticleCategory $category): array => [
                     'id' => $category->id,
@@ -354,7 +365,7 @@ class StorefrontController extends Controller
         return Book::query()
             ->where('aktif', true)
             ->whereNotNull('harga')
-            ->with('category:id,nama')
+            ->with(['category:id,nama', 'activeEdition'])
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = $request->string('search')->toString();
 
@@ -433,7 +444,7 @@ class StorefrontController extends Controller
      */
     public function articleShow(Article $article): Response
     {
-        abort_unless(Article::published()->whereKey($article->getKey())->exists(), 404);
+        abort_unless(Article::query()->published()->whereKey($article->getKey())->exists(), 404);
 
         $article->load('category:id,nama');
 
@@ -464,12 +475,41 @@ class StorefrontController extends Controller
         $books = Book::query()
             ->where('aktif', true)
             ->whereNotNull('harga')
-            ->with('category:id,nama')
+            ->with(['category:id,nama', 'activeEdition'])
             ->orderByDesc('created_at')
             ->limit(10)
             ->get();
 
         $bookPromos = $this->eagerLoadPromotions($books->pluck('id'));
+
+        return $books->map(
+            fn (Book $book) => $this->bookWithPricing($book, $bookPromos[$book->id] ?? null),
+        )->values()->all();
+    }
+
+    /**
+     * Buku untuk beranda saat pencarian aktif — filter judul/penulis.
+     * Dipakai agar pencarian di beranda menampilkan artikel DAN buku,
+     * sedangkan di /buku (toko) hanya buku.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function searchBooksForHome(string $search, int $limit = 10): array
+    {
+        $books = Book::query()
+            ->where('aktif', true)
+            ->whereNotNull('harga')
+            ->with(['category:id,nama', 'activeEdition'])
+            ->where(function (Builder $query) use ($search): void {
+                $query->whereLike('judul', "%{$search}%")
+                    ->orWhereLike('penulis', "%{$search}%");
+            })
+            ->orderBy('judul')
+            ->limit($limit)
+            ->get();
+
+        $bookIds = $books->pluck('id');
+        $bookPromos = $this->eagerLoadPromotions($bookIds);
 
         return $books->map(
             fn (Book $book) => $this->bookWithPricing($book, $bookPromos[$book->id] ?? null),
@@ -558,7 +598,7 @@ class StorefrontController extends Controller
             ->where('is_active', true)
             ->whereDate('start_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
-            ->with('books:id,judul,cover_url,harga,stok')
+            ->with('books:id,judul,cover_url,harga,stok,is_preorder')
             ->orderByDesc('id')
             ->get();
 
@@ -570,16 +610,24 @@ class StorefrontController extends Controller
                 'promo_name' => $promo->promo_name,
                 'discount_percent' => $breakdown['discount_percent'],
                 'books' => collect($breakdown['items'])
-                    ->map(fn (array $item): array => [
-                        'id' => $item['book']->id,
-                        'judul' => $item['book']->judul,
-                        'cover_url' => $item['book']->cover_url,
-                        'price_original' => $item['book']->harga,
-                        'unit_price' => $item['unit_price'],
-                        'unit_discount' => $item['unit_discount'],
-                        'unit_final' => $item['unit_final'],
-                        'stok' => (int) $item['book']->stok,
-                    ])
+                    ->map(function (array $item): array {
+                        $stok = (int) $item['book']->stok;
+                        $isPreorder = (bool) ($item['book']->is_preorder ?? false);
+                        $status = $this->resolveStockStatus($stok, $isPreorder);
+
+                        return [
+                            'id' => $item['book']->id,
+                            'judul' => $item['book']->judul,
+                            'cover_url' => $item['book']->cover_url,
+                            'price_original' => $item['book']->harga,
+                            'unit_price' => $item['unit_price'],
+                            'unit_discount' => $item['unit_discount'],
+                            'unit_final' => $item['unit_final'],
+                            'stok' => $stok,
+                            'stock_status' => $status,
+                            'stock_label' => $this->stockLabel($status),
+                        ];
+                    })
                     ->values()
                     ->all(),
                 'total_original' => $breakdown['total_original'],
@@ -641,16 +689,24 @@ class StorefrontController extends Controller
      */
     protected function promoBookWithPricing(Book $book, Promotion $promo): array
     {
-        $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1);
+        $tier = auth()->user()?->status_pelanggan;
+        $edition = $book->relationLoaded('activeEdition') ? $book->getRelation('activeEdition') : $book->activeEdition;
+        if ($edition instanceof HasOne) {
+            $edition = $edition->first();
+        }
+        $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1, $tier, $edition);
+
+        $hasDiscount = $breakdown->finalPrice < $breakdown->originalPrice;
 
         return [
             'id' => $book->id,
             'judul' => $book->judul,
             'cover_url' => $book->cover_url,
             'harga' => $book->harga,
-            'price_breakdown' => $breakdown->promoDiscount > 0 ? [
+            'price_breakdown' => $hasDiscount ? [
                 'original_price' => $breakdown->originalPrice,
                 'promo_discount' => $breakdown->promoDiscount,
+                'tier_discount' => $breakdown->tierDiscount,
                 'final_price' => $breakdown->finalPrice,
                 'promo_name' => $breakdown->promoName,
             ] : null,
@@ -700,24 +756,74 @@ class StorefrontController extends Controller
     }
 
     /**
-     * Ubah model Book jadi array + tambahkan price_breakdown.
+     * Ubah model Book jadi array + tambahkan price_breakdown & status stok.
+     *
+     * Status stok dihitung server-side dari config/pricing.php agar frontend
+     * tidak menduplikasi threshold & tidak perlu menampilkan angka stok mentah.
+     * Mendukung tier Guru: harga guru (per cetakan) + promo di atasnya, dengan
+     * harga asli coret.
      *
      * @return array<string, mixed>
      */
     protected function bookWithPricing(Book $book, ?Promotion $promo): array
     {
-        $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1);
+        $tier = auth()->user()?->status_pelanggan;
+        $edition = null;
+        if ($book->relationLoaded('activeEdition')) {
+            $edition = $book->getRelation('activeEdition');
+        } elseif ($book->relationLoaded('editions')) {
+            $edition = $book->getRelation('editions')->firstWhere('is_active', true) ?? $book->getRelation('editions')->first();
+        } else {
+            $edition = $book->activeEdition()->first();
+        }
+        $breakdown = $this->pricing->priceBreakdownWithPromo($book, $promo, 1, $tier, $edition);
         $data = $book->toArray();
 
-        if ($breakdown->promoDiscount > 0) {
+        $hasDiscount = $breakdown->finalPrice < $breakdown->originalPrice;
+        if ($hasDiscount) {
             $data['price_breakdown'] = [
                 'original_price' => $breakdown->originalPrice,
                 'promo_discount' => $breakdown->promoDiscount,
+                'tier_discount' => $breakdown->tierDiscount,
                 'final_price' => $breakdown->finalPrice,
                 'promo_name' => $breakdown->promoName,
             ];
         }
 
+        $data['stock_status'] = $this->resolveStockStatus((int) ($book->stok ?? 0), (bool) $book->is_preorder);
+        $data['stock_label'] = $this->stockLabel($data['stock_status']);
+
         return $data;
+    }
+
+    /**
+     * Tentukan status stok customer-facing: tersedia / menipis / habis / preorder.
+     * Threshold menipis mengikuti config/pricing.php low_stock_threshold.
+     */
+    protected function resolveStockStatus(int $stok, bool $isPreorder): string
+    {
+        if ($isPreorder) {
+            return 'preorder';
+        }
+
+        if ($stok <= 0) {
+            return 'habis';
+        }
+
+        if ($stok <= (int) config('pricing.low_stock_threshold', 5)) {
+            return 'menipis';
+        }
+
+        return 'tersedia';
+    }
+
+    protected function stockLabel(string $status): string
+    {
+        return match ($status) {
+            'preorder' => 'Pre-Order',
+            'habis' => 'Stok habis',
+            'menipis' => 'Stok menipis',
+            default => 'Stok tersedia',
+        };
     }
 }

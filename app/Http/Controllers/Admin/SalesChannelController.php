@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReorderSalesChannelRequest;
+use App\Http\Requests\Admin\StoreSalesChannelRequest;
+use App\Http\Requests\Admin\UpdateSalesChannelRequest;
 use App\Models\SalesChannel;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SalesChannelController extends Controller
@@ -16,13 +17,9 @@ class SalesChannelController extends Controller
     /**
      * Simpan channel penjualan baru (custom).
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreSalesChannelRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9_-]+$/', Rule::unique('sales_channels', 'code')->withoutTrashed()],
-            'name' => ['required', 'string', 'max:100'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         SalesChannel::create([
             ...$validated,
@@ -43,12 +40,9 @@ class SalesChannelController extends Controller
     /**
      * Update channel penjualan (nama / aktif-nonaktif).
      */
-    public function update(Request $request, SalesChannel $salesChannel): RedirectResponse
+    public function update(UpdateSalesChannelRequest $request, SalesChannel $salesChannel): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $salesChannel->update($validated);
 
@@ -65,13 +59,9 @@ class SalesChannelController extends Controller
     /**
      * Aktifkan / nonaktifkan beberapa channel penjualan sekaligus.
      */
-    public function bulkUpdate(Request $request): RedirectResponse
+    public function bulkUpdate(ReorderSalesChannelRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
-            'ids.*' => ['required', 'string', Rule::exists('sales_channels', 'id')],
-            'is_active' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $count = SalesChannel::whereIn('id', $validated['ids'])->update([
             'is_active' => $validated['is_active'],

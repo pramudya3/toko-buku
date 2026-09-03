@@ -1,0 +1,34 @@
+[Unit]
+Description=FrankenPHP Toko Buku - penerbitpcp.com
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/var/www/toko-buku-vue
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ProtectSystem=false
+ProtectHome=false
+# FrankenPHP binary (install via: curl -s https://frankenphp.dev/install.sh | sh; sudo mv frankenphp /usr/local/bin/)
+ExecStart=/usr/local/bin/frankenphp run --config /etc/caddy/Caddyfile
+Restart=always
+RestartSec=5
+
+# Environment — samakan dengan .env production
+Environment=APP_ENV=production
+Environment=APP_DEBUG=false
+
+# FrankenPHP bundles its own PHP with built-in opcache — no custom INI scan needed
+
+# Batas memori systemd (opsional, untuk 2GB)
+MemoryMax=1200M
+
+# Log ke journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

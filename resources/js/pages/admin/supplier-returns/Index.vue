@@ -8,13 +8,12 @@ defineOptions({
     },
 });
 
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Undo2, X } from '@lucide/vue';
+import { Head, router } from '@inertiajs/vue3';
+import { X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
 import Money from '@/components/Money.vue';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -23,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { create, index as indexRoute } from '@/routes/admin/supplier-returns';
+import { index as indexRoute } from '@/routes/admin/supplier-returns';
 
 type ReturnRecord = {
     id: string;
@@ -83,6 +82,10 @@ function applyFilters() {
                     supplierId.value === 'all' ? undefined : supplierId.value,
                 from: from.value || undefined,
                 to: to.value || undefined,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             { preserveState: true, replace: true },
         );
@@ -102,22 +105,17 @@ watch([supplierId, from, to], applyFilters);
 <template>
     <Head title="Retur Supplier" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
                     Retur Supplier
                 </h1>
                 <p class="text-sm text-muted-foreground">
-                    Riwayat pengembalian barang ke supplier
+                    Riwayat pengembalian barang ke supplier — retur dibuat dari
+                    menu Barang Masuk → Aksi → Retur
                 </p>
             </div>
-            <Button as-child>
-                <Link :href="create()">
-                    <Undo2 class="size-4" />
-                    Catat Retur
-                </Link>
-            </Button>
         </div>
 
         <div
@@ -193,7 +191,7 @@ watch([supplierId, from, to], applyFilters);
             :columns="columns"
             :paginator="returns"
             empty-title="Belum ada retur"
-            empty-description="Catat pengembalian barang ke supplier melalui tombol di atas."
+            empty-description="Retur dibuat dari menu Barang Masuk → Aksi → Retur pada faktur terkait."
         >
             <template #cell-ref="{ row }">RET-{{ row.id }}</template>
             <template #cell-supplier="{ row }">

@@ -9,6 +9,7 @@ use App\Models\Book;
 use App\Models\InventoryMovement;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
+use App\Support\Pagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,7 +69,7 @@ class InventoryAdjustmentController extends Controller
                 });
             })
             ->orderBy('judul')
-            ->paginate(20)
+            ->paginate(Pagination::perPage($request, 20))
             ->withQueryString();
 
         return response()->json([

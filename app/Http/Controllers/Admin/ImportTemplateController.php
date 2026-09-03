@@ -26,7 +26,7 @@ final class ImportTemplateController extends Controller
             ],
             'books' => [
                 'file' => 'template-buku.csv',
-                'headers' => ['kategori', 'kode', 'judul', 'penulis', 'harga_jual', 'harga_beli'],
+                'headers' => ['kategori', 'kode', 'judul', 'penulis', 'harga_jual', 'harga_beli', 'qty'],
             ],
             'categories' => [
                 'file' => 'template-kategori.csv',

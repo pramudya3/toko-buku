@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,18 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $due_date
  * @property string|null $notes
  */
+#[Fillable(['customer_id', 'order_id', 'amount', 'paid_amount', 'due_date', 'notes'])]
 class Receivable extends Model
 {
     use HasUuids;
-
-    protected $fillable = [
-        'customer_id',
-        'order_id',
-        'amount',
-        'paid_amount',
-        'due_date',
-        'notes',
-    ];
 
     /**
      * @return BelongsTo<User, $this>

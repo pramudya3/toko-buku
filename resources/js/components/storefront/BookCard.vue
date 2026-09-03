@@ -3,10 +3,30 @@
  * BookCard — Flat design book card for catalog and home page.
  * Solid background, no shadow, hover scale effect.
  */
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { ShoppingCart } from '@lucide/vue';
+import { computed } from 'vue';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
+import { resolveStockStatus } from '@/lib/stock';
+
+const page = usePage<{ lowStockThreshold?: number }>();
+const lowStockThreshold = computed(
+    () => (page.props.lowStockThreshold as number | undefined) ?? 5,
+);
+
+function stockStatus(
+    book: Book,
+): 'preorder' | 'habis' | 'menipis' | 'tersedia' {
+    return resolveStockStatus(
+        book as unknown as {
+            stok: number;
+            is_preorder: boolean;
+            stock_status?: string;
+        },
+        lowStockThreshold.value,
+    );
+}
 
 type PriceBreakdown = {
     original_price: number;
@@ -24,6 +44,8 @@ type Book = {
     cover_url: string | null;
     is_preorder: boolean;
     category: { id: string; nama: string } | null;
+    stock_status?: 'preorder' | 'habis' | 'menipis' | 'tersedia';
+    stock_label?: string;
     price_breakdown?: PriceBreakdown | null;
 };
 
@@ -44,6 +66,7 @@ function bookUrl(book: Book): string {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
+
     return `/buku/${book.id}-${slug}`;
 }
 </script>
@@ -54,14 +77,16 @@ function bookUrl(book: Book): string {
         class="group block cursor-pointer rounded-lg bg-white p-4 transition-all duration-200 hover:scale-[1.02]"
     >
         <!-- Cover -->
-        <div class="relative aspect-[3/4] overflow-hidden rounded-md bg-flat-muted">
+        <div
+            class="relative aspect-[3/4] overflow-hidden rounded-md bg-flat-muted"
+        >
             <img
                 v-if="book.cover_url"
                 :src="book.cover_url"
                 :alt="book.judul"
                 class="size-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
-            <BookCoverPlaceholder v-else class="size-full" />
+            <BookCoverPlaceholder :title="book.judul" class="size-full" />
 
             <!-- Promo badge -->
             <div
@@ -107,35 +132,41 @@ function bookUrl(book: Book): string {
             <div class="mt-3">
                 <template v-if="book.price_breakdown?.promo_discount">
                     <span class="text-xs text-gray-400 line-through">
-                        <Money :amount="book.price_breakdown.original_price" />
+                        <Money :value="book.price_breakdown.original_price" />
                     </span>
                     <span class="ml-2 text-sm font-bold text-flat-primary">
-                        <Money :amount="book.price_breakdown.final_price" />
+                        <Money :value="book.price_breakdown.final_price" />
                     </span>
                 </template>
                 <template v-else>
                     <span class="text-sm font-bold text-flat-ink">
-                        <Money :amount="book.harga" />
+                        <Money :value="book.harga" />
                     </span>
                 </template>
             </div>
 
-            <!-- Stock status -->
+            <!-- Stock status — hanya label, tanpa angka stok (prefer stock_status dari server) -->
             <div class="mt-2">
                 <span
-                    v-if="book.is_preorder"
-                    class="text-xs font-medium text-flat-secondary"
+                    v-if="stockStatus(book) === 'preorder'"
+                    class="text-xs font-medium text-sky-700"
                 >
-                    Pre-order
+                    Pre-Order
                 </span>
                 <span
-                    v-else-if="book.stok > 0"
-                    class="text-xs font-medium text-flat-secondary"
+                    v-else-if="stockStatus(book) === 'habis'"
+                    class="text-xs font-medium text-gray-400"
                 >
-                    Tersedia
-                </span>
-                <span v-else class="text-xs font-medium text-gray-400">
                     Stok habis
+                </span>
+                <span
+                    v-else-if="stockStatus(book) === 'menipis'"
+                    class="text-xs font-medium text-amber-600"
+                >
+                    Stok menipis
+                </span>
+                <span v-else class="text-xs font-medium text-emerald-700">
+                    Stok tersedia
                 </span>
             </div>
 

@@ -110,19 +110,15 @@ it('runs the full order lifecycle: cart → checkout → process → complete �
     expect($order->status)->toBe(OrderStatus::Selesai)
         // Stok sudah ter-reserve saat diproses — selesai hanya mencatat arus kas.
         ->and($book->fresh()->stok)->toBe(8)
-        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(2);
-
-    $income = CashFlow::where('order_id', $order->id)->where('flow_type', 'revenue')->first();
-    $expense = CashFlow::where('order_id', $order->id)->where('flow_type', 'shipping')->first();
-
-    expect($income)->not->toBeNull()
-        ->and($expense)->not->toBeNull()
-        ->and($income->amount)->toBe(100000) // subtotal produk
-        ->and($expense->amount)->toBe(12000);
+        // OPSI A: Kas mandiri — order selesai tidak buat cash flow.
+        ->and(CashFlow::where('order_id', $order->id)->count())->toBe(0);
 
     // 4. Laporan penjualan menampilkan baris order ini (HPP & laba).
     $props = inertiaProps($this->actingAs($this->admin)
-        ->get(route('admin.sales-reports.index'))
+        ->get(route('admin.sales-reports.index', [
+            'from' => now()->startOfMonth()->toDateString(),
+            'to' => now()->toDateString(),
+        ]))
         ->assertSuccessful());
 
     $row = collect($props['rows']['data'])->firstWhere('no_order', $order->no_order);

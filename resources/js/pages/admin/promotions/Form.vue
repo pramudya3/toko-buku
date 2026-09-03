@@ -17,6 +17,7 @@ import CurrencyInput from '@/components/CurrencyInput.vue';
 import FormErrorAlert from '@/components/FormErrorAlert.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -60,6 +61,13 @@ const action = isEdit ? PromotionController.update : PromotionController.store;
 const submitArgs = isEdit ? props.promotion?.id : undefined;
 
 const isActive = ref(props.promotion ? props.promotion.is_active : true);
+const today = new Date().toLocaleDateString('en-CA');
+
+// ── Waktu selamanya (khusus bundle) ──
+const FOREVER_DATE = '2099-12-31';
+const isForever = ref(
+    props.promotion ? props.promotion.end_date === FOREVER_DATE : false,
+);
 
 // ── Mode: satuan / bundle ──
 const promoMode = ref<'satuan' | 'bundle'>(
@@ -119,19 +127,31 @@ const bookIdsValue = computed(() =>
 <template>
     <Head :title="isEdit ? 'Edit Promo' : 'Buat Promo'" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <!-- ── Header ── -->
-        <div>
-            <h1 class="text-xl font-semibold tracking-tight">
-                {{
-                    isEdit
-                        ? `Edit Promo: ${promotion?.promo_name}`
-                        : 'Buat Promo Baru'
-                }}
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                Atur diskon satuan buku atau paket bundle
-            </p>
+        <div class="flex items-center gap-2">
+            <Button
+                variant="ghost"
+                size="icon"
+                class="size-8 shrink-0"
+                as-child
+            >
+                <Link :href="indexRoute().url"
+                    ><ArrowLeft class="size-4"
+                /></Link>
+            </Button>
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">
+                    {{
+                        isEdit
+                            ? `Edit Promo: ${promotion?.promo_name}`
+                            : 'Buat Promo Baru'
+                    }}
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    Atur diskon satuan buku atau paket bundle
+                </p>
+            </div>
         </div>
 
         <Form
@@ -307,7 +327,7 @@ const bookIdsValue = computed(() =>
                                         name="start_date"
                                         type="date"
                                         :default-value="
-                                            promotion?.start_date ?? undefined
+                                            promotion?.start_date ?? today
                                         "
                                         required
                                     />
@@ -317,6 +337,7 @@ const bookIdsValue = computed(() =>
                                         >Tanggal Selesai *</Label
                                     >
                                     <Input
+                                        v-if="!isForever"
                                         id="end_date"
                                         name="end_date"
                                         type="date"
@@ -325,7 +346,39 @@ const bookIdsValue = computed(() =>
                                         "
                                         required
                                     />
+                                    <template v-else>
+                                        <Input
+                                            id="end_date_display"
+                                            type="date"
+                                            :default-value="FOREVER_DATE"
+                                            disabled
+                                        />
+                                        <input
+                                            type="hidden"
+                                            name="end_date"
+                                            :value="FOREVER_DATE"
+                                        />
+                                    </template>
                                 </div>
+                            </div>
+                            <!-- Waktu selamanya — hanya untuk bundle -->
+                            <div
+                                v-if="promoMode === 'bundle'"
+                                class="flex items-center gap-2"
+                            >
+                                <Checkbox
+                                    id="is_forever"
+                                    :model-value="isForever"
+                                    @update:model-value="
+                                        (val) => (isForever = Boolean(val))
+                                    "
+                                />
+                                <Label
+                                    for="is_forever"
+                                    class="text-sm font-normal"
+                                >
+                                    Waktu selamanya
+                                </Label>
                             </div>
                             <Label class="flex h-9 items-center gap-2 text-sm">
                                 <input

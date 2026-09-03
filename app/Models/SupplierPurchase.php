@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property int|null $user_id
  */
-#[Fillable(['supplier_id', 'ref_code', 'purchase_date', 'total', 'warehouse_kode', 'notes', 'user_id'])]
+#[Fillable(['supplier_id', 'ref_code', 'purchase_date', 'total', 'warehouse_kode', 'warehouse_kodes', 'shipping_cost', 'notes', 'user_id'])]
 
 class SupplierPurchase extends Model
 {
@@ -84,6 +84,26 @@ class SupplierPurchase extends Model
             // date:Y-m-d — tanggal murni tanpa konversi timezone.
             'purchase_date' => 'date:Y-m-d',
             'total' => 'integer',
+            'warehouse_kodes' => 'array',
+            'shipping_cost' => 'integer',
         ];
+    }
+
+    /**
+     * Daftar kode gudang tujuan (multi-warehouse). Fallback ke warehouse_kode tunggal untuk data lama.
+     *
+     * @return array<int, string>
+     */
+    public function resolvedWarehouseKodes(): array
+    {
+        if (is_array($this->warehouse_kodes) && count($this->warehouse_kodes) > 0) {
+            return $this->warehouse_kodes;
+        }
+
+        if ($this->warehouse_kode) {
+            return [$this->warehouse_kode];
+        }
+
+        return [];
     }
 }

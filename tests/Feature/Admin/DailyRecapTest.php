@@ -45,16 +45,19 @@ it('groups sales by day with omzet, payment split, hpp and profit', function ():
     recapOrder($this->admin, PaymentMethod::Transfer->value, 50000, qty: 2);
     recapOrder($this->admin, PaymentMethod::Cod->value, 75000);
 
-    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index')));
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
+    ])));
 
     $row = $props['rows'][0];
 
     expect($row['order_count'])->toBe(3)
-        // omzet = total order (termasuk ongkir)
-        ->and($row['omzet'])->toBe(255000)
-        ->and($row['cash'])->toBe(110000)
-        ->and($row['transfer'])->toBe(60000)
-        ->and($row['cod'])->toBe(85000)
+        // omzet = total order tanpa ongkir (total - shipping_cost)
+        ->and($row['omzet'])->toBe(225000)
+        ->and($row['cash'])->toBe(100000)
+        ->and($row['transfer'])->toBe(50000)
+        ->and($row['cod'])->toBe(75000)
         // item: 1 + 2 + 1 = 4; HPP = 30000 × 4
         ->and($row['item_count'])->toBe(4)
         ->and($row['hpp'])->toBe(120000)
@@ -71,15 +74,17 @@ it('filters the recap by sales channel', function (): void {
     recapOrder($this->admin, PaymentMethod::Cod->value, 75000, sumber: 'toko');
 
     $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
         'sumber_pembelian' => 'toko',
     ])));
 
     $row = $props['rows'][0];
 
     expect($row['order_count'])->toBe(2)
-        ->and($row['omzet'])->toBe(195000) // 110000 + 85000
-        ->and($row['cash'])->toBe(110000)
-        ->and($row['cod'])->toBe(85000)
+        ->and($row['omzet'])->toBe(175000) // 100000 + 75000 (tanpa ongkir)
+        ->and($row['cash'])->toBe(100000)
+        ->and($row['cod'])->toBe(75000)
         ->and($row['transfer'])->toBe(0)
         // item: 1 + 1 = 2; HPP = 30000 × 2
         ->and($row['item_count'])->toBe(2)
@@ -108,14 +113,17 @@ it('subtracts sales returns from the recap', function (): void {
         'condition' => 'baik',
     ]);
 
-    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index')));
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
+    ])));
 
     $row = $props['rows'][0];
 
     expect($row['order_count'])->toBe(1)
-        // omzet 110000 (termasuk ongkir) - refund 100000
-        ->and($row['omzet'])->toBe(10000)
-        ->and($row['cash'])->toBe(10000)
+        // omzet 100000 (tanpa ongkir) - refund 100000
+        ->and($row['omzet'])->toBe(0)
+        ->and($row['cash'])->toBe(0)
         ->and($row['transfer'])->toBe(0)
         ->and($row['cod'])->toBe(0)
         // item & HPP & laba bersih nol (retur penuh)
@@ -143,7 +151,10 @@ it('excludes cancelled orders from the recap', function (): void {
         'price_final' => 50000,
     ]);
 
-    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index')));
+    $props = inertiaProps($this->actingAs($this->admin)->get(route('admin.daily-recap.index', [
+        'from' => now()->startOfMonth()->toDateString(),
+        'to' => now()->toDateString(),
+    ])));
 
     expect($props['rows'])->toBeEmpty();
 });

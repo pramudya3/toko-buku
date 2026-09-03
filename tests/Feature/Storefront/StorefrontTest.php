@@ -11,6 +11,8 @@ use App\Models\Order;
 use App\Models\Promotion;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     $this->customer = User::factory()->create();
@@ -759,6 +761,46 @@ it('shows checkout success page for the order owner', function (): void {
         ->assertSee('SF-123');
 });
 
+it('exposes payment props and active bank accounts on checkout success page', function (): void {
+    $order = Order::factory()->create([
+        'no_order' => 'SF-BAYAR',
+        'user_id' => $this->customer->id,
+        'payment_status' => 'menunggu',
+    ]);
+
+    BankAccount::factory()->create(['is_active' => true]);
+
+    $props = inertiaProps($this->actingAs($this->customer)
+        ->get(route('checkout.success', ['no_order' => 'SF-BAYAR']))
+        ->assertOk());
+
+    expect($props['order']['id'])->toBe($order->id)
+        ->and($props['order']['payment_status'])->toBe('menunggu')
+        ->and($props['order']['bukti_transfer_path'])->toBeNull()
+        ->and($props['bankAccounts'])->toHaveCount(1);
+});
+
+it('reflects uploaded bukti transfer on the checkout success page', function (): void {
+    Storage::fake('public');
+
+    $order = Order::factory()->create([
+        'no_order' => 'SF-BUKTI',
+        'user_id' => $this->customer->id,
+        'payment_status' => 'menunggu',
+    ]);
+
+    $this->actingAs($this->customer)
+        ->post(route('my-orders.upload-bukti', $order), [
+            'bukti' => UploadedFile::fake()->image('bukti.jpg', 800, 600),
+        ])
+        ->assertRedirect();
+
+    // actingAs bertahan antar-request — halaman sukses merefleksikan bukti.
+    $props = inertiaProps($this->get(route('checkout.success', ['no_order' => 'SF-BUKTI']))->assertOk());
+
+    expect($props['order']['bukti_transfer_path'])->not->toBeNull();
+});
+
 it('hides checkout success page from strangers', function (): void {
     Order::factory()->create([
         'no_order' => 'SF-RAHASIA',
@@ -829,6 +871,69 @@ it('shows only own orders on my orders page', function (): void {
 
 it('requires login to view my orders', function (): void {
     $this->get(route('my-orders.index'))->assertRedirect(route('login'));
+});
+
+it('filters my orders by transaction status', function (): void {
+    $user = User::factory()->create();
+
+    Order::factory()->create([
+        'user_id' => $user->id,
+        'no_order' => 'SF-DIPROSES',
+        'status' => 'diproses',
+    ]);
+    Order::factory()->create([
+        'user_id' => $user->id,
+        'no_order' => 'SF-SELESAI',
+        'status' => 'selesai',
+    ]);
+
+    $props = inertiaProps($this->actingAs($user)
+        ->get(route('my-orders.index', ['status' => 'diproses']))
+        ->assertOk());
+
+    $noOrders = collect($props['orders']['data'])->pluck('no_order');
+
+    expect($noOrders)->toContain('SF-DIPROSES')
+        ->not->toContain('SF-SELESAI')
+        ->and($props['filters']['status'])->toBe('diproses');
+});
+
+it('ignores invalid status filter values on my orders', function (): void {
+    $user = User::factory()->create();
+
+    Order::factory()->create(['user_id' => $user->id, 'no_order' => 'SF-NORMAL']);
+
+    // Nilai tidak valid diabaikan (bukan error) — semua order tetap tampil.
+    $props = inertiaProps($this->actingAs($user)
+        ->get(route('my-orders.index', ['status' => 'hack-999']))
+        ->assertOk());
+
+    expect(collect($props['orders']['data'])->pluck('no_order'))
+        ->toContain('SF-NORMAL');
+});
+
+it('filters my orders to unpaid ones only', function (): void {
+    $user = User::factory()->create();
+
+    Order::factory()->create([
+        'user_id' => $user->id,
+        'no_order' => 'SF-BELUMBAYAR',
+        'payment_status' => 'menunggu',
+    ]);
+    Order::factory()->create([
+        'user_id' => $user->id,
+        'no_order' => 'SF-LUNAS',
+        'payment_status' => 'lunas',
+    ]);
+
+    $props = inertiaProps($this->actingAs($user)
+        ->get(route('my-orders.index', ['belum_dibayar' => '1']))
+        ->assertOk());
+
+    $noOrders = collect($props['orders']['data'])->pluck('no_order');
+
+    expect($noOrders)->toContain('SF-BELUMBAYAR')
+        ->not->toContain('SF-LUNAS');
 });
 
 it('renders the about page from lembaga settings', function (): void {

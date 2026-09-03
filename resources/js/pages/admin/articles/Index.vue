@@ -11,6 +11,7 @@ defineOptions({
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Plus, Search, Star, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import ArticleController from '@/actions/App/Http/Controllers/Admin/ArticleController';
 import ConfirmDeleteDialog from '@/components/ConfirmDeleteDialog.vue';
 import DataTable from '@/components/DataTable.vue';
@@ -42,6 +43,7 @@ type Props = {
         links: Array<{ url: string | null; label: string; active: boolean }>;
     };
     filters: { search?: string };
+    featuredArticle: { id: string; judul: string } | null;
 };
 
 const props = defineProps<Props>();
@@ -70,7 +72,13 @@ function applyFilters() {
     filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
-            { search: search.value || undefined },
+            {
+                search: search.value || undefined,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
+            },
             {
                 preserveState: true,
                 replace: true,
@@ -110,20 +118,72 @@ const statusBadge = (row: Article) =>
         ? { variant: 'success' as const, label: 'Aktif' }
         : { variant: 'neutral' as const, label: 'Nonaktif' };
 
+const pendingFeatured = ref<Article | null>(null);
+const showFeaturedDialog = ref(false);
+
+const featuredDescription = computed(() => {
+    const current = props.featuredArticle?.judul ?? 'artikel lain';
+    const next = pendingFeatured.value?.judul ?? 'artikel ini';
+    const nextShort = next.length > 50 ? `${next.slice(0, 50)}…` : next;
+
+    return `Artikel “${current}” saat ini ditampilkan sebagai unggulan di beranda.\n\nApakah Anda yakin ingin memindahkan status unggulan ke “${nextShort}”?\nHanya satu artikel yang dapat menjadi unggulan dalam satu waktu.`;
+});
+
 function toggleFeatured(article: Article): void {
-    router.patch(
-        ArticleController.toggleFeatured(article.id).url,
-        {
-            preserveScroll: true,
-        },
-    );
+    if (
+        !article.is_featured &&
+        props.featuredArticle &&
+        props.featuredArticle.id !== article.id
+    ) {
+        pendingFeatured.value = article;
+        showFeaturedDialog.value = true;
+
+        return;
+    }
+
+    router.patch(ArticleController.toggleFeatured(article.id).url, {
+        preserveScroll: true,
+    });
+}
+
+function confirmFeatured(): void {
+    if (!pendingFeatured.value) {
+        return;
+    }
+
+    const article = pendingFeatured.value;
+
+    showFeaturedDialog.value = false;
+    pendingFeatured.value = null;
+    router.patch(ArticleController.toggleFeatured(article.id).url, {
+        preserveScroll: true,
+    });
+}
+
+function cancelFeatured(): void {
+    showFeaturedDialog.value = false;
+    pendingFeatured.value = null;
+}
+
+function toggleActive(article: Article): void {
+    if (article.is_featured && article.is_active) {
+        toast.error(
+            'Artikel unggulan tidak dapat dinonaktifkan. Batalkan status unggulan terlebih dahulu.',
+        );
+
+        return;
+    }
+
+    router.patch(ArticleController.toggleActive(article.id).url, {
+        preserveScroll: true,
+    });
 }
 </script>
 
 <template>
     <Head title="Artikel" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">Artikel</h1>
@@ -226,13 +286,7 @@ function toggleFeatured(article: Article): void {
                         },
                         {
                             label: row.is_active ? 'Nonaktifkan' : 'Aktifkan',
-                            onClick: () =>
-                                router.patch(
-                                    ArticleController.toggleActive(row.id).url,
-                                    {
-                                        preserveScroll: true,
-                                    },
-                                ),
+                            onClick: () => toggleActive(row),
                         },
                         {
                             label: 'Hapus',
@@ -259,5 +313,19 @@ function toggleFeatured(article: Article): void {
                 : ''
         "
         @confirm="executeDelete"
+    />
+
+    <ConfirmDeleteDialog
+        :open="showFeaturedDialog"
+        title="Ganti Artikel Unggulan?"
+        :description="featuredDescription"
+        confirm-label="Ya, Ganti"
+        confirm-variant="default"
+        @update:open="
+            (v: boolean) => {
+                if (!v) cancelFeatured();
+            }
+        "
+        @confirm="confirmFeatured"
     />
 </template>

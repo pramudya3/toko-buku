@@ -19,6 +19,13 @@ import ImportCsvDialog from '@/components/ImportCsvDialog.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { create, edit, index as indexRoute } from '@/routes/admin/customers';
 
 type Customer = {
@@ -40,7 +47,8 @@ type Props = {
         per_page: number;
         links: Array<{ url: string | null; label: string; active: boolean }>;
     };
-    filters: { search?: string };
+    filters: { search?: string; tier?: string; is_active?: string };
+    tierOptions: Record<string, string>;
 };
 
 const props = defineProps<Props>();
@@ -55,8 +63,11 @@ const columns: DataTableColumn[] = [
 ];
 
 const search = ref(props.filters.search ?? '');
+const tier = ref(props.filters.tier ?? '__all__');
 
-const hasActiveFilters = computed(() => search.value !== '');
+const hasActiveFilters = computed(
+    () => search.value !== '' || tier.value !== '__all__',
+);
 
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -65,7 +76,14 @@ function applyFilters() {
     filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
-            { search: search.value || undefined },
+            {
+                search: search.value || undefined,
+                tier: tier.value === '__all__' ? undefined : tier.value,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
+            },
             {
                 preserveState: true,
                 replace: true,
@@ -76,10 +94,11 @@ function applyFilters() {
 
 function resetFilters() {
     search.value = '';
+    tier.value = '__all__';
     applyFilters();
 }
 
-watch([search], applyFilters);
+watch([search, tier], applyFilters);
 
 const tierVariant: Record<
     string,
@@ -104,7 +123,7 @@ const importOpen = ref(false);
 <template>
     <Head title="Pelanggan" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">Pelanggan</h1>
@@ -138,6 +157,24 @@ const importOpen = ref(false);
                     class="h-11 w-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 md:h-9 md:w-56"
                     placeholder="Cari nama, email, WhatsApp..."
                 />
+            </div>
+            <div class="flex items-center border-t md:border-t-0 md:border-l">
+                <Select v-model="tier">
+                    <SelectTrigger
+                        class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:ring-0 md:h-9 md:w-44"
+                    >
+                        <SelectValue placeholder="Semua tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__all__">Semua tier</SelectItem>
+                        <SelectItem
+                            v-for="(label, value) in tierOptions"
+                            :key="value"
+                            :value="value"
+                            >{{ label }}</SelectItem
+                        >
+                    </SelectContent>
+                </Select>
             </div>
             <button
                 v-if="hasActiveFilters"

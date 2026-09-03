@@ -29,6 +29,13 @@ class UserUpdateRequest extends FormRequest
             'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($this->route('user'))],
             'password' => ['nullable', 'string', 'min:8'],
             'is_active' => ['boolean'],
+            'alamat' => ['nullable', 'string'],
+            'provinsi' => ['nullable', 'string', 'max:100'],
+            'kabupaten_kota' => ['nullable', 'string', 'max:100'],
+            'kecamatan' => ['nullable', 'string', 'max:100'],
+            'kelurahan' => ['nullable', 'string', 'max:100'],
+            'village_code' => ['nullable', 'string', 'max:20'],
+            'kode_pos' => ['nullable', 'string', 'max:10'],
         ];
     }
 

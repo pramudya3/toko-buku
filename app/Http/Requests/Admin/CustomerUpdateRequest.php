@@ -26,6 +26,7 @@ class CustomerUpdateRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')->ignore($this->route('user'))],
+            'password' => ['nullable', 'string', 'min:8'],
             'whatsapp_number' => ['nullable', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
             'status_pelanggan' => ['required', Rule::enum(CustomerTier::class)],
             'is_active' => ['boolean'],

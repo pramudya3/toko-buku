@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -13,11 +14,10 @@ use Illuminate\Support\Facades\Crypt;
  * @property string $key
  * @property string|null $value
  */
+#[Fillable(['key', 'value'])]
 class Setting extends Model
 {
     use HasUuids;
-
-    protected $fillable = ['key', 'value'];
 
     /** Baca setting (cache 1 jam), fallback ke default. */
     public static function get(string $key, ?string $default = null): ?string

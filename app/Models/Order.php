@@ -55,6 +55,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $biteship_label_url
  * @property string|null $biteship_status
  * @property string|null $biteship_courier_link
+ * @property string|null $client_uuid
+ * @property array|null $pos_meta
  */
 #[Fillable([
     'no_order', 'user_id', 'nama_pembeli', 'no_hp', 'email_pembeli', 'alamat',
@@ -67,6 +69,7 @@ use Illuminate\Support\Carbon;
     'bukti_transfer_path', 'bukti_transfer_at',
     'biteship_order_id', 'awb', 'biteship_label_url', 'biteship_status',
     'biteship_courier_link',
+    'client_uuid', 'pos_meta',
 ])]
 #[ObservedBy([OrderObserver::class])]
 class Order extends Model
@@ -127,6 +130,7 @@ class Order extends Model
             'status' => OrderStatus::class,
             'payment_status' => PaymentStatus::class,
             'bukti_transfer_at' => 'datetime',
+            'pos_meta' => 'array',
         ];
     }
 

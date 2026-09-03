@@ -29,9 +29,26 @@ class ArticleRequest extends FormRequest
             'ringkasan' => [$isDraft ? 'nullable' : 'required', 'string', 'max:500'],
             'isi' => [$isDraft ? 'nullable' : 'required', 'string', 'max:50000'],
             'motif' => ['nullable', Rule::in(array_keys(Article::motifOptions()))],
-            'cover' => ['nullable', 'image', 'max:2048'],
+            'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
             'remove_cover' => ['nullable', 'boolean'],
-            'is_active' => ['nullable', 'boolean'],
+            'is_active' => [
+                'nullable',
+                'boolean',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $isFeaturedRequest = $this->boolean('is_featured');
+                    $article = $this->route('article');
+                    $isFeaturedExisting = $article instanceof Article && $article->is_featured;
+                    $willBeFeatured = $isFeaturedRequest || ($isFeaturedExisting && $this->input('is_featured') === null);
+                    // Jika akan menjadi unggulan (request featured true atau existing featured tanpa perubahan) tapi is_active false → tolak
+                    if ($willBeFeatured && $value !== null && ! (bool) $value) {
+                        $fail('Artikel unggulan tidak dapat dinonaktifkan. Batalkan status unggulan terlebih dahulu.');
+                    }
+                    // Jika request featured true tapi is_active false (kombinasi baru) → tolak
+                    if ($isFeaturedRequest && $value !== null && ! (bool) $value) {
+                        $fail('Artikel unggulan harus tetap aktif.');
+                    }
+                },
+            ],
             'is_featured' => ['nullable', 'boolean'],
             'published_at' => ['nullable', 'date'],
             'save_as_draft' => ['nullable', 'boolean'],

@@ -37,8 +37,16 @@ enum ActivityAction: string
     case OrderCreate = 'order.create';
     case OrderStatus = 'order.status';
     case OrderProcess = 'order.process';
+    case OrderBuktiUpload = 'order.bukti_upload';
+    case OrderBuktiUpdate = 'order.bukti_update';
     case ReceivablePay = 'receivable.pay';
     case SalesReturnCreate = 'sales_return.create';
+
+    // Konsinyasi (titip jual)
+    case ConsignmentDeliverCreate = 'consignment.deliver_create';
+    case ConsignmentSaleCreate = 'consignment.sale_create';
+    case ConsignmentReturnCreate = 'consignment.return_create';
+    case ConsignmentDelete = 'consignment.delete';
 
     // Kas
     case CashEntry = 'cash.entry';
@@ -109,8 +117,14 @@ enum ActivityAction: string
             self::OrderCreate => 'Buat Pesanan',
             self::OrderStatus => 'Ubah Status Pesanan',
             self::OrderProcess => 'Proses Pesanan',
+            self::OrderBuktiUpload => 'Unggah Bukti Transfer',
+            self::OrderBuktiUpdate => 'Ganti Bukti Transfer',
             self::ReceivablePay => 'Bayar Piutang',
             self::SalesReturnCreate => 'Retur Penjualan',
+            self::ConsignmentDeliverCreate => 'Serah Terima Konsinyasi',
+            self::ConsignmentSaleCreate => 'Lapor Laku Konsinyasi',
+            self::ConsignmentReturnCreate => 'Retur Konsinyasi',
+            self::ConsignmentDelete => 'Hapus Transaksi Konsinyasi',
             self::CashEntry => 'Catat Kas',
             self::CashMonthCreate => 'Buka Bulan Kas',
             self::SupplierCreate => 'Buat Supplier',

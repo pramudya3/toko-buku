@@ -296,7 +296,7 @@ it('shares store name and logo url for the sidebar', function (): void {
 });
 
 it('stores the lembaga logo and exposes its url', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     $this->actingAs($this->admin)
         ->put(route('admin.settings.lembaga.update'), [
@@ -308,10 +308,11 @@ it('stores the lembaga logo and exposes its url', function (): void {
 
     $url = Setting::get('store_logo_url');
     expect($url)->not->toBeNull();
-    Storage::disk('r2')->assertExists('logos/'.basename($url));
+    Storage::disk('public')->assertExists('logos/'.basename($url));
 });
 
 it('replaces the lembaga logo and deletes the old file', function (): void {
+    Storage::fake('public');
     Storage::fake('r2');
     Setting::set('store_logo_url', Storage::disk('r2')->url('logos/lama.png'));
     Storage::disk('r2')->put('logos/lama.png', 'lama');
@@ -329,6 +330,7 @@ it('replaces the lembaga logo and deletes the old file', function (): void {
 });
 
 it('removes the lembaga logo via explicit action', function (): void {
+    Storage::fake('public');
     Storage::fake('r2');
     Setting::set('store_logo_url', Storage::disk('r2')->url('logos/logo.png'));
     Storage::disk('r2')->put('logos/logo.png', 'gambar');
@@ -342,5 +344,5 @@ it('removes the lembaga logo via explicit action', function (): void {
         ->assertRedirect();
 
     Storage::disk('r2')->assertMissing('logos/logo.png');
-    expect(Setting::get('store_logo_url'))->toBeNull();
+    expect(Setting::get('store_logo_url'))->toBe('/logo-pcp.png');
 });

@@ -3,7 +3,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             { title: 'Beranda', href: '/admin/dashboard' },
-            { title: 'Rekap Harian', href: '/admin/daily-recap' },
+            { title: 'Laporan Harian', href: '/admin/daily-recap' },
         ],
     },
 });
@@ -75,6 +75,10 @@ function applyFilters() {
                     sumberPembelian.value === 'all'
                         ? undefined
                         : sumberPembelian.value,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             { preserveState: true, replace: true },
         );
@@ -148,13 +152,13 @@ const columns: DataTableColumn[] = [
 </script>
 
 <template>
-    <Head title="Rekap Harian" />
+    <Head title="Laporan Harian" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
-                    Rekap Harian Penjualan
+                    Laporan Harian Penjualan
                 </h1>
                 <p class="text-sm text-muted-foreground">
                     Ringkasan transaksi toko per tanggal
@@ -243,8 +247,8 @@ const columns: DataTableColumn[] = [
                 (row) => (isWeekend(row.tanggal_key) ? 'bg-muted/30' : '')
             "
             key-field="tanggal_key"
-            empty-title="Tidak ada penjualan"
-            empty-description="Tidak ada order pada periode ini."
+            empty-title="Gunakan filter tanggal"
+            empty-description="Gunakan filter tanggal untuk menampilkan data laporan"
         >
             <template #cell-tanggal="{ row }">
                 {{ row.tanggal }}

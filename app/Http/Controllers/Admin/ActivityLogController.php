@@ -6,6 +6,7 @@ use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Support\Pagination;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,7 @@ class ActivityLogController extends Controller
             ->when($request->filled('search'), fn ($q) => $q->whereLike('description', '%'.$request->string('search')->toString().'%'))
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate(Pagination::perPage($request, 20))
             ->withQueryString();
 
         return Inertia::render('admin/aktivitas/Index', [

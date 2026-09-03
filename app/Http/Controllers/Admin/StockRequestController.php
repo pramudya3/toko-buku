@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\StockRequest;
+use App\Support\Pagination;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -46,7 +47,7 @@ class StockRequestController extends Controller
             ->values();
 
         $page = max(1, $request->integer('page', 1));
-        $perPage = 10;
+        $perPage = Pagination::perPage($request);
 
         $paginator = new LengthAwarePaginator(
             $requests->forPage($page, $perPage),
@@ -65,13 +66,13 @@ class StockRequestController extends Controller
     /**
      * Detail pengajuan stok sebuah buku — daftar user yang mengajukan.
      */
-    public function show(Book $book): Response
+    public function show(Request $request, Book $book): Response
     {
         $requests = StockRequest::query()
             ->where('book_id', $book->id)
             ->with('user:id,name,email,whatsapp_number')
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/stock-requests/Show', [

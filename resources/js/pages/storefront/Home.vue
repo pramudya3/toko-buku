@@ -32,6 +32,8 @@ type Book = {
     stok: number;
     price_breakdown?: {
         original_price: number;
+        promo_discount: number;
+        tier_discount?: number;
         final_price: number;
         promo_name: string | null;
     } | null;
@@ -214,11 +216,7 @@ function loadMore(): void {
                         id="all-articles"
                         class="font-serif text-2xl font-bold tracking-tight text-article-ink md:text-3xl"
                     >
-                        {{
-                            searchActive
-                                ? 'Hasil Pencarian'
-                                : 'Semua Artikel'
-                        }}
+                        {{ searchActive ? 'Hasil Pencarian' : 'Semua Artikel' }}
                     </h2>
                     <p
                         v-if="searchActive"
@@ -241,7 +239,9 @@ function loadMore(): void {
                             aria-label="Filter kategori"
                             @change="applyCategoryFilter"
                         >
-                            <option :value="allCategories">Semua kategori</option>
+                            <option :value="allCategories">
+                                Semua kategori
+                            </option>
                             <option
                                 v-for="category in categories"
                                 :key="category.id"
@@ -253,7 +253,7 @@ function loadMore(): void {
                         <ChevronDown
                             class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-article-muted"
                             aria-hidden="true"
-                        />  
+                        />
                     </span>
                 </label>
             </div>
@@ -305,9 +305,9 @@ function loadMore(): void {
             </div>
         </section>
 
-        <!-- Buku Pilihan (iklan kecil dari toko) -->
+        <!-- Buku — di beranda tanpa pencarian = "Buku Pilihan" (iklan). Saat pencarian aktif → hasil pencarian buku (judul/penulis) agar filter di beranda menampilkan artikel DAN buku, sedangkan di toko (/buku) hanya buku. -->
         <section
-            v-if="books.length > 0"
+            v-if="searchActive || books.length > 0"
             class="mt-14 md:mt-20"
             aria-labelledby="buku-title"
         >
@@ -316,7 +316,7 @@ function loadMore(): void {
                     id="buku-title"
                     class="font-serif text-xl font-bold tracking-tight text-article-ink md:text-2xl"
                 >
-                    Buku Pilihan
+                    {{ searchActive ? 'Buku' : 'Buku Pilihan' }}
                 </h2>
                 <Link
                     :href="catalogUrl().url"
@@ -326,52 +326,167 @@ function loadMore(): void {
                 </Link>
             </div>
             <p class="mt-1 text-sm text-article-muted">
-                Temukan buku-buku pilihan dari toko kami.
+                <template v-if="searchActive">
+                    Hasil buku untuk pencarian “{{ filters.search }}” —
+                    {{ books.length }} buku ditemukan.
+                </template>
+                <template v-else>
+                    Temukan buku-buku pilihan dari toko kami.
+                </template>
             </p>
-            <!-- Kartu iklan bisa digeser kiri/kanan (horizontal scroll) -->
-            <div
-                class="mt-6 flex snap-x snap-mandatory scroll-px-1 [scrollbar-width:thin] gap-4 overflow-x-auto overscroll-x-contain scroll-smooth pb-3 [&::-webkit-scrollbar]:h-1.5"
-            >
-                <Link
-                    v-for="book in books"
-                    :key="book.id"
-                    :href="showRoute.url(bookShowUrl(book))"
-                    class="group flex w-40 shrink-0 snap-start flex-col rounded-lg border border-article-border bg-article-surface p-3 transition-shadow duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-article-primary focus-visible:ring-offset-2 focus-visible:outline-none sm:w-44"
+            <!-- Best practice: saat filter aktif gunakan GRID seperti artikel (scan vertikal, konsisten gap-6, kartu tinggi sama). Tanpa filter tetap flex scroll sebagai showcase teaser. -->
+            <template v-if="searchActive">
+                <div
+                    v-if="books.length > 0"
+                    class="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
                 >
-                    <div
-                        class="relative aspect-[5/6] overflow-hidden rounded-md bg-article-border/40"
+                    <Link
+                        v-for="book in books"
+                        :key="book.id"
+                        :href="showRoute.url(bookShowUrl(book))"
+                        class="group flex h-full flex-col overflow-hidden rounded-xl border border-article-border bg-article-surface transition-shadow duration-200 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-article-primary focus-visible:ring-offset-2 focus-visible:outline-none"
                     >
-                        <img
-                            v-if="book.cover_url"
-                            :src="book.cover_url"
-                            :alt="`Sampul buku ${book.judul}`"
-                            class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                        <BookCoverPlaceholder
-                            v-else
-                            :title="book.judul"
-                            class="size-full"
-                        />
-                    </div>
-                    <h3
-                        class="mt-2 line-clamp-2 text-sm font-semibold text-article-ink"
-                    >
-                        {{ book.judul }}
-                    </h3>
-                    <p class="mt-0.5 truncate text-xs text-article-muted">
-                        {{ book.penulis ?? '—' }}
+                        <div
+                            class="relative aspect-[3/4] overflow-hidden border-b border-article-border bg-article-border/40"
+                        >
+                            <img
+                                v-if="book.cover_url"
+                                :src="book.cover_url"
+                                :alt="`Sampul buku ${book.judul}`"
+                                class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                            />
+                            <BookCoverPlaceholder
+                                v-else
+                                :title="book.judul"
+                                class="size-full"
+                            />
+                        </div>
+                        <div class="flex flex-1 flex-col p-5">
+                            <h3
+                                class="line-clamp-2 font-serif text-lg leading-snug font-semibold tracking-tight text-article-ink group-hover:text-article-primary"
+                            >
+                                {{ book.judul }}
+                            </h3>
+                            <p
+                                class="mt-1.5 truncate text-xs text-article-muted"
+                            >
+                                {{ book.penulis ?? '—' }}
+                            </p>
+                            <div
+                                class="mt-3 flex flex-wrap items-baseline gap-1.5"
+                            >
+                                <template
+                                    v-if="
+                                        book.price_breakdown &&
+                                        book.price_breakdown.final_price <
+                                            book.price_breakdown.original_price
+                                    "
+                                >
+                                    <Money
+                                        :value="
+                                            book.price_breakdown.final_price
+                                        "
+                                        class="text-sm font-bold text-article-primary tabular-nums"
+                                    />
+                                    <Money
+                                        :value="
+                                            book.price_breakdown.original_price
+                                        "
+                                        class="text-xs text-article-muted tabular-nums line-through"
+                                    />
+                                </template>
+                                <Money
+                                    v-else
+                                    :value="book.harga"
+                                    class="text-sm font-bold text-article-primary tabular-nums"
+                                />
+                            </div>
+                        </div>
+                    </Link>
+                </div>
+                <div
+                    v-else
+                    class="mt-6 rounded-xl border border-article-border bg-article-surface p-8 text-center"
+                >
+                    <BookOpen
+                        class="mx-auto size-8 text-article-accent/60"
+                        aria-hidden="true"
+                    />
+                    <p class="mt-2 text-sm text-article-muted">
+                        Tidak ada buku yang cocok dengan pencarian “{{
+                            filters.search
+                        }}”.
                     </p>
-                    <p
-                        class="mt-auto pt-2 text-sm font-bold text-article-primary tabular-nums"
+                    <Link
+                        :href="catalogUrl().url"
+                        class="mt-3 inline-flex text-sm font-semibold text-article-primary hover:text-article-primary-dark"
                     >
-                        <Money
-                            :value="
-                                book.price_breakdown?.final_price ?? book.harga
-                            "
-                        />
-                    </p>
-                </Link>
-            </div>
+                        Lihat semua buku di Toko →
+                    </Link>
+                </div>
+            </template>
+            <template v-else>
+                <div
+                    v-if="books.length > 0"
+                    class="mt-6 flex snap-x snap-mandatory scroll-px-1 [scrollbar-width:thin] gap-4 overflow-x-auto overscroll-x-contain scroll-smooth pb-3 [&::-webkit-scrollbar]:h-1.5"
+                >
+                    <Link
+                        v-for="book in books"
+                        :key="book.id"
+                        :href="showRoute.url(bookShowUrl(book))"
+                        class="group flex w-40 shrink-0 snap-start flex-col rounded-lg border border-article-border bg-article-surface p-3 transition-shadow duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-article-primary focus-visible:ring-offset-2 focus-visible:outline-none sm:w-44"
+                    >
+                        <div
+                            class="relative aspect-[5/6] overflow-hidden rounded-md bg-article-border/40"
+                        >
+                            <img
+                                v-if="book.cover_url"
+                                :src="book.cover_url"
+                                :alt="`Sampul buku ${book.judul}`"
+                                class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                            />
+                            <BookCoverPlaceholder
+                                v-else
+                                :title="book.judul"
+                                class="size-full"
+                            />
+                        </div>
+                        <h3
+                            class="mt-2 line-clamp-2 text-sm font-semibold text-article-ink"
+                        >
+                            {{ book.judul }}
+                        </h3>
+                        <p class="mt-0.5 truncate text-xs text-article-muted">
+                            {{ book.penulis ?? '—' }}
+                        </p>
+                        <div
+                            class="mt-auto flex flex-wrap items-baseline gap-1.5 pt-2"
+                        >
+                            <template
+                                v-if="
+                                    book.price_breakdown &&
+                                    book.price_breakdown.final_price <
+                                        book.price_breakdown.original_price
+                                "
+                            >
+                                <Money
+                                    :value="book.price_breakdown.final_price"
+                                    class="text-sm font-bold text-article-primary tabular-nums"
+                                />
+                                <Money
+                                    :value="book.price_breakdown.original_price"
+                                    class="text-xs text-article-muted tabular-nums line-through"
+                                />
+                            </template>
+                            <Money
+                                v-else
+                                :value="book.harga"
+                                class="text-sm font-bold text-article-primary tabular-nums"
+                            />
+                        </div>
+                    </Link>
+                </div>
+            </template>
         </section>
     </div>
 </template>

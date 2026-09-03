@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateApiKeyRequest;
+use App\Http\Requests\Admin\UpdateLembagaRequest;
+use App\Http\Requests\Admin\UpdateWaTemplateRequest;
 use App\Models\Courier;
 use App\Models\PaymentMethod as PaymentMethodModel;
 use App\Models\SalesChannel;
@@ -50,33 +53,9 @@ class SettingController extends Controller
     /**
      * Simpan identitas lembaga + alamat (termasuk logo).
      */
-    public function updateLembaga(Request $request): RedirectResponse
+    public function updateLembaga(UpdateLembagaRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nama_lembaga' => ['required', 'string', 'max:150'],
-            'tagline' => ['nullable', 'string', 'max:255'],
-            'telepon' => ['nullable', 'string', 'max:30'],
-            'email' => ['nullable', 'email', 'max:150'],
-            'jam_operasional' => ['nullable', 'string', 'max:100'],
-            // Jam operasional terstruktur — dipakai untuk jadwal pickup kurir.
-            'hari_buka' => ['nullable', 'string', 'max:100'],
-            'jam_buka' => ['nullable', 'string', 'max:10'],
-            'jam_tutup' => ['nullable', 'string', 'max:10'],
-            'deskripsi' => ['nullable', 'string', 'max:2000'],
-            'visi' => ['nullable', 'string', 'max:2000'],
-            'misi' => ['nullable', 'string', 'max:2000'],
-            'keamanan' => ['nullable', 'string', 'max:2000'],
-            'syarat' => ['nullable', 'string', 'max:5000'],
-            // Alamat gudang — titik asal ongkir & alamat invoice.
-            'alamat_jalan' => ['nullable', 'string', 'max:255'],
-            'origin_postal_code' => ['required', 'string', 'max:10'],
-            'provinsi' => ['nullable', 'string', 'max:100'],
-            'kabupaten_kota' => ['nullable', 'string', 'max:100'],
-            'kecamatan' => ['nullable', 'string', 'max:100'],
-            'kelurahan' => ['nullable', 'string', 'max:100'],
-            'logo' => ['nullable', 'image', 'max:2048'],
-            'hapus_logo' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $postalCode = $validated['origin_postal_code'];
         unset($validated['logo'], $validated['hapus_logo'], $validated['origin_postal_code']);
@@ -161,11 +140,9 @@ class SettingController extends Controller
     /**
      * Simpan template pesan WhatsApp.
      */
-    public function updateWaTemplate(Request $request): RedirectResponse
+    public function updateWaTemplate(UpdateWaTemplateRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'wa_template_ready' => ['required', 'string', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         Setting::set('wa_template_ready', $validated['wa_template_ready']);
 
@@ -180,7 +157,7 @@ class SettingController extends Controller
     }
 
     /**
-     * Simpan logo lembaga ke R2 (atau hapus bila diminta).
+     * Simpan logo lembaga ke public storage (atau hapus bila diminta).
      */
     private function saveLogo(Request $request): void
     {
@@ -191,36 +168,47 @@ class SettingController extends Controller
                 $this->deleteStoredFile($current);
             }
 
-            $path = $request->file('logo')->store('logos', 'r2');
+            $path = $request->file('logo')->store('logos', 'public');
 
             if ($path === false) {
                 throw new RuntimeException('Logo gagal disimpan.');
             }
 
-            Setting::set('store_logo_url', Storage::disk('r2')->url($path));
+            Setting::set('store_logo_url', Storage::disk('public')->url($path));
         } elseif ($request->boolean('hapus_logo') && $current !== '') {
             $this->deleteStoredFile($current);
-            Setting::set('store_logo_url', null);
+            Setting::set('store_logo_url', '/logo-pcp.png');
         }
     }
 
     /**
-     * Hapus file dari storage (R2 atau lokal).
+     * Hapus file dari storage.
+     *
+     * Mendukung URL lokal (/storage/...) dan URL R2 lama (https://cdn.miniapps.id/...).
+     * Hapus dari kedua disk untuk kompatibilitas fake & legacy.
      */
     private function deleteStoredFile(string $url): void
     {
-        $r2Url = rtrim((string) config('filesystems.disks.r2.url'), '/');
+        $r2Url = rtrim((string) config('filesystems.disks.r2.url', ''), '/');
+        $path = null;
 
         if ($r2Url !== '' && str_starts_with($url, $r2Url)) {
             $path = ltrim(str_replace($r2Url, '', $url), '/');
-        } elseif (str_starts_with($url, '/storage/')) {
-            // URL relatif (local dev / test) — path langsung di disk r2.
-            $path = ltrim(substr($url, strlen('/storage/')), '/');
+        } elseif (str_contains($url, '/storage/')) {
+            $path = ltrim(substr($url, (int) strpos($url, '/storage/') + strlen('/storage/')), '/');
+        } elseif (preg_match('#(logos|article-images|covers)/.+#', $url, $m)) {
+            $path = $m[0];
         } else {
             return;
         }
 
-        Storage::disk('r2')->delete($path);
+        Storage::disk('public')->delete($path);
+
+        try {
+            Storage::disk('r2')->delete($path);
+        } catch (\Throwable) {
+            // r2 disk mungkin belum dikonfigurasi
+        }
     }
 
     /**
@@ -243,12 +231,9 @@ class SettingController extends Controller
      * Key tidak pernah di-echo ke response; input kosong = pertahankan key
      * yang sudah ada; hapus hanya lewat aksi eksplisit `clear_key`.
      */
-    public function updateApiKey(Request $request): RedirectResponse
+    public function updateApiKey(UpdateApiKeyRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'api_key' => ['nullable', 'string', 'min:10', 'max:500'],
-            'clear_key' => ['nullable', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         if (filled($validated['api_key'] ?? null)) {
             Setting::setSecret('biteship_api_key', $validated['api_key']);

@@ -38,7 +38,8 @@ defineProps<{
                     variant === 'primary' && 'bg-white',
                     variant === 'secondary' && 'bg-white',
                     variant === 'accent' && 'bg-white',
-                    (!variant || variant === 'white' || variant === 'muted') && 'bg-flat-primary',
+                    (!variant || variant === 'white' || variant === 'muted') &&
+                        'bg-flat-primary',
                 ]"
             />
             <div
@@ -47,7 +48,8 @@ defineProps<{
                     variant === 'primary' && 'bg-white',
                     variant === 'secondary' && 'bg-white',
                     variant === 'accent' && 'bg-white',
-                    (!variant || variant === 'white' || variant === 'muted') && 'bg-flat-secondary',
+                    (!variant || variant === 'white' || variant === 'muted') &&
+                        'bg-flat-secondary',
                 ]"
             />
         </div>

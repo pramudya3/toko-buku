@@ -8,11 +8,14 @@ use App\Http\Requests\Admin\BookImportRequest;
 use App\Http\Requests\Admin\BookRequest;
 use App\Models\Book;
 use App\Models\BookEdition;
+use App\Models\BookEditionStock;
 use App\Models\Category;
+use App\Models\Warehouse;
 use App\Services\BookService;
 use App\Services\ImageService;
 use App\Services\InventoryService;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -63,8 +66,8 @@ class BookController extends Controller
                 $query->where('stok', '>', 0)
                     ->where('stok', '<=', config('pricing.low_stock_threshold'));
             })
-            ->orderByDesc('created_at')
-            ->paginate(10)
+            ->orderBy('judul', 'asc')
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/books/Index', [
@@ -222,7 +225,7 @@ class BookController extends Controller
     }
 
     /**
-     * Hapus buku — diblokir bila punya riwayat pesanan (BOOK-04, BR-04).
+     * Hapus buku — soft delete (dapat dipulihkan). Diblokir bila punya riwayat pesanan.
      */
     public function destroy(Book $book): RedirectResponse
     {
@@ -235,20 +238,19 @@ class BookController extends Controller
             return back();
         }
 
-        $book->delete();
-
+        // Hapus file cover dari storage
         $this->deleteStoredFile((string) $book->cover_url);
 
-        // Hapus file galeri dari storage (baris DB dibiarkan — soft delete,
-        // restore tetap menampilkan gambar yang tersisa).
+        // Hapus file galeri dari storage
         foreach ($book->images()->get() as $image) {
             $this->deleteStoredFile($image->image_url);
         }
 
+        $book->delete();
+
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => "Buku {$book->judul} berhasil dihapus.",
-            'undo' => ['url' => route('admin.books.restore', $book)],
         ]);
 
         return to_route('admin.books.index');
@@ -288,22 +290,32 @@ class BookController extends Controller
     }
 
     /**
-     * Hapus file dari storage (R2 atau lokal).
+     * Hapus file dari storage.
+     *
+     * Mendukung URL lokal (/storage/...) dan URL R2 lama (https://cdn.miniapps.id/...).
+     * Hapus dari kedua disk untuk kompatibilitas fake & legacy.
      */
     private function deleteStoredFile(string $url): void
     {
-        $r2Url = rtrim((string) config('filesystems.disks.r2.url'), '/');
+        $r2Url = rtrim((string) config('filesystems.disks.r2.url', ''), '/');
+        $path = null;
 
         if ($r2Url !== '' && str_starts_with($url, $r2Url)) {
             $path = ltrim(str_replace($r2Url, '', $url), '/');
-            Storage::disk('r2')->delete($path);
-
+        } elseif (str_contains($url, '/storage/')) {
+            $path = ltrim(substr($url, (int) strpos($url, '/storage/') + strlen('/storage/')), '/');
+        } elseif (preg_match('#(logos|article-images|covers)/.+#', $url, $m)) {
+            $path = $m[0];
+        } else {
             return;
         }
 
-        if (str_starts_with($url, '/storage/')) {
-            $path = str_replace('/storage/', '', $url);
-            Storage::disk('public')->delete($path);
+        Storage::disk('public')->delete($path);
+
+        try {
+            Storage::disk('r2')->delete($path);
+        } catch (\Throwable) {
+            // r2 disk mungkin belum dikonfigurasi
         }
     }
 
@@ -397,7 +409,7 @@ class BookController extends Controller
      * Normal) diabaikan supaya kolom tidak tercampur.
      *
      * @param  array<int, string>  $cells
-     * @return array{kategori: int, kode: int, judul: int, penulis: int, harga: int, harga_beli: int}
+     * @return array{kategori: int, kode: int, judul: int, penulis: int, harga: int, harga_beli: int, qty: int}
      */
     private function detectBookColumns(array $cells): array
     {
@@ -425,6 +437,7 @@ class BookController extends Controller
                 'penulis' => $find(['penulis']) ?? -1,
                 'harga' => $find(['hrg jual', 'harga jual', 'harga_jual']) ?? -1,
                 'harga_beli' => $find(['harga beli', 'hrg beli', 'harga_beli']) ?? -1,
+                'qty' => $find(['qty', 'stok', 'stock', 'jumlah', 'jumlah stok']) ?? -1,
             ];
         }
 
@@ -432,13 +445,13 @@ class BookController extends Controller
         $harga = $find(['harga normal', 'hrg normal']);
 
         if ($judul !== null && $harga !== null) {
-            return ['kategori' => -1, 'kode' => -1, 'judul' => $judul, 'penulis' => -1, 'harga' => $harga, 'harga_beli' => -1];
+            return ['kategori' => -1, 'kode' => -1, 'judul' => $judul, 'penulis' => -1, 'harga' => $harga, 'harga_beli' => -1, 'qty' => -1];
         }
 
         // Header tidak dikenali → asumsikan posisi kolom berdasarkan lebar baris.
         return count($cells) >= 10
-            ? ['kategori' => 9, 'kode' => 10, 'judul' => 11, 'penulis' => 12, 'harga' => 13, 'harga_beli' => -1]
-            : ['kategori' => 0, 'kode' => 1, 'judul' => 2, 'penulis' => 3, 'harga' => 4, 'harga_beli' => -1];
+            ? ['kategori' => 9, 'kode' => 10, 'judul' => 11, 'penulis' => 12, 'harga' => 13, 'harga_beli' => -1, 'qty' => -1]
+            : ['kategori' => 0, 'kode' => 1, 'judul' => 2, 'penulis' => 3, 'harga' => 4, 'harga_beli' => -1, 'qty' => 6];
     }
 
     /**
@@ -449,6 +462,22 @@ class BookController extends Controller
         $raw = strtoupper(trim($raw));
 
         if ($raw === '' || str_contains($raw, '#N/A')) {
+            return null;
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $raw);
+
+        return $digits === null || $digits === '' ? null : (int) $digits;
+    }
+
+    /**
+     * '1,162' → 1162; kosong → null.
+     */
+    private function parseQty(string $raw): ?int
+    {
+        $raw = trim($raw);
+
+        if ($raw === '' || str_contains(strtoupper($raw), '#N/A')) {
             return null;
         }
 
@@ -521,6 +550,8 @@ class BookController extends Controller
             $penulis = $cell('penulis');
             $hargaRaw = $cell('harga');
             $hargaBeliRaw = $cell('harga_beli');
+            $qtyRaw = $columns['qty'] !== -1 ? $cell('qty') : '';
+            $qty = $this->parseQty($qtyRaw);
 
             // Baris bundling bukan buku — di-handle oleh import Promo.
             if (preg_replace('/[^a-z0-9]/', '', strtolower($kategori)) === 'bundling') {
@@ -558,10 +589,14 @@ class BookController extends Controller
                 $same = $existing->judul === $judul
                     && $existing->penulis === $penulis
                     && $existing->category_id === $category?->id
+                    && $existing->kode_sku === ($kodeValid ?? $existing->kode_sku)
                     && (int) ($edition?->harga_jual ?? -1) === $harga
-                    && ($hargaBeli === null || (int) ($edition?->harga_beli ?? -1) === $hargaBeli);
+                    && ($hargaBeli === null || (int) ($edition?->harga_beli ?? -1) === $hargaBeli)
+                    && ($qty === null || (int) data_get($edition?->stocks()->whereHas('warehouse', fn ($q) => $q->where('kode', 'malang'))->first(), 'qty', 0) === $qty);
 
                 if ($same) {
+                    // Sync qty tetap jika ada (kasus stok 0 dihapus) walau data buku sama
+                    $this->syncEditionQty($existing, $qty);
                     $skipped++;
 
                     continue;
@@ -571,11 +606,12 @@ class BookController extends Controller
                     'judul' => $judul,
                     'penulis' => $penulis,
                     'category_id' => $category?->id,
-                    'kode_sku' => $existing->kode_sku ?? $kodeValid,
+                    'kode_sku' => $kodeValid ?? $existing->kode_sku,
                 ])->save();
 
                 $this->upsertEdition($existing, $harga, $hargaBeli);
                 $this->syncBookHarga($existing, $harga);
+                $this->syncEditionQty($existing, $qty);
 
                 $updated++;
 
@@ -595,6 +631,7 @@ class BookController extends Controller
             $this->inventoryService->ensureStock($book);
             $this->upsertEdition($book, $harga, $hargaBeli);
             $this->syncBookHarga($book, $harga);
+            $this->syncEditionQty($book, $qty);
 
             $created++;
         }
@@ -610,8 +647,8 @@ class BookController extends Controller
     private function isBookHeaderRow(array $cells): bool
     {
         $keywords = ['kategori', 'kode brg', 'kode barang', 'kode', 'nama barang',
-            'judul buku', 'judul', 'penulis', 'hrg jual', 'harga jual',
-            'harga normal', 'hrg normal', 'no', ];
+            'judul buku', 'judul', 'penulis', 'hrg jual', 'harga jual', 'harga_jual',
+            'harga normal', 'hrg normal', 'harga_beli', 'qty', 'stok', 'stock', 'no', ];
 
         foreach ($cells as $cell) {
             if (in_array(strtolower(trim($cell)), $keywords, true)) {
@@ -740,13 +777,13 @@ class BookController extends Controller
 
             $path = $this->imageService
                 ->normalize($request->file('cover'))
-                ->store('covers', 'r2');
+                ->store('covers', 'public');
 
             if ($path === false) {
                 throw new RuntimeException('Cover buku gagal disimpan.');
             }
 
-            $data['cover_url'] = Storage::disk('r2')->url($path);
+            $data['cover_url'] = Storage::disk('public')->url($path);
         }
 
         // Hapus cover tersimpan (tanpa upload file baru).
@@ -779,14 +816,14 @@ class BookController extends Controller
         $urutan = (int) $book->images()->max('urutan');
 
         foreach ($files as $file) {
-            $path = $this->imageService->normalize($file)->store('covers', 'r2');
+            $path = $this->imageService->normalize($file)->store('covers', 'public');
 
             if ($path === false) {
                 throw new RuntimeException('Gambar galeri gagal disimpan.');
             }
 
             $book->images()->create([
-                'image_url' => Storage::disk('r2')->url($path),
+                'image_url' => Storage::disk('public')->url($path),
                 'urutan' => ++$urutan,
             ]);
         }
@@ -810,7 +847,7 @@ class BookController extends Controller
     /**
      * Sinkron daftar cetakan: hapus yang hilang, update yang ada, buat yang baru.
      *
-     * @param  array<int, array{cetakan_ke: int, nama?: string|null, harga_beli: int, harga_jual: int, is_active?: bool}>  $editions
+     * @param  array<int, array{cetakan_ke: int, nama?: string|null, harga_beli: int, harga_jual: int, harga_guru_type?: string|null, harga_guru_value?: int|null, is_active?: bool}>  $editions
      * @return Collection<int, BookEdition>
      */
     private function syncEditions(Book $book, array $editions): Collection
@@ -834,6 +871,8 @@ class BookController extends Controller
                     'nama' => $edition['nama'] ?? null,
                     'harga_beli' => $edition['harga_beli'],
                     'harga_jual' => $edition['harga_jual'],
+                    'harga_guru_type' => $edition['harga_guru_type'] ?? null,
+                    'harga_guru_value' => $edition['harga_guru_value'] ?? null,
                     'is_active' => $index === $activeIndex || count($editions) === 1 || ($activeIndex === false && $index === 0),
                 ],
             );
@@ -861,5 +900,38 @@ class BookController extends Controller
         if ($active !== null && $book->getRawOriginal('harga') !== $active->harga_jual) {
             $book->updateQuietly(['harga' => $active->harga_jual]);
         }
+    }
+
+    /**
+     * Sinkron qty cetakan ke-1 dari kolom qty/stok CSV (jika ada).
+     * Qty null = kolom tidak ada/kosong → tidak ubah stok.
+     * Qty 0 → stok di-hapus/sync 0.
+     */
+    private function syncEditionQty(Book $book, ?int $qty): void
+    {
+        if ($qty === null) {
+            return;
+        }
+
+        $edition = $book->editions()->where('cetakan_ke', 1)->first()
+            ?? $book->editions()->orderBy('cetakan_ke')->first();
+
+        if ($edition === null) {
+            return;
+        }
+
+        $warehouse = Warehouse::query()->where('kode', 'malang')->first()
+            ?? Warehouse::default();
+
+        if ($qty > 0) {
+            BookEditionStock::updateOrCreate(
+                ['book_edition_id' => $edition->id, 'warehouse_id' => $warehouse->id],
+                ['qty' => $qty],
+            );
+        } else {
+            $edition->stocks()->where('warehouse_id', $warehouse->id)->delete();
+        }
+
+        $this->inventoryService->syncBookStock($book);
     }
 }

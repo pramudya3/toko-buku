@@ -101,6 +101,10 @@ function applyFilters() {
             {
                 search: search.value || undefined,
                 low_stock: lowStock.value ? '1' : undefined,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             {
                 preserveState: true,
@@ -199,7 +203,7 @@ function onFormError() {
 <template>
     <Head title="Inventori" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">

@@ -95,6 +95,10 @@ function applyFilters() {
                 to: to.value || undefined,
                 user_id: userId.value === allUsers ? undefined : userId.value,
                 action: action.value === allActions ? undefined : action.value,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             {
                 preserveState: true,
@@ -130,7 +134,7 @@ function formatTime(value: string): string {
 <template>
     <Head title="Log Aktivitas" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div>
             <h1 class="text-xl font-semibold tracking-tight">Log Aktivitas</h1>
             <p class="text-sm text-muted-foreground">

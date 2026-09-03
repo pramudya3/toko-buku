@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\BookImageFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,18 +15,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $image_url
  * @property int $urutan
  */
+#[Fillable(['book_id', 'image_url', 'urutan'])]
 class BookImage extends Model
 {
     /** @use HasFactory<BookImageFactory> */
     use HasFactory;
 
     use HasUuids;
-
-    protected $fillable = [
-        'book_id',
-        'image_url',
-        'urutan',
-    ];
 
     /**
      * @return BelongsTo<Book, $this>

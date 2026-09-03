@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\ArticleRequest;
 use App\Models\Article;
 use App\Models\ArticleCategory;
 use App\Services\ImageService;
+use App\Support\Pagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,7 @@ class ArticleController extends Controller
             })
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString()
             ->through(fn (Article $article): array => [
                 'id' => $article->id,
@@ -57,6 +58,7 @@ class ArticleController extends Controller
             'articles' => $articles,
             'filters' => $request->only(['search']),
             'kategoriOptions' => ArticleCategory::orderBy('nama')->get(['id', 'nama']),
+            'featuredArticle' => Article::query()->where('is_featured', true)->first(['id', 'judul']),
         ]);
     }
 
@@ -68,6 +70,7 @@ class ArticleController extends Controller
         return Inertia::render('admin/articles/Form', [
             'article' => null,
             'kategoriOptions' => ArticleCategory::orderBy('nama')->get(['id', 'nama']),
+            'featuredArticle' => Article::query()->where('is_featured', true)->first(['id', 'judul']),
         ]);
     }
 
@@ -79,6 +82,7 @@ class ArticleController extends Controller
         return Inertia::render('admin/articles/Form', [
             'article' => $article->load('category:id,nama'),
             'kategoriOptions' => ArticleCategory::orderBy('nama')->get(['id', 'nama']),
+            'featuredArticle' => Article::query()->where('is_featured', true)->first(['id', 'judul']),
         ]);
     }
 
@@ -150,9 +154,19 @@ class ArticleController extends Controller
 
     /**
      * Tampilkan/sembunyikan artikel di storefront.
+     * Artikel unggulan tidak boleh dinonaktifkan.
      */
     public function toggleActive(Article $article): RedirectResponse
     {
+        if ($article->is_featured && $article->is_active) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Artikel unggulan tidak dapat dinonaktifkan. Batalkan status unggulan terlebih dahulu.',
+            ]);
+
+            return back();
+        }
+
         $article->update(['is_active' => ! $article->is_active]);
 
         Inertia::flash('toast', [
@@ -202,19 +216,19 @@ class ArticleController extends Controller
     {
         $path = $this->imageService
             ->normalize($request->file('image'))
-            ->store('article-images', 'r2');
+            ->store('article-images', 'public');
 
         if ($path === false) {
             throw new RuntimeException('Gambar artikel gagal disimpan.');
         }
 
         return response()->json([
-            'url' => Storage::disk('r2')->url($path),
+            'url' => Storage::disk('public')->url($path),
         ]);
     }
 
     /**
-     * Payload validasi + upload cover ke R2 (hapus cover lama bila diganti).
+     * Payload validasi + upload cover ke public storage (hapus cover lama bila diganti).
      *
      * @return array<string, mixed>
      */
@@ -235,13 +249,13 @@ class ArticleController extends Controller
 
             $path = $this->imageService
                 ->normalize($request->file('cover'))
-                ->store('articles', 'r2');
+                ->store('articles', 'public');
 
             if ($path === false) {
                 throw new RuntimeException('Cover artikel gagal disimpan.');
             }
 
-            $data['cover_url'] = Storage::disk('r2')->url($path);
+            $data['cover_url'] = Storage::disk('public')->url($path);
         }
 
         // Hapus cover tersimpan (tanpa upload file baru).
@@ -287,22 +301,32 @@ class ArticleController extends Controller
     }
 
     /**
-     * Hapus file dari storage (R2 atau lokal).
+     * Hapus file dari storage.
+     *
+     * Mendukung URL lokal (/storage/...) dan URL R2 lama (https://cdn.miniapps.id/...).
+     * Hapus dari kedua disk untuk kompatibilitas fake & legacy.
      */
     private function deleteStoredFile(string $url): void
     {
-        $r2Url = rtrim((string) config('filesystems.disks.r2.url'), '/');
+        $r2Url = rtrim((string) config('filesystems.disks.r2.url', ''), '/');
+        $path = null;
 
         if ($r2Url !== '' && str_starts_with($url, $r2Url)) {
             $path = ltrim(str_replace($r2Url, '', $url), '/');
-            Storage::disk('r2')->delete($path);
-
+        } elseif (str_contains($url, '/storage/')) {
+            $path = ltrim(substr($url, (int) strpos($url, '/storage/') + strlen('/storage/')), '/');
+        } elseif (preg_match('#(logos|article-images|covers)/.+#', $url, $m)) {
+            $path = $m[0];
+        } else {
             return;
         }
 
-        if (str_starts_with($url, '/storage/')) {
-            $path = str_replace('/storage/', '', $url);
-            Storage::disk('public')->delete($path);
+        Storage::disk('public')->delete($path);
+
+        try {
+            Storage::disk('r2')->delete($path);
+        } catch (\Throwable) {
+            // r2 disk mungkin belum dikonfigurasi
         }
     }
 }

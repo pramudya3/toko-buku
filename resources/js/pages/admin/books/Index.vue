@@ -119,6 +119,10 @@ function applyFilters() {
                 status: status.value === allStatuses ? undefined : status.value,
                 low_stock:
                     lowStock.value === allStocks ? undefined : lowStock.value,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             {
                 preserveState: true,
@@ -161,7 +165,7 @@ function executeDelete() {
 <template>
     <Head title="Buku" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
@@ -393,7 +397,7 @@ function executeDelete() {
         :action="BookController.importCsv.form()"
         template-type="books"
         title="Import Buku dari CSV"
-        description="Format kolom: Kategori, Kode Brg, Nama Barang, Penulis, Hrg Jual"
-        hint="Harga format Indonesia (30.000). Kode SKU otomatis dibuat dari abreviasi kategori bila kosong/tidak valid."
+        description="Format kolom: kategori, kode, judul, penulis, harga_jual, harga_beli, qty"
+        hint="Jika judul sama maka data buku akan direplace. Harga format Indonesia (30.000). Qty opsional — masuk stok cetakan ke-1 gudang Malang. Kode SKU otomatis dibuat dari abreviasi kategori bila kosong/tidak valid."
     />
 </template>

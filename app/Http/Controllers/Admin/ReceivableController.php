@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreReceivableRequest;
+use App\Http\Requests\Admin\UpdateReceivableRequest;
 use App\Models\Receivable;
 use App\Models\ReceivablePayment;
 use App\Models\User;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,7 +45,7 @@ class ReceivableController extends Controller
                 }
             })
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/receivables/Index', [
@@ -59,15 +62,9 @@ class ReceivableController extends Controller
     /**
      * Catat piutang baru.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreReceivableRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'customer_id' => ['required', 'string', 'exists:users,id'],
-            'order_id' => ['nullable', 'string', 'exists:orders,id'],
-            'amount' => ['required', 'integer', 'min:1'],
-            'due_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $validated = $request->validated();
 
         $receivable = Receivable::create([
             'customer_id' => (string) $validated['customer_id'],
@@ -88,14 +85,9 @@ class ReceivableController extends Controller
     /**
      * Catat pembayaran piutang (cicilan / pelunasan).
      */
-    public function pay(Request $request, Receivable $receivable): RedirectResponse
+    public function pay(UpdateReceivableRequest $request, Receivable $receivable): RedirectResponse
     {
-        $validated = $request->validate([
-            'amount' => ['required', 'integer', 'min:1'],
-            'paid_at' => ['required', 'date'],
-            'metode' => ['required', 'string', 'in:transfer,cod,cash'],
-            'notes' => ['nullable', 'string', 'max:500'],
-        ]);
+        $validated = $request->validated();
 
         $paymentAmount = (int) $validated['amount'];
         $remaining = $receivable->remaining();

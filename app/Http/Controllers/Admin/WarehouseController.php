@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\WarehouseRequest;
 use App\Models\InventoryMovement;
 use App\Models\Warehouse;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,7 +30,7 @@ class WarehouseController extends Controller
             })
             ->orderByDesc('is_defect')
             ->orderBy('nama')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/warehouses/Index', [

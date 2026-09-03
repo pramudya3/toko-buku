@@ -6,13 +6,16 @@ use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\PromotionType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CheckOngkirRequest;
 use App\Http\Requests\Admin\OrderProcessRequest;
 use App\Http\Requests\Admin\OrderStatusRequest;
 use App\Http\Requests\Admin\OrderStoreRequest;
 use App\Http\Requests\Admin\ProcessAndShipRequest;
 use App\Models\Book;
 use App\Models\Order;
+use App\Models\Promotion;
 use App\Models\Setting;
 use App\Models\StockRequest;
 use App\Models\TierDiscount;
@@ -23,7 +26,10 @@ use App\Services\InventoryService;
 use App\Services\OrderStatusService;
 use App\Services\PricingService;
 use App\Services\RajaOngkirCostService;
+use App\Support\Pagination;
 use App\Support\StoreSettings;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -44,7 +50,8 @@ class OrderController extends Controller
     ) {}
 
     /**
-     * List order: filter status, pencarian, sort tanggal (ORD-01).
+     * List order: filter status, rentang tanggal (from/to), pencarian,
+     * sort tanggal (ORD-01).
      */
     public function index(Request $request): Response
     {
@@ -60,17 +67,19 @@ class OrderController extends Controller
                 });
             })
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('from'), fn ($query) => $query->whereDate('created_at', '>=', $request->date('from')))
+            ->when($request->filled('to'), fn ($query) => $query->whereDate('created_at', '<=', $request->date('to')))
             ->when($request->boolean('dropship'), fn ($query) => $query->where('is_dropship', true))
             ->when($request->filled('sumber_pembelian'), fn ($query) => $query->where('sumber_pembelian', $request->string('sumber_pembelian')->toString()))
             ->when($request->boolean('preorder'), fn ($query) => $query->whereHas('items', fn ($q) => $q->where('is_preorder', true)))
             ->withCount(['items', 'items as preorder_items_count' => fn ($q) => $q->where('is_preorder', true)])
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/orders/Index', [
             'orders' => $orders,
-            'filters' => $request->only(['search', 'status', 'dropship', 'sumber_pembelian', 'preorder']),
+            'filters' => $request->only(['search', 'status', 'from', 'to', 'dropship', 'sumber_pembelian', 'preorder']),
             'statusOptions' => OrderStatus::options(),
             'salesChannels' => StoreSettings::allSalesChannels(),
         ]);
@@ -83,6 +92,7 @@ class OrderController extends Controller
     public function preorderIndex(Request $request): Response
     {
         // Grup 1 — order menunggu konfirmasi yang berisi item pre-order.
+        // Capped to 200 latest to avoid unbounded memory on large tables.
         $orders = Order::query()
             ->where('status', OrderStatus::MenungguKonfirmasi)
             ->whereHas('items', fn ($query) => $query->where('is_preorder', true))
@@ -90,6 +100,7 @@ class OrderController extends Controller
                 ->where('is_preorder', true)
                 ->with('book:id,judul,preorder_eta,is_preorder')])
             ->orderByDesc('created_at')
+            ->limit(200)
             ->get()
             ->map(function (Order $order): array {
                 $items = $order->items;
@@ -108,11 +119,12 @@ class OrderController extends Controller
                 ];
             });
 
-        // Grup 2 — waitlist buku pre-order (tanpa bayar).
+        // Grup 2 — waitlist buku pre-order (tanpa bayar). Capped to 200 latest.
         $waitlist = StockRequest::query()
             ->whereHas('book', fn ($query) => $query->where('is_preorder', true))
             ->with(['book:id,judul,preorder_eta,is_preorder', 'user:id,name,whatsapp_number'])
             ->orderByDesc('created_at')
+            ->limit(200)
             ->get()
             ->map(fn (StockRequest $request): array => [
                 'id' => $request->id,
@@ -194,6 +206,16 @@ class OrderController extends Controller
                 ->orderBy('tier')
                 ->orderBy('min_qty')
                 ->get(['tier', 'min_qty', 'discount_percent']),
+            'expiredPromos' => Promotion::query()
+                ->where(function ($q): void {
+                    $q->whereDate('end_date', '<', now()->toDateString())
+                        ->orWhere('is_active', false);
+                })
+                ->where('promo_type', '!=', PromotionType::Bundle->value)
+                ->with('books:id')
+                ->orderByDesc('end_date')
+                ->limit(50)
+                ->get(['id', 'promo_name', 'promo_type', 'discount_percentage', 'promo_value', 'start_date', 'end_date', 'is_active']),
         ]);
     }
 
@@ -206,7 +228,7 @@ class OrderController extends Controller
 
         $books = Book::query()
             ->where('aktif', true)
-            ->with('editions:id,book_id,cetakan_ke,harga_jual,is_active')
+            ->with('editions:id,book_id,cetakan_ke,harga_jual,harga_guru_type,harga_guru_value,is_active')
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->whereLike('judul', "%{$search}%")
@@ -216,7 +238,7 @@ class OrderController extends Controller
                 });
             })
             ->orderBy('judul')
-            ->paginate(20)
+            ->paginate(Pagination::perPage($request, 20))
             ->withQueryString();
 
         return response()->json([
@@ -254,13 +276,9 @@ class OrderController extends Controller
      * Cek ongkir utk order manual (admin) — alamat tujuan + berat items.
      * Memakai RajaOngkirCostService yang sama dgn storefront → cache 24 jam shared.
      */
-    public function checkOngkir(Request $request): JsonResponse
+    public function checkOngkir(CheckOngkirRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'postal_code' => ['required', 'string', 'max:10'],
-            // Berat 0 diperbolehkan (buku tanpa berat) — service floor ke 1 gram.
-            'weight_kg' => ['required', 'numeric', 'min:0', 'max:200'],
-        ]);
+        $validated = $request->validated();
 
         // Biteship butuh items[] — admin order manual, pakai 1 item dgn total berat.
         $items = [[
@@ -345,6 +363,12 @@ class OrderController extends Controller
             $userId = $this->resolveCustomerId($data['nama_pembeli'], $data['whatsapp_pembeli'] ?? null);
         }
 
+        // Tanggal pesanan (khusus admin) — default hari ini (WIB).
+        $now = now();
+        $orderDate = ! empty($data['order_date'])
+            ? Carbon::parse($data['order_date'])->setTime((int) $now->format('H'), (int) $now->format('i'), (int) $now->format('s'))
+            : $now;
+
         // Pembayaran cash (di kasir) → langsung lunas; transfer → menunggu
         // konfirmasi admin (verifikasi manual).
         $paymentStatus = ($data['metode_bayar'] ?? null) === PaymentMethod::Cash->value
@@ -354,9 +378,9 @@ class OrderController extends Controller
         try {
             for ($attempt = 0; $attempt < 3; $attempt++) {
                 try {
-                    $order = DB::transaction(function () use ($request, $data, $isDropship, $courierCode, $shippingCost, $shippingEstimation, $userId, $paymentStatus, $fulfillment): Order {
+                    $order = DB::transaction(function () use ($request, $data, $isDropship, $courierCode, $shippingCost, $shippingEstimation, $userId, $paymentStatus, $fulfillment, $orderDate): Order {
                         $order = new Order([
-                            'no_order' => $this->generateOrderNumber(),
+                            'no_order' => $this->generateOrderNumber($orderDate),
                             'user_id' => $userId,
                             'nama_pembeli' => $data['nama_pembeli'],
                             'no_hp' => $data['whatsapp_pembeli'] ?? null,
@@ -380,6 +404,16 @@ class OrderController extends Controller
                         ]);
 
                         $this->pricing->storeOrderWithItems($order, $data['items']);
+
+                        // Terapkan tanggal pesanan pilihan admin (khusus admin, default hari ini).
+                        if ($orderDate->toDateString() !== now()->toDateString()) {
+                            $order->timestamps = false;
+                            $order->created_at = $orderDate;
+                            $order->updated_at = $orderDate;
+                            $order->save();
+                            $order->timestamps = true;
+                            // Juga sesuaikan no_order prefix jika sudah terlanjur generate dengan tanggal lama? Sudah pakai $orderDate, jadi konsisten.
+                        }
 
                         if ($order->is_dropship) {
                             $order->dropshipper()->create([
@@ -467,6 +501,8 @@ class OrderController extends Controller
         $order->load([
             'user:id,name,whatsapp_number,status_pelanggan',
             'items.book:id,judul,kode_sku,cover_url',
+            'items.edition:id,cetakan_ke,nama',
+            'items.promoSnapshot:id,promo_name',
             'dropshipper',
         ]);
 
@@ -603,7 +639,8 @@ class OrderController extends Controller
     public function invoice(Order $order): Response
     {
         $order->load([
-            'items:id,order_id,book_id,book_edition_id,judul_snapshot,edition_snapshot,qty,price_original,promo_discount_amount,tier_discount_amount,price_final',
+            'items:id,order_id,book_id,book_edition_id,judul_snapshot,edition_snapshot,qty,price_original,promo_discount_amount,tier_discount_amount,price_final,is_custom_price,custom_price,price_note,promo_id_snapshot',
+            'items.promoSnapshot:id,promo_name',
             'dropshipper',
         ]);
 
@@ -631,6 +668,9 @@ class OrderController extends Controller
             Inertia::flash('toast', ['type' => 'success', 'message' => "Order {$order->no_order} diproses."]);
         } catch (RuntimeException $exception) {
             Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+        } catch (\Throwable $exception) {
+            report($exception);
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Gagal memproses pesanan: '.$exception->getMessage()]);
         }
 
         return back();
@@ -667,6 +707,11 @@ class OrderController extends Controller
             });
         } catch (RuntimeException $exception) {
             Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        } catch (\Throwable $exception) {
+            report($exception);
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Gagal memproses pesanan: '.$exception->getMessage()]);
 
             return back();
         }
@@ -812,9 +857,21 @@ class OrderController extends Controller
         $warehouseOrigin = Warehouse::query()
             ->sellable()
             ->where('kode', (string) $data['warehouse_origin'])
-            ->firstOrFail();
+            ->first();
+
+        if ($warehouseOrigin === null) {
+            throw new RuntimeException('Gudang asal tidak valid atau tidak aktif.');
+        }
 
         foreach ($lockedOrder->items as $item) {
+            if ($item->book === null) {
+                throw new RuntimeException("Buku untuk item \"{$item->judul_snapshot}\" tidak ditemukan (mungkin telah dihapus) — tidak dapat memproses pesanan.");
+            }
+
+            if ($item->qty <= 0) {
+                throw new RuntimeException("Qty item \"{$item->judul_snapshot}\" tidak valid.");
+            }
+
             $this->inventoryService->assertSufficientStock(
                 $item->book,
                 $warehouseOrigin,
@@ -980,9 +1037,9 @@ class OrderController extends Controller
         return $items;
     }
 
-    private function generateOrderNumber(): string
+    private function generateOrderNumber(?CarbonInterface $date = null): string
     {
-        $prefix = 'ORD-'.now()->format('Ymd');
+        $prefix = 'ORD-'.($date ?? now())->format('Ymd');
 
         $last = Order::where('no_order', 'like', $prefix.'-%')
             ->lockForUpdate()

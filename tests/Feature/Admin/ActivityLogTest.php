@@ -3,11 +3,16 @@
 use App\Enums\ActivityAction;
 use App\Models\ActivityLog;
 use App\Models\Book;
+use App\Models\KasCategory;
+use App\Models\KasSubCategory;
 use App\Models\Order;
 use App\Models\User;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
+    // Seed kategori Kas untuk test manual cash entries (OPSI A + kategori wajib)
+    $this->kasCategory = KasCategory::create(['nama' => 'Kategori Log '.uniqid(), 'sort_order' => 1]);
+    $this->kasSub = KasSubCategory::create(['cash_flow_category_id' => $this->kasCategory->id, 'nama' => 'Sub Log '.uniqid(), 'sort_order' => 1]);
 });
 
 it('records login and logout events', function (): void {
@@ -60,6 +65,8 @@ it('records manual cash entries', function (): void {
             'entry_date' => now()->toDateString(),
             'amount' => 100000,
             'description' => 'Tunai toko',
+            'kas_category_id' => $this->kasCategory->id,
+            'kas_sub_category_id' => $this->kasSub->id,
         ]);
 
     $log = ActivityLog::where('action', ActivityAction::CashEntry->value)->first();

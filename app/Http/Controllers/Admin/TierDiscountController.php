@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ActivityAction;
 use App\Enums\CustomerTier;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreTierDiscountRequest;
 use App\Http\Requests\Admin\TierDiscountImportRequest;
+use App\Http\Requests\Admin\UpdateTierDiscountRequest;
 use App\Models\TierDiscount;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -153,7 +156,7 @@ class TierDiscountController extends Controller
             ->when($request->filled('tier'), fn ($query) => $query->where('tier', $request->string('tier')->toString()))
             ->orderBy('tier')
             ->orderBy('min_qty')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/tier-discounts/Index', [
@@ -166,13 +169,9 @@ class TierDiscountController extends Controller
     /**
      * Simpan tier discount baru.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreTierDiscountRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'tier' => ['required', 'string', 'in:reguler,bazaf,guru,reseller'],
-            'min_qty' => ['required', 'integer', 'min:1'],
-            'discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
-        ]);
+        $validated = $request->validated();
 
         TierDiscount::updateOrCreate(
             ['tier' => $validated['tier'], 'min_qty' => $validated['min_qty']],
@@ -189,12 +188,9 @@ class TierDiscountController extends Controller
     /**
      * Update tier discount.
      */
-    public function update(Request $request, TierDiscount $tierDiscount): RedirectResponse
+    public function update(UpdateTierDiscountRequest $request, TierDiscount $tierDiscount): RedirectResponse
     {
-        $validated = $request->validate([
-            'min_qty' => ['required', 'integer', 'min:1'],
-            'discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
-        ]);
+        $validated = $request->validated();
 
         $tierDiscount->update([
             'min_qty' => $validated['min_qty'],

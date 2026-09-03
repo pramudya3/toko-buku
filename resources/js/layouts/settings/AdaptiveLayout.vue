@@ -2,7 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 
 const page = usePage();
@@ -17,8 +17,8 @@ const isAdmin = computed(() => page.props.auth?.user?.is_admin === true);
         </SettingsLayout>
     </AppLayout>
 
-    <!-- Customer: navbar simpel, tanpa sidebar -->
-    <CustomerLayout v-else>
+    <!-- Customer: header storefront editorial, tanpa sidebar -->
+    <EditorialLayout v-else>
         <slot />
-    </CustomerLayout>
+    </EditorialLayout>
 </template>

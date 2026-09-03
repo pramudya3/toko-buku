@@ -1,3 +1,6 @@
+/* Google Fonts untuk editor artikel — Indonesia + Arabic (harus paling atas sebelum @import lain agar tidak warning @import order) */
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Lateef:wght@400;700&family=Merriweather:wght@400;700&family=Lora:wght@400;700&family=Poppins:wght@400;600&family=Inter:wght@400;600&display=swap');
+
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
@@ -132,29 +135,29 @@
 
     /* Flat Design Tokens — storefront utama */
     --font-flat: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-    --color-flat-primary: #3B82F6;
-    --color-flat-primary-dark: #2563EB;
-    --color-flat-secondary: #10B981;
+    --color-flat-primary: #3b82f6;
+    --color-flat-primary-dark: #2563eb;
+    --color-flat-secondary: #10b981;
     --color-flat-secondary-dark: #059669;
-    --color-flat-accent: #F59E0B;
-    --color-flat-accent-dark: #D97706;
-    --color-flat-muted: #F3F4F6;
-    --color-flat-border: #E5E7EB;
+    --color-flat-accent: #f59e0b;
+    --color-flat-accent-dark: #d97706;
+    --color-flat-muted: #f3f4f6;
+    --color-flat-border: #e5e7eb;
     --color-flat-ink: #111827;
-    --color-flat-bg: #FFFFFF;
-    --color-flat-surface: #F9FAFB;
+    --color-flat-bg: #ffffff;
+    --color-flat-surface: #f9fafb;
 
     /* Toko editorial (storefront utama — artikel): hangat & tenang —
        prefix article- agar tidak bentrok dengan shadcn/flat. */
-    --color-article-bg: #FCFBF7;
-    --color-article-surface: #FFFFFF;
-    --color-article-ink: #1F2937;
-    --color-article-muted: #6B6B6B;
+    --color-article-bg: #fcfbf7;
+    --color-article-surface: #ffffff;
+    --color-article-ink: #1f2937;
+    --color-article-muted: #6b6b6b;
     --color-article-primary: #166534;
     --color-article-primary-dark: #14532d;
-    --color-article-accent: #B08D32;
+    --color-article-accent: #b08d32;
     --color-article-accent-strong: #8a6d1f;
-    --color-article-border: #E7E2D8;
+    --color-article-border: #e7e2d8;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);

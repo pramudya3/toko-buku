@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
@@ -38,18 +39,19 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'name', 'email', 'password', 'is_admin', 'is_active', 'whatsapp_number',
+    'name', 'email', 'password', 'is_admin', 'is_kasir', 'is_active', 'whatsapp_number',
     'status_pelanggan', 'alamat', 'provinsi',
     'kabupaten_kota', 'kecamatan', 'kelurahan', 'village_code',
-    'kode_pos', 'email_verified_at',
+    'kode_pos', 'email_verified_at', 'google_id', 'avatar',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 #[ObservedBy([UserObserver::class])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens;
 
+    use HasFactory, Notifiable, SoftDeletes;
     use HasUuids;
 
     /**
@@ -63,6 +65,16 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return ! $this->is_admin;
+    }
+
+    public function isKasir(): bool
+    {
+        return (bool) ($this->is_kasir ?? false);
+    }
+
+    public function canAccessPos(): bool
+    {
+        return $this->is_admin || $this->isKasir();
     }
 
     /**
@@ -92,6 +104,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'is_kasir' => 'boolean',
             'is_active' => 'boolean',
             'status_pelanggan' => CustomerTier::class,
         ];

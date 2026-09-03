@@ -23,5 +23,5 @@ export type NavSection = {
 
 export type NavGroup = {
     label: string;
-    items: NavItem[];
+    items: Array<NavItem | NavSection>;
 };

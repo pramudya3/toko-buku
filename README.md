@@ -1,4 +1,4 @@
-# Toko Buku — Admin Panel & Storefront
+# Toko Buku E-Commerce — Admin Panel & Storefront 
 
 Aplikasi toko buku berbasis **Laravel 13 + Inertia v3 + Vue 3 + Tailwind CSS 4**.
 Terdiri dari **panel admin** (kelola katalog, pesanan, promo, inventori, keuangan)
@@ -21,6 +21,8 @@ dan **storefront** (katalog publik, detail buku, keranjang, checkout).
 - **Checkout** — guest atau login, alamat cascading (provinsi → kota → kecamatan → kode pos auto-fill), cek stok, rate-limit
 - **Pesanan Saya** — riwayat order customer login
 - **RBAC 2 role** — admin (sidebar panel) vs customer (navbar simpel, tanpa sidebar)
+
+> **Catatan:** Varian storefront paralel `/pcd` (Pustaka Cahaya Peradaban / proto-d — `StorefrontPcdController`, `CheckoutPcdController`, `MyOrderPcdController`, `ProfilePcdController`, `StorefrontPcdLayout`, `storefront-pcd/*`) telah **dihapus** pada PR #25 (`chore/remove-storefront-pcd`). Rute `/pcd/**` kini 404. Codebase hanya menyisakan storefront utama di `/`.
 
 ## 🛠 Tech Stack
 
@@ -73,8 +75,7 @@ app/
 ├── Enums/            # OrderStatus, CustomerTier, UserRole, PaymentMethod, dll
 ├── Http/Controllers/
 │   ├── Admin/        # Panel admin (Book, Order, Customer, Promotion, ...)
-│   ├── Storefront/   # Catalog, Checkout, MyOrder, wilayah publik
-│   └── (root)        # CheckoutController, StorefrontController, ...
+│   └── (root)        # StorefrontController, CheckoutController, MyOrderController, StorefrontProfileController, PublicAddressController, BiteshipWebhookController
 ├── Models/
 ├── Services/         # PricingService (promo+tier), InventoryService, ...
 └── Mail/             # (rencana) Mailable email — lihat docs/email-plan.md
@@ -89,12 +90,15 @@ docs/
 resources/js/
 ├── layouts/
 │   ├── app/          # Sidebar admin
-│   └── customer/     # Navbar simpel storefront
+│   └── customer/     # CustomerLayout, EditorialLayout (StorefrontPcdLayout dihapus di PR #25)
 ├── pages/
 │   ├── admin/        # Halaman panel
-│   └── storefront/   # Catalog, BookDetail, Checkout, MyOrders, About
-└── components/       # DataTableActions, AddressFields, CurrencyInput, ...
+│   ├── storefront/   # Catalog, BookDetail, Checkout, CheckoutSuccess, MyOrders, OrderDetail, Profile, About, Promo
+│   └── auth/         # Login, Register, dll (Fortify)
+└── components/       # DataTable, DataTableActions, AddressFields, CurrencyInput, ...
 ```
+
+> Struktur `storefront-pcd` (`components/storefront-pcd/`, `pages/storefront-pcd/`, `StorefrontPcdLayout.vue`, `routes/pcd/`) dan controller `*PcdController` telah dihapus — lihat PR #25.
 
 ## 📄 Lisensi
 

@@ -19,8 +19,26 @@ class BookEditionFactory extends Factory
             'nama' => fake()->optional(0.8, null)->words(3, true),
             'harga_beli' => fake()->numberBetween(10, 200) * 1000,
             'harga_jual' => fake()->numberBetween(25, 350) * 1000,
+            'harga_guru_type' => null,
+            'harga_guru_value' => null,
             'is_active' => true,
         ];
+    }
+
+    public function withGuruPercent(int $percent): static
+    {
+        return $this->state(fn () => [
+            'harga_guru_type' => 'percent',
+            'harga_guru_value' => $percent,
+        ]);
+    }
+
+    public function withGuruFixed(int $harga): static
+    {
+        return $this->state(fn () => [
+            'harga_guru_type' => 'fixed',
+            'harga_guru_value' => $harga,
+        ]);
     }
 
     public function cetakanKe(int $ke): static

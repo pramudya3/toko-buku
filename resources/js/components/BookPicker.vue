@@ -77,6 +77,13 @@ function fetchBooks(reset: boolean) {
 }
 
 function openList() {
+    // Jangan buka list saat search kosong — hindari menutupi form lain di dialog
+    if (search.value.trim().length === 0 && !results.value.length) {
+        listOpen.value = false;
+
+        return;
+    }
+
     listOpen.value = true;
 
     if (!results.value.length) {
@@ -86,6 +93,16 @@ function openList() {
 
 function searchBooks() {
     clearTimeout(searchTimer);
+
+    // Buka list saat mulai mengetik (1 huruf langsung muncul)
+    if (search.value.trim().length > 0) {
+        listOpen.value = true;
+    } else {
+        listOpen.value = false;
+        results.value = [];
+
+        return;
+    }
 
     searchTimer = setTimeout(() => {
         fetchBooks(true);
@@ -145,21 +162,23 @@ function select(book: BookOption) {
 </script>
 
 <template>
-    <div class="relative">
-        <Search
-            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-            v-model="search"
-            class="pl-9"
-            :placeholder="placeholder"
-            @input="searchBooks"
-            @focus="openList"
-            @blur="onBlur"
-        />
+    <div class="relative w-full">
+        <div class="relative">
+            <Search
+                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+                v-model="search"
+                class="pl-9"
+                :placeholder="placeholder"
+                @input="searchBooks"
+                @focus="openList"
+                @blur="onBlur"
+            />
+        </div>
         <div
             v-if="listOpen"
-            class="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-md"
+            class="absolute top-full left-0 z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-md"
             @scroll="onScroll"
         >
             <button
@@ -196,14 +215,12 @@ function select(book: BookOption) {
                     </template>
                 </span>
             </button>
-            <p
-                v-if="!results.length && !loading"
-                class="px-3 py-2 text-sm text-muted-foreground"
+            <div
+                v-if="loading"
+                class="flex items-center justify-center gap-2 py-3"
             >
-                {{ emptyHint }}
-            </p>
-            <div v-if="loading" class="flex justify-center py-1.5">
-                <Loader2 class="size-3.5 animate-spin text-muted-foreground" />
+                <Loader2 class="size-4 animate-spin text-muted-foreground" />
+                <span class="text-sm text-muted-foreground">Memuat...</span>
             </div>
         </div>
     </div>

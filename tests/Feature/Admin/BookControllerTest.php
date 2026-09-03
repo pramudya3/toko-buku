@@ -526,7 +526,7 @@ it('requires at least one edition', function (): void {
 });
 
 it('stores gallery images with ordered urutan', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     $this->actingAs($this->admin)
         ->post(route('admin.books.store'), array_merge([
@@ -543,16 +543,16 @@ it('stores gallery images with ordered urutan', function (): void {
 
     expect($book->images()->count())->toBe(2)
         ->and($book->images()->pluck('urutan')->all())->toBe([1, 2])
-        ->and(Storage::disk('r2')->allFiles('covers'))->toHaveCount(2);
+        ->and(Storage::disk('public')->allFiles('covers'))->toHaveCount(2);
 
     // File yang tersimpan sudah dinormalisasi jadi JPEG (magic bytes FFD8FF).
-    foreach (Storage::disk('r2')->allFiles('covers') as $storedPath) {
-        expect(Storage::disk('r2')->get($storedPath))->toStartWith("\xFF\xD8\xFF");
+    foreach (Storage::disk('public')->allFiles('covers') as $storedPath) {
+        expect(Storage::disk('public')->get($storedPath))->toStartWith("\xFF\xD8\xFF");
     }
 });
 
 it('removes gallery images marked for deletion and adds new ones on update', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     $book = Book::factory()->create(['judul' => 'Galeri Update']);
     $oldImage = BookImage::factory()->create([
@@ -576,11 +576,11 @@ it('removes gallery images marked for deletion and adds new ones on update', fun
     expect($book->images()->count())->toBe(1)
         ->and($book->images()->first()->image_url)->not->toBe('https://cdn.example.com/covers/lama.jpg')
         ->and(BookImage::find($oldImage->id))->toBeNull()
-        ->and(Storage::disk('r2')->allFiles('covers'))->toHaveCount(1);
+        ->and(Storage::disk('public')->allFiles('covers'))->toHaveCount(1);
 });
 
 it('validates gallery images must be images under 2 MB', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     $this->actingAs($this->admin)
         ->post(route('admin.books.store'), array_merge([
@@ -592,7 +592,7 @@ it('validates gallery images must be images under 2 MB', function (): void {
 });
 
 it('requires gallery images as an array (client must send images[])', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     // Browser dengan <input name="images"> (tanpa []) + 1 file mengirim bentuk
     // ini — PHP tidak menormalisasinya jadi array → rule `array` menolak.
@@ -606,7 +606,7 @@ it('requires gallery images as an array (client must send images[])', function (
         ->assertSessionHasErrors('images');
 
     expect(Book::where('judul', 'Buku Satu Gambar')->exists())->toBeFalse()
-        ->and(Storage::disk('r2')->allFiles('covers'))->toBeEmpty();
+        ->and(Storage::disk('public')->allFiles('covers'))->toBeEmpty();
 });
 
 it('removes the stored cover when remove_cover is set', function (): void {
@@ -628,7 +628,7 @@ it('removes the stored cover when remove_cover is set', function (): void {
 });
 
 it('keeps the new cover when remove_cover and a new file are sent together', function (): void {
-    Storage::fake('r2');
+    Storage::fake('public');
 
     $book = Book::factory()->create([
         'judul' => 'Cover Baru',

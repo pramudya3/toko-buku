@@ -29,7 +29,7 @@ defineProps<{
 <template>
     <Head title="Pengaturan — API Key" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div>
             <h1 class="text-xl font-semibold tracking-tight">
                 Pengaturan API Key
@@ -104,7 +104,10 @@ defineProps<{
                 </CardContent>
             </Card>
 
-            <div class="flex items-center gap-3">
+            <!-- Action bar — sticky di bawah agar selalu terlihat -->
+            <div
+                class="sticky bottom-0 z-10 -mx-4 mt-4 flex flex-wrap items-center gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6"
+            >
                 <Button type="submit" :disabled="processing">
                     <Loader2 v-if="processing" class="size-4 animate-spin" />
                     {{ processing ? 'Menyimpan...' : 'Simpan' }}

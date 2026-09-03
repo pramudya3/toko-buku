@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Support\StoreSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class OrderStoreRequest extends FormRequest
 {
@@ -37,6 +38,7 @@ class OrderStoreRequest extends FormRequest
             'kecamatan' => ['nullable', 'string', 'max:100'],
             'kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
+            'order_date' => ['nullable', 'date', 'before_or_equal:today'],
             'metode_bayar' => ['required', Rule::in(StoreSettings::enabledPaymentMethodValues() ?: ['__tidak_ada__'])],
             'sumber_pembelian' => ['nullable', 'string', 'max:50', Rule::in(StoreSettings::enabledSalesChannelValues() ?: ['__tidak_ada__'])],
             // Ekspedisi wajib saat order dikirim; ambil sendiri tanpa ongkir.
@@ -62,6 +64,10 @@ class OrderStoreRequest extends FormRequest
             ],
             'items.*.book_edition_id' => ['nullable', 'string', 'exists:book_editions,id'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
+            'items.*.price_type' => ['nullable', Rule::in(['normal', 'expired_promo', 'custom'])],
+            'items.*.promo_id' => ['nullable', 'string', 'exists:promotions,id'],
+            'items.*.custom_price' => ['nullable', 'integer', 'min:1', 'max:1000000000'],
+            'items.*.price_note' => ['nullable', 'string', 'max:255'],
         ];
 
         // Pasangan (book_id, book_edition_id) tidak boleh duplikat —
@@ -116,6 +122,30 @@ class OrderStoreRequest extends FormRequest
         ];
 
         return $rules;
+    }
+
+    /**
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $items = $this->input('items', []);
+                foreach ($items as $idx => $row) {
+                    $type = $row['price_type'] ?? 'normal';
+                    if ($type === 'expired_promo' && empty($row['promo_id'])) {
+                        $validator->errors()->add("items.{$idx}.promo_id", 'Pilih promo expired untuk harga promo.');
+                    }
+                    if ($type === 'custom' && empty($row['custom_price'])) {
+                        $validator->errors()->add("items.{$idx}.custom_price", 'Harga custom wajib diisi.');
+                    }
+                    if (in_array($type, ['custom', 'expired_promo'], true) && empty(trim((string) ($row['price_note'] ?? '')))) {
+                        $validator->errors()->add("items.{$idx}.price_note", 'Keterangan wajib diisi untuk harga insidentil.');
+                    }
+                }
+            },
+        ];
     }
 
     /**

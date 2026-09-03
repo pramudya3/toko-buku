@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Support\Str;
  * @property string $name
  * @property string|null $kode_pos
  */
+#[Fillable(['code', 'district_code', 'name', 'api_code', 'courier_support', 'api_synced_at'])]
 class Village extends Model
 {
     /**
@@ -24,11 +26,6 @@ class Village extends Model
     }
 
     use HasUuids;
-
-    /**
-     * @var list<string>
-     */
-    protected $fillable = ['code', 'district_code', 'name', 'api_code', 'courier_support', 'api_synced_at'];
 
     /**
      * @return array<string, string>

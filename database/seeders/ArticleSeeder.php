@@ -10,9 +10,9 @@ use Illuminate\Support\Str;
 /**
  * Artikel konten demo storefront editorial — kategori + artikel terbit.
  *
- * Idempoten: kategori diambil/dibuat ulang via firstOrCreate berdasarkan slug;
- * artikel dibuat apa adanya (tidak deduplikasi) agar seeder bisa dipanggil ulang
- * untuk "menambah beberapa artikel" tanpa merusak data lama.
+ * Idempoten: kategori dan artikel dicek via firstOrCreate / where judul
+ * untuk mencegah duplikat saat seeder dipanggil berulang. Hanya 1 artikel
+ * unggulan (is_featured) yang aktif — observer memastikan single flag.
  *
  * Pemakaian:
  *   php artisan db:seed --class=ArticleSeeder
@@ -34,6 +34,9 @@ class ArticleSeeder extends Seeder
 
         $day = 0;
 
+        $created = 0;
+        $skipped = 0;
+
         $create = function (
             string $judul,
             string $kategori,
@@ -43,11 +46,28 @@ class ArticleSeeder extends Seeder
             int $publishedAfterDays,
             string $penulis = 'Redaksi',
             bool $featured = false,
-        ) use ($categories, &$day): Article {
+        ) use ($categories, &$day, &$created, &$skipped): Article {
             $day--;
+
+            // Cek duplikat by judul (demo data judul unik) — skip jika sudah ada
+            $existing = Article::withTrashed()->where('judul', $judul)->first();
+
+            if ($existing) {
+                // Soft-deleted duplikat historis → restore sekalian bersihkan
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+
+                $skipped++;
+
+                return $existing;
+            }
+
+            $created++;
 
             return Article::factory()->create([
                 'judul' => $judul,
+                'slug' => Str::slug($judul),
                 'article_category_id' => $categories[$kategori]->id,
                 'penulis' => $penulis,
                 'ringkasan' => $ringkasan,
@@ -181,6 +201,14 @@ class ArticleSeeder extends Seeder
             'Ustadz Ahmad Fauzi',
         );
 
-        $this->command->info('Artikel demo selesai: '.collect($categories)->count().' kategori, sejumlah artikel terbit (1 unggulan).');
+        // Bersihkan sisa duplikat soft-deleted (judul sama) agar DB benar-benar bersih
+        $activeJuduls = Article::pluck('judul');
+        $trashedDups = Article::onlyTrashed()->whereIn('judul', $activeJuduls)->count();
+
+        if ($trashedDups > 0) {
+            Article::onlyTrashed()->whereIn('judul', $activeJuduls)->forceDelete();
+        }
+
+        $this->command->info('Artikel demo selesai: '.collect($categories)->count()." kategori, {$created} baru, {$skipped} sudah ada (1 unggulan).".($trashedDups > 0 ? " {$trashedDups} duplikat soft-deleted dibersihkan." : ''));
     }
 }

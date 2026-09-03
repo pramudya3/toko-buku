@@ -8,9 +8,9 @@ defineOptions({
     },
 });
 
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { Banknote } from '@lucide/vue';
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import SupplierDebtController from '@/actions/App/Http/Controllers/Admin/SupplierDebtController';
 import CurrencyInput from '@/components/CurrencyInput.vue';
@@ -43,7 +43,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { todayWIB } from '@/lib/date';
+import { formatDateID, todayWIB } from '@/lib/date';
 
 type SupplierSummary = {
     id: string;
@@ -78,7 +78,16 @@ const props = defineProps<{
     suppliers: SupplierSummary[];
     invoices: Invoice[];
     payments: Payment[];
+    filters?: { supplier_id?: string; purchase_id?: string };
 }>();
+
+const activeTab = ref<'faktur' | 'supplier' | 'riwayat'>('faktur');
+
+const totalHutang = computed(() =>
+    props.suppliers.reduce((sum, s) => sum + s.saldo_hutang, 0),
+);
+const totalFaktur = computed(() => props.invoices.length);
+const totalSupplierHutang = computed(() => props.suppliers.length);
 
 // ── Dialog pembayaran ─────────────────────────────────────────────
 const paymentOpen = ref(false);
@@ -130,6 +139,47 @@ function onPurchaseChange() {
     paymentForm.amount = invoice ? Number(invoice.sisa) : 0;
 }
 
+onMounted(() => {
+    const queryPurchaseId =
+        (usePage().props as unknown as { filters?: { purchase_id?: string } })
+            .filters?.purchase_id ??
+        new URLSearchParams(window.location.search).get('purchase_id');
+    const querySupplierId =
+        (usePage().props as unknown as { filters?: { supplier_id?: string } })
+            .filters?.supplier_id ??
+        new URLSearchParams(window.location.search).get('supplier_id');
+
+    if (queryPurchaseId) {
+        const invoice = props.invoices.find(
+            (inv) => String(inv.id) === String(queryPurchaseId),
+        );
+
+        if (invoice) {
+            openPayment(invoice);
+
+            return;
+        }
+    }
+
+    if (querySupplierId) {
+        const supplier = props.suppliers.find(
+            (s) => String(s.id) === String(querySupplierId),
+        );
+
+        if (supplier) {
+            const inv = props.invoices.find(
+                (i) => String(i.supplier_id) === String(querySupplierId),
+            );
+
+            if (inv) {
+                openPayment(inv);
+            } else {
+                openPayment(undefined, supplier);
+            }
+        }
+    }
+});
+
 function submitPayment() {
     router.post(
         SupplierDebtController.store.url(),
@@ -161,7 +211,7 @@ function submitPayment() {
 <template>
     <Head title="Hutang Supplier" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="flex flex-col gap-6 p-6 md:p-8">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">
@@ -177,8 +227,97 @@ function submitPayment() {
             </Button>
         </div>
 
-        <Card>
-            <CardHeader>
+        <!-- Summary Cards -->
+        <div class="grid gap-4 md:grid-cols-3">
+            <Card>
+                <CardContent class="p-4">
+                    <p class="text-xs text-muted-foreground">Total Hutang</p>
+                    <p class="mt-1 text-xl font-semibold tabular-nums">
+                        <Money :value="totalHutang" />
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        {{ totalSupplierHutang }} supplier ·
+                        {{ totalFaktur }} faktur belum lunas
+                    </p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardContent class="p-4">
+                    <p class="text-xs text-muted-foreground">
+                        Faktur Belum Lunas
+                    </p>
+                    <p class="mt-1 text-xl font-semibold tabular-nums">
+                        {{ totalFaktur }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">Perlu dibayar</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardContent class="p-4">
+                    <p class="text-xs text-muted-foreground">
+                        Pembayaran Terakhir
+                    </p>
+                    <p class="mt-1 text-sm font-medium">
+                        {{ payments[0] ? payments[0].payment_date : '—' }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        {{
+                            payments[0]
+                                ? `Rp ${payments[0].amount.toLocaleString('id-ID')}`
+                                : 'Belum ada'
+                        }}
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 border-b">
+            <button
+                type="button"
+                class="border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+                :class="
+                    activeTab === 'faktur'
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                "
+                @click="activeTab = 'faktur'"
+            >
+                Faktur Belum Lunas
+                <span
+                    v-if="invoices.length"
+                    class="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs"
+                    >{{ invoices.length }}</span
+                >
+            </button>
+            <button
+                type="button"
+                class="border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+                :class="
+                    activeTab === 'supplier'
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                "
+                @click="activeTab = 'supplier'"
+            >
+                Per Supplier
+            </button>
+            <button
+                type="button"
+                class="border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+                :class="
+                    activeTab === 'riwayat'
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                "
+                @click="activeTab = 'riwayat'"
+            >
+                Riwayat
+            </button>
+        </div>
+
+        <Card v-show="activeTab === 'faktur'">
+            <CardHeader class="pb-3">
                 <CardTitle class="text-base font-medium"
                     >Faktur Belum Lunas</CardTitle
                 >
@@ -187,8 +326,10 @@ function submitPayment() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead class="whitespace-nowrap"
+                                >Tanggal</TableHead
+                            >
                             <TableHead>Ref Code</TableHead>
-                            <TableHead>Tanggal</TableHead>
                             <TableHead>Supplier</TableHead>
                             <TableHead class="text-right">Total</TableHead>
                             <TableHead class="text-right">Dibayar</TableHead>
@@ -200,11 +341,11 @@ function submitPayment() {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="invoice in invoices" :key="invoice.id">
+                            <TableCell class="whitespace-nowrap tabular-nums">
+                                {{ formatDateID(invoice.purchase_date) }}
+                            </TableCell>
                             <TableCell class="font-mono text-xs">
                                 {{ invoice.ref_code }}
-                            </TableCell>
-                            <TableCell class="tabular-nums">
-                                {{ invoice.purchase_date }}
                             </TableCell>
                             <TableCell>
                                 {{ invoice.supplier_nama }}
@@ -241,8 +382,8 @@ function submitPayment() {
             </CardContent>
         </Card>
 
-        <Card>
-            <CardHeader>
+        <Card v-show="activeTab === 'supplier'">
+            <CardHeader class="pb-3">
                 <CardTitle class="text-base font-medium"
                     >Ringkasan per Supplier</CardTitle
                 >
@@ -306,8 +447,8 @@ function submitPayment() {
             </CardContent>
         </Card>
 
-        <Card>
-            <CardHeader>
+        <Card v-show="activeTab === 'riwayat'">
+            <CardHeader class="pb-3">
                 <CardTitle class="text-base font-medium"
                     >Pembayaran Terakhir</CardTitle
                 >

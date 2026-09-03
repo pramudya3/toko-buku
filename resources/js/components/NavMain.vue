@@ -64,27 +64,37 @@ function closeOnMobile(): void {
             </SidebarGroupLabel>
             <CollapsibleContent>
                 <SidebarMenu>
-                    <SidebarMenuItem
-                        v-for="item in group.items"
-                        :key="item.title"
-                    >
-                        <SidebarMenuButton
-                            as-child
-                            :is-active="isCurrentUrl(item.href)"
-                            :tooltip="item.title"
-                        >
-                            <Link :href="item.href" @click="closeOnMobile">
-                                <component :is="item.icon" />
-                                <span>{{ item.title }}</span>
-                                <span
-                                    v-if="item.badge && item.badge > 0"
-                                    class="ml-auto inline-flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+                    <template v-for="item in group.items" :key="item.title">
+                        <SidebarMenuItem v-if="'items' in item">
+                            <NavItemList :items="[item]" />
+                        </SidebarMenuItem>
+                        <SidebarMenuItem v-else>
+                            <SidebarMenuButton
+                                as-child
+                                :is-active="
+                                    isCurrentUrl((item as NavItem).href)
+                                "
+                                :tooltip="item.title"
+                            >
+                                <Link
+                                    :href="(item as NavItem).href"
+                                    @click="closeOnMobile"
                                 >
-                                    {{ item.badge }}
-                                </span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
+                                    <component :is="(item as NavItem).icon" />
+                                    <span>{{ item.title }}</span>
+                                    <span
+                                        v-if="
+                                            (item as NavItem).badge &&
+                                            (item as NavItem).badge! > 0
+                                        "
+                                        class="ml-auto inline-flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+                                    >
+                                        {{ (item as NavItem).badge }}
+                                    </span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </template>
                 </SidebarMenu>
             </CollapsibleContent>
         </Collapsible>

@@ -9,9 +9,11 @@ defineOptions({
     },
 });
 
-import { Head } from '@inertiajs/vue3';
+import { Link, Head } from '@inertiajs/vue3';
+import { ArrowLeft } from '@lucide/vue';
 import DataTable from '@/components/DataTable.vue';
 import type { DataTableColumn } from '@/components/DataTable.vue';
+import { Button } from '@/components/ui/button';
 
 type RequestItem = {
     id: string;
@@ -62,8 +64,18 @@ const columns: DataTableColumn[] = [
 <template>
     <Head :title="`Pengajuan Stok — ${book.judul}`" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex items-center gap-4">
+            <Button
+                variant="ghost"
+                size="icon"
+                class="size-8 shrink-0"
+                as-child
+            >
+                <Link href="/admin/stock-requests"
+                    ><ArrowLeft class="size-4"
+                /></Link>
+            </Button>
             <img
                 v-if="book.cover_url"
                 :src="book.cover_url"

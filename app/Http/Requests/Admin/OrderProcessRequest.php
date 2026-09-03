@@ -43,8 +43,7 @@ class OrderProcessRequest extends FormRequest
             'courier_service_code' => ['nullable', 'string', 'max:50'],
             'warehouse_origin' => [
                 'required',
-                // Hindari bind `false` (di SQLite jadi '') — pakai 0.
-                Rule::exists('warehouses', 'kode')->where('is_defect', 0),
+                Rule::exists('warehouses', 'kode'),
             ],
         ];
     }

@@ -6,8 +6,7 @@ use App\Models\Book;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
- * Menu Artikel di storefront — beranda editorial ("/") & detail (/artikel/{slug})
- * untuk storefront utama dan storefront paralel proto-d (/pcd/**).
+ * Menu Artikel di storefront — beranda editorial ("/") & detail (/artikel/{slug}).
  */
 it('shows only published articles in the home feed and recent section', function (): void {
     Article::factory()->create(['judul' => 'Artikel Terbit', 'published_at' => today()->toDateString()]);
@@ -40,58 +39,6 @@ it('404s for inactive or unpublished articles', function (): void {
 
     $this->get(route('articles.show', $inactive->slug))->assertNotFound();
     $this->get(route('articles.show', $future->slug))->assertNotFound();
-});
-
-it('passes real articles to the pcd home', function (): void {
-    Article::factory()->create([
-        'judul' => 'Artikel PCD Unggulan',
-        'published_at' => '2026-08-16',
-    ]);
-    Article::factory()->draft()->create(['judul' => 'Artikel PCD Draft']);
-
-    $this->get(route('pcd.home'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('storefront-pcd/Home')
-            ->has('articles.data', 1)
-            ->where('articles.data.0.judul', 'Artikel PCD Unggulan'));
-});
-
-it('shows the pcd article detail and 404s for unpublished ones', function (): void {
-    $article = Article::factory()->create([
-        'judul' => 'Artikel PCD Detail',
-        'published_at' => '2026-08-16',
-    ]);
-    $draft = Article::factory()->draft()->create(['judul' => 'Artikel PCD Draft']);
-
-    $this->get(route('pcd.articles.show', $article->slug))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('storefront-pcd/ArticleDetail')
-            ->where('article.judul', 'Artikel PCD Detail'));
-
-    $this->get(route('pcd.articles.show', $draft->slug))->assertNotFound();
-});
-
-it('passes featured books with prices to the pcd article detail ad slots', function (): void {
-    $article = Article::factory()->create([
-        'judul' => 'Artikel dengan Iklan Buku',
-        'published_at' => '2026-08-16',
-    ]);
-    Book::factory()->create([
-        'judul' => 'Buku Iklan',
-        'harga' => 95000,
-        'aktif' => true,
-    ]);
-    Book::factory()->create(['judul' => 'Buku Nonaktif', 'harga' => 10000, 'aktif' => false]);
-
-    $this->get(route('pcd.articles.show', $article->slug))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('storefront-pcd/ArticleDetail')
-            ->has('books', 1)
-            ->where('books.0.judul', 'Buku Iklan')
-            ->where('books.0.harga', 95000));
 });
 
 it('catalog page still works at /buku', function (): void {
@@ -216,5 +163,3 @@ it('404s for the removed legacy /artikel listing route', function (): void {
 
     $this->get('/artikel')->assertNotFound();
 });
-
-// ── Detail artikel & proto-d (tidak berubah) ──

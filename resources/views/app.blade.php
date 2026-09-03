@@ -30,8 +30,9 @@
             }
         </style>
 
-        <link rel="icon" href="/favicon.png" type="image/png">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        <link rel="icon" href="/logo-pcp.png" type="image/png">
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32">
+        <link rel="apple-touch-icon" href="/logo-pcp.png">
 
         @fonts
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,7 +41,7 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            <title>{{ config('app.name', 'Penerbit Pustaka Cahaya Peradaban') }}</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

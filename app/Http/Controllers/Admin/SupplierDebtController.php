@@ -11,6 +11,7 @@ use App\Models\SupplierPurchase;
 use App\Services\SupplierService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -26,7 +27,7 @@ class SupplierDebtController extends Controller
     /**
      * Ringkasan hutang + faktur belum lunas + riwayat pembayaran.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $suppliers = Supplier::query()
             ->withSum('purchases as purchase_total', 'total')
@@ -81,6 +82,7 @@ class SupplierDebtController extends Controller
             'suppliers' => $suppliers,
             'invoices' => $invoices,
             'payments' => $payments,
+            'filters' => $request->only(['supplier_id', 'purchase_id']),
         ]);
     }
 

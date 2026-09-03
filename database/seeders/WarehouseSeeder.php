@@ -26,5 +26,10 @@ class WarehouseSeeder extends Seeder
             ['kode' => 'defect'],
             ['nama' => 'Defect', 'is_defect' => true, 'is_active' => true],
         );
+
+        Warehouse::updateOrCreate(
+            ['kode' => 'toko'],
+            ['nama' => 'Toko Fisik', 'alamat' => 'Toko Offline', 'is_defect' => false, 'is_active' => true],
+        );
     }
 }

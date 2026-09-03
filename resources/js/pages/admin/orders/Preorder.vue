@@ -248,7 +248,7 @@ async function copyNumbers(): Promise<void> {
 <template>
     <Head title="Pesanan — Pre-Order" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div>
             <h1 class="text-xl font-semibold tracking-tight">Pre-Order</h1>
             <p class="text-sm text-muted-foreground">

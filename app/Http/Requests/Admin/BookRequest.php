@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class BookRequest extends FormRequest
 {
@@ -35,11 +36,11 @@ class BookRequest extends FormRequest
             'isbn' => ['nullable', 'string', 'max:20'],
             'sinopsis' => ['nullable', 'string'],
             'category_id' => ['required', 'exists:categories,id'],
-            'cover' => ['nullable', 'image', 'max:2048'],
+            'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
             'cover_url' => ['nullable', 'url', 'max:255'],
             'remove_cover' => ['boolean'],
             'images' => ['nullable', 'array', 'max:5'],
-            'images.*' => ['image', 'max:2048'],
+            'images.*' => ['image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
             'removed_images' => ['nullable', 'array'],
             'removed_images.*' => ['uuid'],
             'aktif' => ['boolean'],
@@ -62,6 +63,60 @@ class BookRequest extends FormRequest
             'editions.*.harga_beli' => ['required', 'integer', 'min:1'],
             'editions.*.harga_jual' => ['required', 'integer', 'min:1'],
             'editions.*.is_active' => ['boolean'],
+            'editions.*.harga_guru_type' => ['nullable', 'string', Rule::in(['percent', 'fixed'])],
+            'editions.*.harga_guru_value' => ['nullable', 'integer', 'min:1', 'max:1000000000'],
+        ];
+    }
+
+    /**
+     * Normalisasi harga guru: jika type/value tidak lengkap, kosongkan keduanya.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('editions') || ! is_array($this->input('editions'))) {
+            return;
+        }
+
+        $editions = $this->input('editions');
+
+        foreach ($editions as $index => $edition) {
+            $type = $edition['harga_guru_type'] ?? null;
+            $value = $edition['harga_guru_value'] ?? null;
+
+            // Kosongkan jika salah satu tidak diisi
+            if (empty($type) || empty($value)) {
+                $editions[$index]['harga_guru_type'] = null;
+                $editions[$index]['harga_guru_value'] = null;
+            }
+        }
+
+        $this->merge(['editions' => $editions]);
+    }
+
+    /**
+     * Validasi silang harga guru (percent 1-100, fixed >=1).
+     *
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $editions = $this->input('editions', []);
+
+                foreach ($editions as $index => $edition) {
+                    $type = $edition['harga_guru_type'] ?? null;
+                    $value = $edition['harga_guru_value'] ?? null;
+
+                    if ($type === null && $value === null) {
+                        continue;
+                    }
+
+                    if ($type === 'percent' && $value !== null && ((int) $value < 1 || (int) $value > 100)) {
+                        $validator->errors()->add("editions.{$index}.harga_guru_value", 'Diskon guru persen harus 1–100.');
+                    }
+                }
+            },
         ];
     }
 
@@ -80,6 +135,8 @@ class BookRequest extends FormRequest
             'editions.*.harga_jual.required' => 'Harga jual cetakan wajib diisi.',
             'editions.*.harga_beli.min' => 'Harga beli minimal 1.',
             'editions.*.harga_jual.min' => 'Harga jual minimal 1.',
+            'editions.*.harga_guru_type.in' => 'Tipe harga guru harus percent atau fixed.',
+            'editions.*.harga_guru_value.min' => 'Nilai harga guru minimal 1.',
             'category_id.required' => 'Kategori wajib diisi.',
             'images.max' => 'Maksimal 5 gambar galeri.',
             'images.*.image' => 'File galeri harus berupa gambar.',

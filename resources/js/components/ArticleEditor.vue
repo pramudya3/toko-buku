@@ -8,7 +8,7 @@
  * Code/Underline + Highlight▾ + Link▾ | Sub/Sup | TextAlign ×4 | Image
  *
  * Bonus di luar template: bubble toolbar saat teks diseleksi (sesuai
- * permintaan sebelumnya) dan upload gambar langsung ke R2.
+ * permintaan sebelumnya) dan upload gambar langsung ke public storage.
  */
 import {
     Bold,
@@ -24,6 +24,7 @@ import {
     Loader2,
     Quote,
     Redo2,
+    Rows3,
     Strikethrough,
     Subscript as SubscriptIcon,
     Superscript as SuperscriptIcon,
@@ -31,9 +32,12 @@ import {
     TextAlignEnd,
     TextAlignJustify,
     TextAlignStart,
+    Type,
     Underline as UnderlineIcon,
     Undo2,
 } from '@lucide/vue';
+import { Extension } from '@tiptap/core';
+import { FontFamily } from '@tiptap/extension-font-family';
 import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -43,6 +47,7 @@ import Superscript from '@tiptap/extension-superscript';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
 import Typography from '@tiptap/extension-typography';
 import Underline from '@tiptap/extension-underline';
 import StarterKit from '@tiptap/starter-kit';
@@ -69,6 +74,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 const props = withDefaults(
@@ -77,13 +87,140 @@ const props = withDefaults(
         placeholder?: string;
     }>(),
     {
-        placeholder: 'Mulai menulis artikel…',
+        placeholder: '',
     },
 );
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
 }>();
+
+// Font size — Word/Google Docs style
+const FontSize = Extension.create({
+    name: 'fontSize',
+    addOptions() {
+        return {
+            types: ['textStyle'],
+        };
+    },
+    addGlobalAttributes() {
+        return [
+            {
+                types: this.options.types,
+                attributes: {
+                    fontSize: {
+                        default: null,
+                        parseHTML: (element: HTMLElement) =>
+                            element.style.fontSize || null,
+                        renderHTML: (attributes: Record<string, unknown>) => {
+                            if (!attributes.fontSize) {
+                                return {};
+                            }
+
+                            return {
+                                style: `font-size: ${attributes.fontSize}`,
+                            };
+                        },
+                    },
+                },
+            },
+        ];
+    },
+    addCommands() {
+        return {
+            setFontSize:
+                (fontSize: string) =>
+                ({
+                    chain,
+                }: {
+                    chain: () => {
+                        setMark: (
+                            t: string,
+                            a: Record<string, unknown>,
+                        ) => { run: () => boolean };
+                    };
+                }) =>
+                    chain().setMark('textStyle', { fontSize }).run(),
+            unsetFontSize:
+                () =>
+                ({
+                    chain,
+                }: {
+                    chain: () => {
+                        unsetMark: (t: string) => { run: () => boolean };
+                    };
+                }) =>
+                    chain().unsetMark('textStyle').run(),
+        } as never;
+    },
+});
+
+// Line height — Word/Google Docs style (1.0 – 2.5)
+const LineHeight = Extension.create({
+    name: 'lineHeight',
+    addOptions() {
+        return {
+            types: ['paragraph', 'heading'],
+        };
+    },
+    addGlobalAttributes() {
+        return [
+            {
+                types: this.options.types,
+                attributes: {
+                    lineHeight: {
+                        default: null,
+                        parseHTML: (element: HTMLElement) =>
+                            element.style.lineHeight || null,
+                        renderHTML: (attributes: Record<string, unknown>) => {
+                            if (!attributes.lineHeight) {
+                                return {};
+                            }
+
+                            return {
+                                style: `line-height: ${attributes.lineHeight}`,
+                            };
+                        },
+                    },
+                },
+            },
+        ];
+    },
+    addCommands() {
+        return {
+            setLineHeight:
+                (lineHeight: string) =>
+                ({
+                    commands,
+                }: {
+                    commands: Record<string, (...args: unknown[]) => boolean>;
+                }) =>
+                    (this.options.types as string[]).every((type: string) =>
+                        (
+                            commands.updateAttributes as (
+                                t: string,
+                                a: Record<string, unknown>,
+                            ) => boolean
+                        )(type, { lineHeight }),
+                    ),
+            unsetLineHeight:
+                () =>
+                ({
+                    commands,
+                }: {
+                    commands: Record<string, (...args: unknown[]) => boolean>;
+                }) =>
+                    (this.options.types as string[]).every((type: string) =>
+                        (
+                            commands.resetAttributes as (
+                                t: string,
+                                a: string,
+                            ) => boolean
+                        )(type, 'lineHeight'),
+                    ),
+        } as never;
+    },
+});
 
 const editor = useEditor({
     content: props.modelValue,
@@ -118,6 +255,12 @@ const editor = useEditor({
         TextAlign.configure({
             types: ['heading', 'paragraph'],
         }),
+        TextStyle,
+        FontFamily.configure({
+            types: ['textStyle'],
+        }),
+        FontSize,
+        LineHeight,
         Subscript,
         Superscript,
         Typography,
@@ -170,31 +313,31 @@ const run = (command: (chain: ReturnType<Editor['chain']>) => unknown) => {
 const markTools: Tool[] = [
     {
         icon: Bold,
-        title: 'Tebal (Ctrl+B)',
+        title: 'Bold (Ctrl+B)',
         active: () => isActive('bold'),
         action: () => run((c) => c.toggleBold().run()),
     },
     {
         icon: Italic,
-        title: 'Miring (Ctrl+I)',
+        title: 'Italic (Ctrl+I)',
         active: () => isActive('italic'),
         action: () => run((c) => c.toggleItalic().run()),
     },
     {
         icon: Strikethrough,
-        title: 'Coret',
+        title: 'Strikethrough',
         active: () => isActive('strike'),
         action: () => run((c) => c.toggleStrike().run()),
     },
     {
         icon: Code,
-        title: 'Kode inline',
+        title: 'Inline code',
         active: () => isActive('code'),
         action: () => run((c) => c.toggleCode().run()),
     },
     {
         icon: UnderlineIcon,
-        title: 'Garis bawah (Ctrl+U)',
+        title: 'Underline (Ctrl+U)',
         active: () => isActive('underline'),
         action: () => run((c) => c.toggleUnderline().run()),
     },
@@ -203,13 +346,13 @@ const markTools: Tool[] = [
 const blockTools: Tool[] = [
     {
         icon: Quote,
-        title: 'Kutipan',
+        title: 'Blockquote',
         active: () => isActive('blockquote'),
         action: () => run((c) => c.toggleBlockquote().run()),
     },
     {
         icon: CodeXml,
-        title: 'Blok kode',
+        title: 'Code block',
         active: () => isActive('codeBlock'),
         action: () => run((c) => c.toggleCodeBlock().run()),
     },
@@ -218,13 +361,13 @@ const blockTools: Tool[] = [
 const scriptTools: Tool[] = [
     {
         icon: SuperscriptIcon,
-        title: 'Superskrip',
+        title: 'Superscript',
         active: () => isActive('superscript'),
         action: () => run((c) => c.toggleSuperscript().run()),
     },
     {
         icon: SubscriptIcon,
-        title: 'Subskrip',
+        title: 'Subscript',
         active: () => isActive('subscript'),
         action: () => run((c) => c.toggleSubscript().run()),
     },
@@ -236,10 +379,10 @@ const ALIGN_OPTIONS: {
     icon: Component;
     title: string;
 }[] = [
-    { value: 'left', icon: TextAlignStart, title: 'Rata kiri' },
-    { value: 'center', icon: TextAlignCenter, title: 'Rata tengah' },
-    { value: 'right', icon: TextAlignEnd, title: 'Rata kanan' },
-    { value: 'justify', icon: TextAlignJustify, title: 'Rata kanan-kiri' },
+    { value: 'left', icon: TextAlignStart, title: 'Align left' },
+    { value: 'center', icon: TextAlignCenter, title: 'Align center' },
+    { value: 'right', icon: TextAlignEnd, title: 'Align right' },
+    { value: 'justify', icon: TextAlignJustify, title: 'Justify' },
 ];
 
 const alignTools: Tool[] = ALIGN_OPTIONS.map((option) => ({
@@ -248,6 +391,62 @@ const alignTools: Tool[] = ALIGN_OPTIONS.map((option) => ({
     active: () => isActive({ textAlign: option.value }),
     action: () => run((c) => c.setTextAlign(option.value).run()),
 }));
+
+// Line spacing — Word/Google Docs style
+const LINE_HEIGHTS = [
+    { value: '1', label: '1.0' },
+    { value: '1.15', label: '1.15' },
+    { value: '1.5', label: '1.5' },
+    { value: '2', label: '2.0' },
+    { value: '2.5', label: '2.5' },
+];
+const lineHeightValue = ref('1.5');
+
+watch(editor, (instance) => {
+    if (!instance) {
+        return;
+    }
+
+    const updateLineHeight = () => {
+        const attrs = instance.getAttributes('paragraph');
+        const headingAttrs = instance.getAttributes('heading');
+        const lh =
+            (attrs.lineHeight as string | undefined) ??
+            (headingAttrs.lineHeight as string | undefined) ??
+            '1.5';
+        lineHeightValue.value = LINE_HEIGHTS.some((o) => o.value === lh)
+            ? lh
+            : '1.5';
+    };
+
+    instance.on('transaction', updateLineHeight);
+    instance.on('selectionUpdate', updateLineHeight);
+    updateLineHeight();
+});
+
+watch(lineHeightValue, (value) => {
+    if (!editor.value) {
+        return;
+    }
+
+    if (value === '1.5') {
+        (
+            editor.value.chain().focus() as unknown as {
+                unsetLineHeight: () => { run: () => void };
+            }
+        )
+            .unsetLineHeight()
+            .run();
+    } else {
+        (
+            editor.value.chain().focus() as unknown as {
+                setLineHeight: (v: string) => { run: () => void };
+            }
+        )
+            .setLineHeight(value)
+            .run();
+    }
+});
 
 const toolbarButton = (active: boolean, disabled: boolean): string =>
     cn(
@@ -267,10 +466,130 @@ const isDisabled = (tool: Tool) => {
     return tool.can ? !tool.can() : false;
 };
 
+// ── Font family — Indonesia + Arabic ──
+const FONT_OPTIONS = [
+    { value: 'default', label: 'Default', family: 'inherit' },
+    // Indonesia / Latin — umum untuk naskah Indonesia
+    { value: 'Inter', label: 'Inter — Latin', family: 'Inter, sans-serif' },
+    {
+        value: 'Merriweather',
+        label: 'Merriweather',
+        family: 'Merriweather, serif',
+    },
+    { value: 'Lora', label: 'Lora', family: 'Lora, serif' },
+    { value: 'Poppins', label: 'Poppins', family: 'Poppins, sans-serif' },
+    {
+        value: 'Times New Roman',
+        label: 'Times New Roman',
+        family: '"Times New Roman", serif',
+    },
+    // Arabic — untuk ayat, kutipan Arab
+    { value: 'Amiri', label: 'Amiri — Arabic', family: 'Amiri, serif' },
+    {
+        value: 'Scheherazade New',
+        label: 'Scheherazade New',
+        family: '"Scheherazade New", serif',
+    },
+    {
+        value: 'Noto Naskh Arabic',
+        label: 'Noto Naskh Arabic',
+        family: '"Noto Naskh Arabic", serif',
+    },
+    { value: 'Lateef', label: 'Lateef', family: 'Lateef, serif' },
+];
+const fontFamilyValue = ref('default');
+
+// Font size — default 12, tanpa kata Default (Google Docs style)
+const FONT_SIZE_OPTIONS = [
+    { value: '10px', label: '10' },
+    { value: '12px', label: '12' },
+    { value: '14px', label: '14' },
+    { value: '16px', label: '16' },
+    { value: '18px', label: '18' },
+    { value: '20px', label: '20' },
+    { value: '24px', label: '24' },
+    { value: '28px', label: '28' },
+    { value: '32px', label: '32' },
+    { value: '36px', label: '36' },
+];
+const fontSizeValue = ref('12px');
+
+watch(editor, (instance) => {
+    if (!instance) {
+        return;
+    }
+
+    const updateFont = () => {
+        const attrs = instance.getAttributes('textStyle');
+        const family = (attrs.fontFamily as string | undefined) ?? '';
+        fontFamilyValue.value = FONT_OPTIONS.some((o) => o.value === family)
+            ? family
+            : 'default';
+    };
+
+    instance.on('transaction', updateFont);
+    instance.on('selectionUpdate', updateFont);
+    updateFont();
+});
+
+watch(fontFamilyValue, (value) => {
+    if (!editor.value) {
+        return;
+    }
+
+    if (!value || value === 'default') {
+        editor.value.chain().focus().unsetFontFamily().run();
+    } else {
+        editor.value.chain().focus().setFontFamily(value).run();
+    }
+});
+
+watch(editor, (instance) => {
+    if (!instance) {
+        return;
+    }
+
+    const updateSize = () => {
+        const attrs = instance.getAttributes('textStyle');
+        const size = (attrs.fontSize as string | undefined) ?? '12px';
+        fontSizeValue.value = FONT_SIZE_OPTIONS.some((o) => o.value === size)
+            ? size
+            : '12px';
+    };
+
+    instance.on('transaction', updateSize);
+    instance.on('selectionUpdate', updateSize);
+    updateSize();
+});
+
+watch(fontSizeValue, (value) => {
+    if (!editor.value) {
+        return;
+    }
+
+    if (value === '12px') {
+        (
+            editor.value.chain().focus() as unknown as {
+                unsetFontSize: () => { run: () => void };
+            }
+        )
+            .unsetFontSize()
+            .run();
+    } else {
+        (
+            editor.value.chain().focus() as unknown as {
+                setFontSize: (v: string) => { run: () => void };
+            }
+        )
+            .setFontSize(value)
+            .run();
+    }
+});
+
 // ── Dropdown heading (Paragraf / H1–H4) ──
 const styleValue = ref('p');
 const styleOptions = [
-    { value: 'p', label: 'Paragraf' },
+    { value: 'p', label: 'Normal text' },
     { value: 'h1', label: 'Heading 1' },
     { value: 'h2', label: 'Heading 2' },
     { value: 'h3', label: 'Heading 3' },
@@ -319,15 +638,15 @@ watch(styleValue, (value) => {
 const anyListActive = () =>
     isActive('bulletList') || isActive('orderedList') || isActive('taskList');
 
-// ── Warna spidol (ColorHighlightPopover) ──
+// ── Highlight color ──
 const HIGHLIGHT_COLORS = [
-    { name: 'Kuning', value: '#fef08a' },
-    { name: 'Hijau', value: '#bbf7d0' },
-    { name: 'Biru', value: '#bfdbfe' },
+    { name: 'Yellow', value: '#fef08a' },
+    { name: 'Green', value: '#bbf7d0' },
+    { name: 'Blue', value: '#bfdbfe' },
     { name: 'Pink', value: '#fbcfe8' },
-    { name: 'Ungu', value: '#ddd6fe' },
-    { name: 'Oranye', value: '#fed7aa' },
-    { name: 'Merah', value: '#fecaca' },
+    { name: 'Purple', value: '#ddd6fe' },
+    { name: 'Orange', value: '#fed7aa' },
+    { name: 'Red', value: '#fecaca' },
 ];
 
 function applyHighlight(color: string) {
@@ -398,7 +717,7 @@ function removeLink() {
     linkOpen.value = false;
 }
 
-// ── Upload gambar di dalam body → R2 ──
+// ── Upload gambar di dalam body → public storage ──
 const fileInput = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 
@@ -454,37 +773,37 @@ type BubbleTool = {
 const bubbleTools: BubbleTool[] = [
     {
         icon: Bold,
-        title: 'Tebal',
+        title: 'Bold',
         active: () => isActive('bold'),
         action: () => run((c) => c.toggleBold().run()),
     },
     {
         icon: Italic,
-        title: 'Miring',
+        title: 'Italic',
         active: () => isActive('italic'),
         action: () => run((c) => c.toggleItalic().run()),
     },
     {
         icon: Strikethrough,
-        title: 'Coret',
+        title: 'Strikethrough',
         active: () => isActive('strike'),
         action: () => run((c) => c.toggleStrike().run()),
     },
     {
         icon: Code,
-        title: 'Kode',
+        title: 'Code',
         active: () => isActive('code'),
         action: () => run((c) => c.toggleCode().run()),
     },
     {
         icon: Highlighter,
-        title: 'Spidol',
+        title: 'Highlight',
         active: () => isActive('highlight'),
         action: () => run((c) => c.toggleHighlight().run()),
     },
     {
         icon: LinkIcon,
-        title: 'Tautan',
+        title: 'Link',
         active: () => isActive('link'),
         action: () => {
             linkUrl.value = currentLink.value;
@@ -505,275 +824,439 @@ const bubbleTools: BubbleTool[] = [
             aria-label="Pemformat teks"
         >
             <!-- Undo/Redo -->
-            <button
-                type="button"
-                title="Urungkan (Ctrl+Z)"
-                aria-label="Urungkan"
-                :disabled="!editor?.can().undo()"
-                :class="toolbarButton(false, !editor?.can().undo())"
-                @mousedown.prevent
-                @click.prevent="run((c) => c.undo().run())"
-            >
-                <Undo2 class="size-4" />
-            </button>
-            <button
-                type="button"
-                title="Ulangi (Ctrl+Y)"
-                aria-label="Ulangi"
-                :disabled="!editor?.can().redo()"
-                :class="toolbarButton(false, !editor?.can().redo())"
-                @mousedown.prevent
-                @click.prevent="run((c) => c.redo().run())"
-            >
-                <Redo2 class="size-4" />
-            </button>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <button
+                        type="button"
+                        aria-label="Undo"
+                        :disabled="!editor?.can().undo()"
+                        :class="toolbarButton(false, !editor?.can().undo())"
+                        @mousedown.prevent
+                        @click.prevent="run((c) => c.undo().run())"
+                    >
+                        <Undo2 class="size-4" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <button
+                        type="button"
+                        aria-label="Redo"
+                        :disabled="!editor?.can().redo()"
+                        :class="toolbarButton(false, !editor?.can().redo())"
+                        @mousedown.prevent
+                        @click.prevent="run((c) => c.redo().run())"
+                    >
+                        <Redo2 class="size-4" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+            </Tooltip>
 
             <span class="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
             <!-- Heading dropdown -->
-            <Select v-model="styleValue" class="w-32">
-                <SelectTrigger class="h-8 w-32 text-xs">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="option in styleOptions"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <div>
+                        <Select v-model="styleValue" class="w-32">
+                            <SelectTrigger
+                                class="h-8 w-32 text-xs"
+                                aria-label="Text style"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="option in styleOptions"
+                                    :key="option.value"
+                                    :value="option.value"
+                                >
+                                    {{ option.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>Text style</TooltipContent>
+            </Tooltip>
+
+            <!-- Font family — Indonesia + Arabic -->
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <div class="flex items-center gap-1">
+                        <Type class="size-3.5 text-muted-foreground" />
+                        <Select v-model="fontFamilyValue" class="w-36">
+                            <SelectTrigger
+                                class="h-8 w-36 text-xs"
+                                aria-label="Font family"
+                            >
+                                <SelectValue placeholder="Font" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="opt in FONT_OPTIONS"
+                                    :key="opt.value || 'default'"
+                                    :value="opt.value"
+                                >
+                                    <span :style="{ fontFamily: opt.family }">{{
+                                        opt.label
+                                    }}</span>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent
+                    >Font family — Indonesian & Arabic</TooltipContent
+                >
+            </Tooltip>
+
+            <!-- Font size -->
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <Select v-model="fontSizeValue" class="w-20">
+                        <SelectTrigger
+                            class="h-8 w-20 text-xs"
+                            aria-label="Font size"
+                        >
+                            <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="opt in FONT_SIZE_OPTIONS"
+                                :key="opt.value || 'default'"
+                                :value="opt.value"
+                            >
+                                {{ opt.label }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </TooltipTrigger>
+                <TooltipContent>Font size</TooltipContent>
+            </Tooltip>
 
             <!-- List dropdown (poin / bernomor / checklist) -->
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        class="size-8"
-                        :class="
-                            anyListActive()
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        "
-                        title="Daftar"
-                        aria-label="Daftar"
-                        :disabled="!editor"
-                    >
-                        <List class="size-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                        @select="run((c) => c.toggleBulletList().run())"
-                    >
-                        <List class="size-4" />
-                        Daftar poin
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        @select="run((c) => c.toggleOrderedList().run())"
-                    >
-                        <ListOrdered class="size-4" />
-                        Daftar bernomor
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        @select="run((c) => c.toggleTaskList().run())"
-                    >
-                        <ListTodo class="size-4" />
-                        Checklist
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8"
+                                    :class="
+                                        anyListActive()
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    "
+                                    aria-label="Bulleted list"
+                                    :disabled="!editor"
+                                >
+                                    <List class="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                                <DropdownMenuItem
+                                    @select="
+                                        run((c) => c.toggleBulletList().run())
+                                    "
+                                >
+                                    <List class="size-4" />
+                                    Bulleted list
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    @select="
+                                        run((c) => c.toggleOrderedList().run())
+                                    "
+                                >
+                                    <ListOrdered class="size-4" />
+                                    Numbered list
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    @select="
+                                        run((c) => c.toggleTaskList().run())
+                                    "
+                                >
+                                    <ListTodo class="size-4" />
+                                    Checklist
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>Bulleted list</TooltipContent>
+            </Tooltip>
 
             <!-- Blockquote & Code block -->
-            <button
-                v-for="tool in blockTools"
-                :key="tool.title"
-                type="button"
-                :title="tool.title"
-                :aria-label="tool.title"
-                :disabled="isDisabled(tool)"
-                :class="
-                    toolbarButton(tool.active?.() ?? false, isDisabled(tool))
-                "
-                @mousedown.prevent
-                @click.prevent="tool.action()"
-            >
-                <component :is="tool.icon" class="size-4" />
-            </button>
+            <template v-for="tool in blockTools" :key="tool.title">
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <button
+                            type="button"
+                            :aria-label="tool.title"
+                            :disabled="isDisabled(tool)"
+                            :class="
+                                toolbarButton(
+                                    tool.active?.() ?? false,
+                                    isDisabled(tool),
+                                )
+                            "
+                            @mousedown.prevent
+                            @click.prevent="tool.action()"
+                        >
+                            <component :is="tool.icon" class="size-4" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ tool.title }}</TooltipContent>
+                </Tooltip>
+            </template>
 
             <span class="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
             <!-- Mark: bold/italic/strike/code/underline -->
-            <button
-                v-for="tool in markTools"
-                :key="tool.title"
-                type="button"
-                :title="tool.title"
-                :aria-label="tool.title"
-                :disabled="isDisabled(tool)"
-                :class="
-                    toolbarButton(tool.active?.() ?? false, isDisabled(tool))
-                "
-                @mousedown.prevent
-                @click.prevent="tool.action()"
-            >
-                <component :is="tool.icon" class="size-4" />
-            </button>
+            <template v-for="tool in markTools" :key="tool.title">
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <button
+                            type="button"
+                            :aria-label="tool.title"
+                            :disabled="isDisabled(tool)"
+                            :class="
+                                toolbarButton(
+                                    tool.active?.() ?? false,
+                                    isDisabled(tool),
+                                )
+                            "
+                            @mousedown.prevent
+                            @click.prevent="tool.action()"
+                        >
+                            <component :is="tool.icon" class="size-4" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ tool.title }}</TooltipContent>
+                </Tooltip>
+            </template>
 
             <!-- Highlight popover (warna) -->
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        class="size-8"
-                        :class="
-                            isActive('highlight')
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        "
-                        title="Spidol"
-                        aria-label="Spidol"
-                        :disabled="!editor"
-                    >
-                        <Highlighter class="size-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" class="w-44">
-                    <p
-                        class="px-2 pt-1.5 pb-1 text-xs font-medium text-muted-foreground"
-                    >
-                        Warna spidol
-                    </p>
-                    <DropdownMenuItem
-                        v-for="color in HIGHLIGHT_COLORS"
-                        :key="color.value"
-                        @select="applyHighlight(color.value)"
-                    >
-                        <span
-                            class="size-4 rounded-full ring-1 ring-black/10 ring-inset"
-                            :style="{ backgroundColor: color.value }"
-                        />
-                        {{ color.name }}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem @select="clearHighlight">
-                        Hapus spidol
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8"
+                                    :class="
+                                        isActive('highlight')
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    "
+                                    aria-label="Highlight"
+                                    :disabled="!editor"
+                                >
+                                    <Highlighter class="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" class="w-44">
+                                <p
+                                    class="px-2 pt-1.5 pb-1 text-xs font-medium text-muted-foreground"
+                                >
+                                    Highlight color
+                                </p>
+                                <DropdownMenuItem
+                                    v-for="color in HIGHLIGHT_COLORS"
+                                    :key="color.value"
+                                    @select="applyHighlight(color.value)"
+                                >
+                                    <span
+                                        class="size-4 rounded-full ring-1 ring-black/10 ring-inset"
+                                        :style="{
+                                            backgroundColor: color.value,
+                                        }"
+                                    />
+                                    {{ color.name }}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem @select="clearHighlight">
+                                    Clear highlight
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>Highlight color</TooltipContent>
+            </Tooltip>
 
             <!-- Link popover -->
-            <DropdownMenu v-model:open="linkOpen">
-                <DropdownMenuTrigger as-child>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        class="size-8"
-                        :class="
-                            isActive('link')
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        "
-                        title="Tautan"
-                        aria-label="Tautan"
-                        :disabled="!editor"
-                    >
-                        <LinkIcon class="size-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" class="w-64">
-                    <div class="flex flex-col gap-2 p-2">
-                        <p class="text-xs font-medium text-muted-foreground">
-                            URL tautan
-                        </p>
-                        <Input
-                            v-model="linkUrl"
-                            class="h-8 text-xs"
-                            placeholder="https://…"
-                            @keydown.enter.prevent="applyLink"
-                        />
-                        <div class="flex gap-2">
-                            <Button
-                                type="button"
-                                size="sm"
-                                class="flex-1"
-                                @click="applyLink"
-                            >
-                                Terapkan
-                            </Button>
-                            <Button
-                                v-if="currentLink"
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                @click="removeLink"
-                            >
-                                Hapus
-                            </Button>
-                        </div>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <div>
+                        <DropdownMenu v-model:open="linkOpen">
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8"
+                                    :class="
+                                        isActive('link')
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    "
+                                    aria-label="Insert link"
+                                    :disabled="!editor"
+                                >
+                                    <LinkIcon class="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" class="w-64">
+                                <div class="flex flex-col gap-2 p-2">
+                                    <p
+                                        class="text-xs font-medium text-muted-foreground"
+                                    >
+                                        Link URL
+                                    </p>
+                                    <Input
+                                        v-model="linkUrl"
+                                        class="h-8 text-xs"
+                                        placeholder="https://…"
+                                        @keydown.enter.prevent="applyLink"
+                                    />
+                                    <div class="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            class="flex-1"
+                                            @click="applyLink"
+                                        >
+                                            Apply
+                                        </Button>
+                                        <Button
+                                            v-if="currentLink"
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            @click="removeLink"
+                                        >
+                                            Remove
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent>Insert link (Ctrl+K)</TooltipContent>
+            </Tooltip>
+
+            <span class="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+
+            <!-- Line spacing — Word/Google Docs -->
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <div class="flex items-center gap-1">
+                        <Rows3 class="size-3.5 text-muted-foreground" />
+                        <Select v-model="lineHeightValue" class="w-20">
+                            <SelectTrigger
+                                class="h-8 w-20 text-xs"
+                                aria-label="Line spacing"
+                            >
+                                <SelectValue placeholder="Spasi" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="opt in LINE_HEIGHTS"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                >
+                                    {{ opt.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>Line spacing</TooltipContent>
+            </Tooltip>
 
             <span class="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
             <!-- Subscript / Superscript -->
-            <button
-                v-for="tool in scriptTools"
-                :key="tool.title"
-                type="button"
-                :title="tool.title"
-                :aria-label="tool.title"
-                :disabled="isDisabled(tool)"
-                :class="
-                    toolbarButton(tool.active?.() ?? false, isDisabled(tool))
-                "
-                @mousedown.prevent
-                @click.prevent="tool.action()"
-            >
-                <component :is="tool.icon" class="size-4" />
-            </button>
+            <template v-for="tool in scriptTools" :key="tool.title">
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <button
+                            type="button"
+                            :aria-label="tool.title"
+                            :disabled="isDisabled(tool)"
+                            :class="
+                                toolbarButton(
+                                    tool.active?.() ?? false,
+                                    isDisabled(tool),
+                                )
+                            "
+                            @mousedown.prevent
+                            @click.prevent="tool.action()"
+                        >
+                            <component :is="tool.icon" class="size-4" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ tool.title }}</TooltipContent>
+                </Tooltip>
+            </template>
 
             <span class="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
             <!-- Text align ×4 -->
-            <button
-                v-for="tool in alignTools"
-                :key="tool.title"
-                type="button"
-                :title="tool.title"
-                :aria-label="tool.title"
-                :disabled="isDisabled(tool)"
-                :class="
-                    toolbarButton(tool.active?.() ?? false, isDisabled(tool))
-                "
-                @mousedown.prevent
-                @click.prevent="tool.action()"
-            >
-                <component :is="tool.icon" class="size-4" />
-            </button>
+            <template v-for="tool in alignTools" :key="tool.title">
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <button
+                            type="button"
+                            :aria-label="tool.title"
+                            :disabled="isDisabled(tool)"
+                            :class="
+                                toolbarButton(
+                                    tool.active?.() ?? false,
+                                    isDisabled(tool),
+                                )
+                            "
+                            @mousedown.prevent
+                            @click.prevent="tool.action()"
+                        >
+                            <component :is="tool.icon" class="size-4" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ tool.title }}</TooltipContent>
+                </Tooltip>
+            </template>
 
             <span class="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
             <!-- Insert image -->
-            <button
-                type="button"
-                :title="uploading ? 'Mengunggah…' : 'Sisipkan gambar'"
-                :aria-label="uploading ? 'Mengunggah…' : 'Sisipkan gambar'"
-                :disabled="!editor || uploading"
-                :class="toolbarButton(false, !editor || uploading)"
-                @click="openImagePicker"
-            >
-                <Loader2 v-if="uploading" class="size-4 animate-spin" />
-                <ImagePlus v-else class="size-4" />
-            </button>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                    <button
+                        type="button"
+                        :aria-label="uploading ? 'Uploading…' : 'Insert image'"
+                        :disabled="!editor || uploading"
+                        :class="toolbarButton(false, !editor || uploading)"
+                        @click="openImagePicker"
+                    >
+                        <Loader2 v-if="uploading" class="size-4 animate-spin" />
+                        <ImagePlus v-else class="size-4" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                    uploading ? 'Uploading…' : 'Insert image'
+                }}</TooltipContent>
+            </Tooltip>
             <input
                 ref="fileInput"
                 type="file"
@@ -783,11 +1266,13 @@ const bubbleTools: BubbleTool[] = [
             />
         </div>
 
-        <!-- Area tulis -->
-        <EditorContent
-            :editor="editor"
-            class="article-editor prose max-w-none p-4 prose-stone dark:prose-invert"
-        />
+        <!-- Area tulis — kertas Word/Google Docs: margin kiri-kanan lebar, bg-muted luar, bg-white kertas -->
+        <div class="bg-muted p-2 md:p-6">
+            <EditorContent
+                :editor="editor"
+                class="article-editor mx-auto prose max-w-[720px] bg-white px-6 py-8 shadow-sm prose-stone md:px-10 md:py-10 dark:bg-card dark:prose-invert"
+            />
+        </div>
     </div>
 
     <!-- Bubble toolbar saat teks diseleksi -->
@@ -816,6 +1301,7 @@ const bubbleTools: BubbleTool[] = [
 .article-editor :deep(.ProseMirror) {
     outline: none;
     min-height: 420px;
+    font-size: 12px;
 }
 
 .article-editor :deep(.ProseMirror p.is-editor-empty:first-child::before) {

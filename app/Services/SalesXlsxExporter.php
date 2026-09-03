@@ -34,6 +34,7 @@ final class SalesXlsxExporter
         'Harga Asli',
         'Diskon',
         'Harga Final',
+        'Total',
         'HPP',
         'Laba',
     ];
@@ -83,8 +84,10 @@ final class SalesXlsxExporter
                     'harga_asli' => $item->price_original,
                     'diskon' => $item->promo_discount_amount + $item->tier_discount_amount,
                     'harga_final' => $item->price_final,
+                    'total' => $item->price_final * $item->qty,
                     'hpp' => $hpp,
                     'laba' => $laba,
+                    'shipping_cost' => (int) $order->shipping_cost,
                 ]);
             }
         }
@@ -129,8 +132,10 @@ final class SalesXlsxExporter
                     'harga_asli' => 0,
                     'diskon' => 0,
                     'harga_final' => $item->price_refund,
+                    'total' => -$item->price_refund * $qty,
                     'hpp' => $hpp,
                     'laba' => -($item->price_refund - $hpp) * $qty,
+                    'shipping_cost' => 0,
                 ]);
             }
         }
@@ -177,7 +182,7 @@ final class SalesXlsxExporter
             $sheet->setCellValue($column.$headerRow, $header);
         }
 
-        $headerStyle = $sheet->getStyle("A{$headerRow}:N{$headerRow}");
+        $headerStyle = $sheet->getStyle("A{$headerRow}:O{$headerRow}");
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
         $headerStyle->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -204,6 +209,7 @@ final class SalesXlsxExporter
                 $row['harga_asli'],
                 $row['diskon'],
                 $row['harga_final'],
+                $row['total'],
                 $row['hpp'],
                 $row['laba'],
             ], null, "A{$rowIndex}");
@@ -216,7 +222,7 @@ final class SalesXlsxExporter
             $rowIndex++;
         }
 
-        // Ringkasan
+        // Ringkasan — ongkir TIDAK termasuk revenue
         $sheet->setCellValue("K{$rowIndex}", 'Total Omzet (barang)');
         $sheet->setCellValue("L{$rowIndex}", $totalOmzet);
         $sheet->setCellValue('K'.($rowIndex + 1), 'Total Diskon');
@@ -233,10 +239,10 @@ final class SalesXlsxExporter
         $sheet->getStyle($summaryRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFEF3C7');
 
         // Format angka
-        $sheet->getStyle("H{$headerRow}:N{$rowIndex}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("H{$headerRow}:O{$rowIndex}")->getNumberFormat()->setFormatCode('#,##0');
 
         // Lebar kolom
-        foreach (range('A', 'N') as $column) {
+        foreach (range('A', 'O') as $column) {
             $sheet->getColumnDimension($column)->setWidth(
                 match ($column) {
                     'A' => 12,
@@ -247,7 +253,7 @@ final class SalesXlsxExporter
                     'F' => 18,
                     'G' => 40,
                     'H' => 14,
-                    'I', 'J', 'K', 'L', 'M', 'N' => 13,
+                    'I', 'J', 'K', 'L', 'M', 'N', 'O' => 13,
                     default => 13,
                 },
             );

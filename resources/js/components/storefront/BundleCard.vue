@@ -3,7 +3,6 @@
  * BundleCard — Flat design bundle/package card.
  * Shows bundle with books, discount, and pricing.
  */
-import { Link } from '@inertiajs/vue3';
 import { ShoppingCart } from '@lucide/vue';
 import BookCoverPlaceholder from '@/components/BookCoverPlaceholder.vue';
 import Money from '@/components/Money.vue';
@@ -53,7 +52,9 @@ defineEmits<{
                 >
                     {{ bundle.promo_name }}
                 </h3>
-                <span class="rounded-md bg-white/20 px-2 py-0.5 text-xs font-bold">
+                <span
+                    class="rounded-md bg-white/20 px-2 py-0.5 text-xs font-bold"
+                >
                     HEMAT {{ bundle.discount_percent }}%
                 </span>
             </div>
@@ -67,14 +68,19 @@ defineEmits<{
                     :key="book.id"
                     class="relative"
                 >
-                    <div class="aspect-[3/4] overflow-hidden rounded-md bg-flat-muted">
+                    <div
+                        class="aspect-[3/4] overflow-hidden rounded-md bg-flat-muted"
+                    >
                         <img
                             v-if="book.cover_url"
                             :src="book.cover_url"
                             :alt="book.judul"
                             class="size-full object-cover"
                         />
-                        <BookCoverPlaceholder v-else class="size-full" />
+                        <BookCoverPlaceholder
+                            :title="book.judul"
+                            class="size-full"
+                        />
                     </div>
                     <p class="mt-1 line-clamp-1 text-xs text-gray-600">
                         {{ book.judul }}
@@ -84,29 +90,33 @@ defineEmits<{
 
             <!-- Pricing -->
             <div class="mt-4 border-t border-flat-border pt-4">
-                <div class="flex items-center justify-between text-xs text-gray-500">
+                <div
+                    class="flex items-center justify-between text-xs text-gray-500"
+                >
                     <span>Harga normal</span>
                     <span class="line-through">
-                        <Money :amount="bundle.total_original" />
+                        <Money :value="bundle.total_original" />
                     </span>
                 </div>
-                <div class="mt-1 flex items-center justify-between text-xs text-flat-secondary">
+                <div
+                    class="mt-1 flex items-center justify-between text-xs text-flat-secondary"
+                >
                     <span>Diskon paket</span>
-                    <span>
-                        -<Money :amount="bundle.total_discount" />
-                    </span>
+                    <span> -<Money :value="bundle.total_discount" /> </span>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
-                    <span class="text-sm font-bold text-flat-ink">Harga paket</span>
+                    <span class="text-sm font-bold text-flat-ink"
+                        >Harga paket</span
+                    >
                     <span class="text-lg font-bold text-flat-primary">
-                        <Money :amount="bundle.total_final" />
+                        <Money :value="bundle.total_final" />
                     </span>
                 </div>
             </div>
 
             <!-- Add to cart button -->
             <button
-                v-if="showCart && bundle.books.some(b => b.stok > 0)"
+                v-if="showCart && bundle.books.some((b) => b.stok > 0)"
                 type="button"
                 class="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-flat-primary px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-flat-primary-dark"
                 @click="$emit('addToCart')"

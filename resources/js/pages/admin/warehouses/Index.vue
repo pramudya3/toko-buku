@@ -58,7 +58,13 @@ function applyFilters() {
     filterTimer = setTimeout(() => {
         router.get(
             indexRoute().url,
-            { search: search.value || undefined },
+            {
+                search: search.value || undefined,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
+            },
             { preserveState: true, replace: true },
         );
     }, 350);
@@ -93,7 +99,7 @@ function executeDelete() {
 <template>
     <Head title="Gudang" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <!-- HEADING -->
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>

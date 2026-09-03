@@ -221,7 +221,7 @@ final class RajaOngkirCostService
         return Http::withHeaders([
             'key' => (string) (config('rajaongkir.key') ?? ''),
             'Accept' => 'application/json',
-        ])->timeout(15);
+        ])->timeout(10)->retry(2, 200, throw: false);
     }
 
     /**

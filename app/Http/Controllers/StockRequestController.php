@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreStockRequestRequest;
 use App\Models\Book;
 use App\Models\StockRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class StockRequestController extends Controller
@@ -17,11 +17,9 @@ class StockRequestController extends Controller
      * Nomor WhatsApp wajib diisi (dialog konfirmasi) dan disimpan ke profil
      * user — nomor lama diganti bila berubah.
      */
-    public function store(Request $request, Book $book): RedirectResponse
+    public function store(StoreStockRequestRequest $request, Book $book): RedirectResponse
     {
-        $validated = $request->validate([
-            'whatsapp_number' => ['required', 'string', 'max:20', 'regex:/^(62|0|8)8\d{7,12}$/'],
-        ]);
+        $validated = $request->validated();
 
         $user = $request->user();
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,20 +20,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $condition
  * @property string|null $reason
  */
+#[Fillable(['sales_return_id', 'order_item_id', 'book_id', 'book_edition_id', 'qty', 'price_refund', 'condition', 'reason'])]
 class SalesReturnItem extends Model
 {
     use HasUuids;
-
-    protected $fillable = [
-        'sales_return_id',
-        'order_item_id',
-        'book_id',
-        'book_edition_id',
-        'qty',
-        'price_refund',
-        'condition',
-        'reason',
-    ];
 
     /**
      * @return BelongsTo<SalesReturn, $this>

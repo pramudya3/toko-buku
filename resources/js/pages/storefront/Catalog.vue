@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, Link, router, useHttp } from '@inertiajs/vue3';
+import { Form, Head, Link, router, useHttp, usePage } from '@inertiajs/vue3';
 import {
     BookX,
     ChevronDown,
@@ -25,6 +25,7 @@ import {
 import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import { formatDateID } from '@/lib/date';
 import { bookShowUrl } from '@/lib/slug';
+import { resolveStockStatus } from '@/lib/stock';
 import {
     catalog as catalogUrl,
     loadMore as loadMoreUrl,
@@ -41,9 +42,13 @@ type Book = {
     is_preorder: boolean;
     preorder_eta: string | null;
     category: { id: string; nama: string } | null;
+    // Status stok dari server (StorefrontController) — single source of truth.
+    stock_status?: 'preorder' | 'habis' | 'menipis' | 'tersedia';
+    stock_label?: string;
     price_breakdown?: {
         original_price: number;
         promo_discount: number;
+        tier_discount?: number;
         final_price: number;
         promo_name: string | null;
     } | null;
@@ -108,6 +113,24 @@ defineOptions({
     layout: EditorialLayout,
 });
 
+const inertiaPage = usePage<{ lowStockThreshold?: number }>();
+const lowStockThreshold = computed(
+    () => (inertiaPage.props.lowStockThreshold as number | undefined) ?? 5,
+);
+
+function bookStockStatus(
+    book: Book,
+): 'preorder' | 'habis' | 'menipis' | 'tersedia' {
+    return resolveStockStatus(
+        book as unknown as {
+            stok: number;
+            is_preorder: boolean;
+            stock_status?: string;
+        },
+        lowStockThreshold.value,
+    );
+}
+
 const props = defineProps<Props>();
 
 // Paket bundle yang sedang dibuka di modal detail.
@@ -140,8 +163,7 @@ function applyFilters(): void {
             search: props.filters.search ?? undefined,
             category_id:
                 categoryId.value === '__all__' ? undefined : categoryId.value,
-            stok:
-                stokFilter.value === 'all' ? undefined : stokFilter.value,
+            stok: stokFilter.value === 'all' ? undefined : stokFilter.value,
         },
         { preserveState: true, replace: true },
     );
@@ -276,7 +298,8 @@ function resetFilters(): void {
 }
 
 // Klik kartu promo per item → scroll ke daftar buku (grid/list) di bawah.
-function scrollToPromoBooks(promo: Promo): void {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function scrollToPromoBooks(_promo: Promo): void {
     const grid = document.querySelector<HTMLElement>(
         '[data-book-grid], [data-book-list]',
     );
@@ -301,11 +324,7 @@ function startPromoAutoScroll(): void {
         const el = promoRow.value;
 
         // Hover → pause; user scroll → pause sementara (3 dtk) lalu lanjut.
-        if (
-            !el ||
-            el.matches(':hover') ||
-            Date.now() < promoPausedUntil
-        ) {
+        if (!el || el.matches(':hover') || Date.now() < promoPausedUntil) {
             return;
         }
 
@@ -356,17 +375,26 @@ function promoBadge(promo: Promo): string {
         : 'Harga tetap';
 }
 
-// Persentase diskon untuk badge — dihitung dari price_breakdown (0 jika tidak ada promo).
+// Persentase diskon untuk badge — dihitung dari total diskon (guru + promo).
 function discountPercent(book: Book): number {
     const breakdown = book.price_breakdown;
 
-    if (!breakdown?.promo_discount || !breakdown.original_price) {
+    if (
+        !breakdown?.original_price ||
+        breakdown.final_price >= breakdown.original_price
+    ) {
         return 0;
     }
 
-    return Math.round(
-        (breakdown.promo_discount / breakdown.original_price) * 100,
-    );
+    const totalDiscount = breakdown.original_price - breakdown.final_price;
+
+    return Math.round((totalDiscount / breakdown.original_price) * 100);
+}
+
+function hasDiscount(book: Book): boolean {
+    const b = book.price_breakdown;
+
+    return !!b && b.final_price < b.original_price;
 }
 
 function loadMore() {
@@ -597,7 +625,7 @@ function loadMore() {
             <!-- Auto-scroll JS: bisa scroll manual (hover/jeda), jalan sendiri jika idle -->
             <div
                 ref="promoRow"
-                class="flex overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5"
+                class="flex [scrollbar-width:thin] overflow-x-auto overscroll-x-contain pb-2 [&::-webkit-scrollbar]:h-1.5"
                 @scroll="handlePromoScroll"
             >
                 <template v-for="copy in 2" :key="copy">
@@ -766,13 +794,13 @@ function loadMore() {
                         {{ book.penulis ?? '—' }}
                     </p>
                     <div class="mt-1 flex items-baseline gap-2">
-                        <template v-if="book.price_breakdown?.promo_discount">
+                        <template v-if="hasDiscount(book)">
                             <Money
-                                :value="book.price_breakdown.final_price"
+                                :value="book.price_breakdown!.final_price"
                                 class="font-semibold text-article-primary"
                             />
                             <Money
-                                :value="book.harga"
+                                :value="book.price_breakdown!.original_price"
                                 class="text-xs text-article-muted line-through"
                             />
                         </template>
@@ -791,16 +819,28 @@ function loadMore() {
                     </p>
                 </div>
                 <span
-                    v-if="book.stok > 0"
-                    class="shrink-0 rounded-full bg-article-border/50 px-2 py-0.5 text-xs font-medium text-article-muted"
+                    v-if="bookStockStatus(book) === 'preorder'"
+                    class="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-sky-200"
                 >
-                    Stok {{ book.stok }}
+                    Pre-Order
                 </span>
                 <span
-                    v-else-if="isEmptyStock(book)"
+                    v-else-if="bookStockStatus(book) === 'habis'"
                     class="shrink-0 rounded-full bg-article-border/50 px-2 py-0.5 text-xs font-medium text-article-muted"
                 >
-                    Habis
+                    Stok habis
+                </span>
+                <span
+                    v-else-if="bookStockStatus(book) === 'menipis'"
+                    class="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200"
+                >
+                    Stok menipis
+                </span>
+                <span
+                    v-else
+                    class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200"
+                >
+                    Stok tersedia
                 </span>
             </Link>
         </div>
@@ -863,15 +903,15 @@ function loadMore() {
                     </p>
                     <div class="mt-auto flex flex-col gap-1.5 pt-2">
                         <div class="flex flex-wrap items-baseline gap-x-1.5">
-                            <template
-                                v-if="book.price_breakdown?.promo_discount"
-                            >
+                            <template v-if="hasDiscount(book)">
                                 <Money
-                                    :value="book.price_breakdown.final_price"
+                                    :value="book.price_breakdown!.final_price"
                                     class="font-semibold text-article-primary"
                                 />
                                 <Money
-                                    :value="book.harga"
+                                    :value="
+                                        book.price_breakdown!.original_price
+                                    "
                                     class="text-xs text-article-muted line-through"
                                 />
                             </template>
@@ -883,16 +923,28 @@ function loadMore() {
                             </template>
                         </div>
                         <span
-                            v-if="book.stok > 0"
-                            class="self-start rounded-full bg-article-border/50 px-1.5 py-0.5 text-[10px] font-medium text-article-muted"
+                            v-if="bookStockStatus(book) === 'preorder'"
+                            class="self-start rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-sky-200"
                         >
-                            Stok {{ book.stok }}
+                            Pre-Order
                         </span>
                         <span
-                            v-else-if="isEmptyStock(book)"
+                            v-else-if="bookStockStatus(book) === 'habis'"
                             class="self-start rounded-full bg-article-border/50 px-1.5 py-0.5 text-[10px] font-medium text-article-muted"
                         >
-                            Habis
+                            Stok habis
+                        </span>
+                        <span
+                            v-else-if="bookStockStatus(book) === 'menipis'"
+                            class="self-start rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200"
+                        >
+                            Stok menipis
+                        </span>
+                        <span
+                            v-else
+                            class="self-start rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200"
+                        >
+                            Stok tersedia
                         </span>
                     </div>
                 </div>

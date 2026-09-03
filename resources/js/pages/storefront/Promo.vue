@@ -15,9 +15,9 @@ import {
     DialogScrollContent,
     DialogTitle,
 } from '@/components/ui/dialog';
-import CustomerLayout from '@/layouts/customer/CustomerLayout.vue';
+import EditorialLayout from '@/layouts/customer/EditorialLayout.vue';
 import { bookShowUrl } from '@/lib/slug';
-import { show as showRoute } from '@/routes/books';
+import { catalog as catalogUrl, show as showRoute } from '@/routes/books';
 
 type BundleBook = {
     id: string;
@@ -48,6 +48,7 @@ type PromoBook = {
     price_breakdown: {
         original_price: number;
         promo_discount: number;
+        tier_discount?: number;
         final_price: number;
         promo_name: string | null;
     } | null;
@@ -88,7 +89,7 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: CustomerLayout,
+    layout: EditorialLayout,
 });
 
 const activeTab = ref<'all' | 'bundle' | 'item'>('all');
@@ -174,329 +175,396 @@ function voucherValueLabel(voucher: Voucher): string {
 </script>
 
 <template>
-    <Head title="Promo" />
-
-    <div class="flex flex-col gap-6">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight">Promo</h1>
-            <p class="text-sm text-muted-foreground">
-                Semua penawaran — paket hemat & diskon per buku
-            </p>
-        </div>
-
-        <EmptyState
-            v-if="
-                !props.bundles.length &&
-                !props.promos.length &&
-                !props.vouchers.length
-            "
-            :lucide-icon="Tag"
-            title="Belum ada promo aktif"
-            description="Cek kembali nanti — promo baru segera hadir."
-        >
-            <Button size="sm" as-child>
-                <Link :href="'/'">Lihat Katalog</Link>
-            </Button>
-        </EmptyState>
-
-        <!-- Hasil pencarian kosong (promo ada, tapi tidak cocok) -->
-        <EmptyState
-            v-else-if="!hasResults"
-            :lucide-icon="Tag"
-            title="Promo tidak ditemukan"
-            :description="`Tidak ada promo yang cocok dengan pencarian “${props.filters.search}”.`"
+    <Head title="Promo">
+        <meta
+            name="description"
+            content="Promo & paket hemat buku — diskon paket, harga spesial per item, dan voucher belanja."
         />
+        <meta property="og:title" content="Promo — Toko Buku" />
+        <meta
+            property="og:description"
+            content="Paket hemat, diskon per buku, dan voucher belanja aktif."
+        />
+    </Head>
 
-        <template v-else>
-            <!-- Tab: Semua / Paket Hemat / Per Item -->
-            <div
-                class="flex w-fit items-center gap-1 rounded-lg border bg-muted/40 p-1"
-            >
-                <button
-                    v-for="tab in [
-                        { value: 'all', label: 'Semua' },
-                        { value: 'bundle', label: 'Paket Hemat' },
-                        { value: 'item', label: 'Per Item' },
-                    ]"
-                    :key="tab.value"
-                    type="button"
-                    class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-                    :class="
-                        activeTab === tab.value
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                    "
-                    @click="activeTab = tab.value as 'all' | 'bundle' | 'item'"
+    <div class="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        <div class="flex flex-col gap-6">
+            <div>
+                <h1
+                    class="font-serif text-2xl font-bold tracking-tight text-article-ink md:text-3xl"
                 >
-                    {{ tab.label }}
-                </button>
+                    Promo
+                </h1>
+                <p class="mt-1 text-sm text-article-muted">
+                    Semua penawaran — paket hemat & diskon per buku
+                </p>
             </div>
 
-            <!-- ── Paket Hemat ── -->
-            <div
-                v-if="activeTab !== 'item' && filteredBundles.length"
-                class="flex flex-col gap-3"
+            <EmptyState
+                v-if="
+                    !props.bundles.length &&
+                    !props.promos.length &&
+                    !props.vouchers.length
+                "
+                :lucide-icon="Tag"
+                title="Belum ada promo aktif"
+                description="Cek kembali nanti — promo baru segera hadir."
             >
-                <div class="flex items-center gap-2">
-                    <Tag class="size-5 text-primary" />
-                    <h2 class="text-lg font-bold tracking-tight">
-                        Paket Hemat
-                    </h2>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <div
-                        v-for="bundle in filteredBundles"
-                        :key="bundle.id"
-                        class="flex flex-col gap-3 rounded-xl border p-4 transition-shadow hover:shadow-md"
+                <Button size="sm" as-child>
+                    <Link :href="catalogUrl().url">Lihat Katalog</Link>
+                </Button>
+            </EmptyState>
+
+            <!-- Hasil pencarian kosong (promo ada, tapi tidak cocok) -->
+            <EmptyState
+                v-else-if="!hasResults"
+                :lucide-icon="Tag"
+                title="Promo tidak ditemukan"
+                :description="`Tidak ada promo yang cocok dengan pencarian “${props.filters.search}”.`"
+            />
+
+            <template v-else>
+                <!-- Tab: Semua / Paket Hemat / Per Item -->
+                <div
+                    class="flex w-fit items-center gap-1 rounded-lg border border-article-border bg-article-surface p-1"
+                >
+                    <button
+                        v-for="tab in [
+                            { value: 'all', label: 'Semua' },
+                            { value: 'bundle', label: 'Paket Hemat' },
+                            { value: 'item', label: 'Per Item' },
+                        ]"
+                        :key="tab.value"
+                        type="button"
+                        class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                        :class="
+                            activeTab === tab.value
+                                ? 'bg-article-primary text-white'
+                                : 'text-article-muted hover:text-article-ink'
+                        "
+                        @click="
+                            activeTab = tab.value as 'all' | 'bundle' | 'item'
+                        "
                     >
-                        <div class="flex items-start gap-3">
-                            <!-- Cover buku paket (tumpuk) -->
-                            <div class="relative">
-                                <div class="flex -space-x-3">
-                                    <template
-                                        v-for="book in bundle.books.slice(0, 3)"
-                                        :key="book.id"
-                                    >
-                                        <div
-                                            class="size-16 shrink-0 overflow-hidden rounded-md border bg-muted shadow-sm"
+                        {{ tab.label }}
+                    </button>
+                </div>
+
+                <!-- ── Paket Hemat ── -->
+                <div
+                    v-if="activeTab !== 'item' && filteredBundles.length"
+                    class="flex flex-col gap-3"
+                >
+                    <div class="flex items-center gap-2">
+                        <h2
+                            class="font-serif text-xl font-bold tracking-tight text-article-ink"
+                        >
+                            Paket Hemat
+                        </h2>
+                        <span
+                            class="flex size-6 items-center justify-center rounded-full bg-article-accent text-white"
+                        >
+                            <Tag class="size-3" aria-hidden="true" />
+                        </span>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div
+                            v-for="bundle in filteredBundles"
+                            :key="bundle.id"
+                            class="flex flex-col gap-3 rounded-xl border border-article-border bg-article-surface p-4 transition-shadow hover:shadow-md"
+                        >
+                            <div class="flex items-start gap-3">
+                                <!-- Cover buku paket (tumpuk) -->
+                                <div class="relative">
+                                    <div class="flex -space-x-3">
+                                        <template
+                                            v-for="book in bundle.books.slice(
+                                                0,
+                                                3,
+                                            )"
+                                            :key="book.id"
                                         >
-                                            <img
-                                                v-if="book.cover_url"
-                                                :src="book.cover_url"
-                                                :alt="book.judul"
-                                                class="h-full w-full object-cover"
-                                            />
-                                            <BookCoverPlaceholder
-                                                v-else
-                                                :title="book.judul"
-                                                class="h-full w-full"
-                                            />
-                                        </div>
-                                    </template>
+                                            <div
+                                                class="size-16 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-bg shadow-sm"
+                                            >
+                                                <img
+                                                    v-if="book.cover_url"
+                                                    :src="book.cover_url"
+                                                    :alt="book.judul"
+                                                    class="h-full w-full object-cover"
+                                                />
+                                                <BookCoverPlaceholder
+                                                    v-else
+                                                    :title="book.judul"
+                                                    class="h-full w-full"
+                                                />
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <span
+                                        v-if="bundle.books.length > 3"
+                                        class="absolute -right-1.5 -bottom-1.5 rounded-full bg-article-primary px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                                    >
+                                        +{{ bundle.books.length - 3 }}
+                                    </span>
                                 </div>
                                 <span
-                                    v-if="bundle.books.length > 3"
-                                    class="absolute -right-1.5 -bottom-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm"
+                                    class="ml-auto rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
                                 >
-                                    +{{ bundle.books.length - 3 }}
+                                    -{{ bundle.discount_percent }}%
                                 </span>
                             </div>
-                            <span
-                                class="ml-auto rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground"
-                            >
-                                -{{ bundle.discount_percent }}%
-                            </span>
-                        </div>
 
-                        <div>
-                            <p class="font-semibold">{{ bundle.promo_name }}</p>
-                            <p class="text-xs text-muted-foreground">
-                                {{ bundle.books.length }} buku · diskon
-                                {{ bundle.discount_percent }}% saat beli semua
-                            </p>
-                        </div>
-
-                        <div class="flex flex-col gap-0.5">
-                            <div class="flex flex-wrap items-baseline gap-x-2">
-                                <Money
-                                    :value="bundle.total_final"
-                                    class="font-bold text-primary"
-                                />
-                                <Money
-                                    :value="bundle.total_original"
-                                    class="text-xs text-muted-foreground line-through"
-                                />
+                            <div>
+                                <p class="font-semibold text-article-ink">
+                                    {{ bundle.promo_name }}
+                                </p>
+                                <p class="text-xs text-article-muted">
+                                    {{ bundle.books.length }} buku · diskon
+                                    {{ bundle.discount_percent }}% saat beli
+                                    semua
+                                </p>
                             </div>
-                            <p class="text-xs font-medium text-destructive">
-                                Hemat
-                                <Money :value="bundle.total_discount" />
+
+                            <div class="flex flex-col gap-0.5">
+                                <div
+                                    class="flex flex-wrap items-baseline gap-x-2"
+                                >
+                                    <Money
+                                        :value="bundle.total_final"
+                                        class="font-bold text-article-primary"
+                                    />
+                                    <Money
+                                        :value="bundle.total_original"
+                                        class="text-xs text-article-muted line-through"
+                                    />
+                                </div>
+                                <p
+                                    class="text-xs font-medium text-article-primary"
+                                >
+                                    Hemat
+                                    <Money :value="bundle.total_discount" />
+                                </p>
+                            </div>
+
+                            <p
+                                v-if="bundleOutOfStockCount(bundle) > 0"
+                                class="text-xs font-medium text-destructive"
+                            >
+                                {{ bundleOutOfStockCount(bundle) }} buku stok
+                                habis
                             </p>
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="mt-auto w-full"
+                                @click="activeBundle = bundle"
+                            >
+                                Lihat Paket
+                            </Button>
                         </div>
-
-                        <p
-                            v-if="bundleOutOfStockCount(bundle) > 0"
-                            class="text-xs font-medium text-destructive"
-                        >
-                            {{ bundleOutOfStockCount(bundle) }} buku stok habis
-                        </p>
-
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="mt-auto w-full"
-                            @click="activeBundle = bundle"
-                        >
-                            Lihat Paket
-                        </Button>
                     </div>
                 </div>
-            </div>
 
-            <!-- ── Promo per item ── -->
-            <div
-                v-if="activeTab !== 'bundle' && filteredPromos.length"
-                class="flex flex-col gap-3"
-            >
-                <div class="flex items-center gap-2">
-                    <ShoppingBag class="size-5 text-primary" />
-                    <h2 class="text-lg font-bold tracking-tight">
-                        Promo per Item
-                    </h2>
-                </div>
-                <div class="grid gap-4 lg:grid-cols-2">
-                    <div
-                        v-for="promo in filteredPromos"
-                        :key="promo.id"
-                        class="flex flex-col gap-3 rounded-xl border p-4 transition-shadow hover:shadow-md"
-                    >
-                        <div class="flex items-start gap-3">
-                            <div class="min-w-0 flex-1">
-                                <p class="font-semibold">
-                                    {{ promo.promo_name }}
-                                </p>
-                                <p class="text-xs text-muted-foreground">
-                                    {{ countdownLabel(promo.end_date) }}
-                                    <span v-if="promo.is_global"
-                                        >· berlaku semua buku</span
-                                    >
-                                </p>
-                            </div>
-                            <span
-                                class="rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground"
-                            >
-                                {{ promoBadge(promo) }}
-                            </span>
-                        </div>
-
-                        <p
-                            v-if="promo.promo_type === 'fixed'"
-                            class="text-xs text-muted-foreground"
+                <!-- ── Promo per item ── -->
+                <div
+                    v-if="activeTab !== 'bundle' && filteredPromos.length"
+                    class="flex flex-col gap-3"
+                >
+                    <div class="flex items-center gap-2">
+                        <h2
+                            class="font-serif text-xl font-bold tracking-tight text-article-ink"
                         >
-                            Harga tetap
-                            <Money
-                                :value="promo.promo_value ?? 0"
-                                class="font-medium text-foreground"
-                            />
-                            per buku
-                        </p>
-
-                        <ul v-if="promo.books.length" class="divide-y">
-                            <li
-                                v-for="book in promo.books"
-                                :key="book.id"
-                                class="flex items-center gap-3 py-2.5"
-                            >
-                                <Link
-                                    :href="showRoute.url(bookShowUrl(book))"
-                                    class="size-12 shrink-0 overflow-hidden rounded-md border bg-muted"
-                                >
-                                    <img
-                                        v-if="book.cover_url"
-                                        :src="book.cover_url"
-                                        :alt="book.judul"
-                                        class="h-full w-full object-cover"
-                                    />
-                                    <BookCoverPlaceholder
-                                        v-else
-                                        :title="book.judul"
-                                        class="h-full w-full"
-                                    />
-                                </Link>
+                            Promo per Item
+                        </h2>
+                        <span
+                            class="flex size-6 items-center justify-center rounded-full bg-article-accent text-white"
+                        >
+                            <ShoppingBag class="size-3" aria-hidden="true" />
+                        </span>
+                    </div>
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        <div
+                            v-for="promo in filteredPromos"
+                            :key="promo.id"
+                            class="flex flex-col gap-3 rounded-xl border border-article-border bg-article-surface p-4 transition-shadow hover:shadow-md"
+                        >
+                            <div class="flex items-start gap-3">
                                 <div class="min-w-0 flex-1">
-                                    <Link
-                                        :href="showRoute.url(bookShowUrl(book))"
-                                        class="line-clamp-1 text-sm font-medium hover:underline"
-                                    >
-                                        {{ book.judul }}
-                                    </Link>
-                                    <p class="text-xs text-muted-foreground">
-                                        <template
-                                            v-if="
-                                                book.price_breakdown
-                                                    ?.promo_discount
-                                            "
+                                    <p class="font-semibold text-article-ink">
+                                        {{ promo.promo_name }}
+                                    </p>
+                                    <p class="text-xs text-article-muted">
+                                        {{ countdownLabel(promo.end_date) }}
+                                        <span v-if="promo.is_global"
+                                            >· berlaku semua buku</span
                                         >
-                                            <span class="line-through">
-                                                <Money :value="book.harga" />
-                                            </span>
-                                            <span
-                                                class="ml-1.5 font-medium text-primary"
-                                            >
-                                                <Money
-                                                    :value="
-                                                        book.price_breakdown
-                                                            .final_price
-                                                    "
-                                                />
-                                            </span>
-                                        </template>
-                                        <Money v-else :value="book.harga" />
                                     </p>
                                 </div>
-                            </li>
-                        </ul>
-                        <p
-                            v-else-if="promo.is_global"
-                            class="text-xs text-muted-foreground"
-                        >
-                            Berlaku otomatis untuk semua buku di katalog.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <!-- ── Voucher diskon ── -->
-            <div v-if="props.vouchers.length" class="flex flex-col gap-3">
-                <div class="flex items-center gap-2">
-                    <TicketPercent class="size-5 text-primary" />
-                    <h2 class="text-lg font-bold tracking-tight">Voucher</h2>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <div
-                        v-for="voucher in props.vouchers"
-                        :key="voucher.id"
-                        class="flex flex-col gap-2 rounded-xl border p-4 transition-shadow hover:shadow-md"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <p class="min-w-0 font-semibold">
-                                {{ voucher.nama }}
-                            </p>
-                            <span
-                                class="shrink-0 rounded-md bg-destructive px-1.5 py-0.5 text-xs font-bold text-destructive-foreground"
-                            >
-                                {{ voucherValueLabel(voucher) }}
-                            </span>
-                        </div>
-                        <p class="text-xs text-muted-foreground">
-                            {{ countdownLabel(voucher.end_date) }}
-                            <template v-if="voucher.min_order_amount > 0">
-                                · min. belanja
-                                {{
-                                    voucher.min_order_amount.toLocaleString(
-                                        'id-ID',
-                                    )
-                                }}
-                            </template>
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            <template v-if="voucher.kode">
-                                Kode
-                                <code
-                                    class="rounded bg-muted px-1 py-0.5 font-mono font-medium"
-                                    >{{ voucher.kode }}</code
+                                <span
+                                    class="rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
                                 >
-                            </template>
-                            <template v-if="voucher.max_uses !== null">
-                                · sisa
-                                {{ voucher.max_uses - voucher.usages_count }}
-                            </template>
-                        </p>
-                        <p class="mt-auto text-xs text-muted-foreground">
-                            Pilih di halaman Checkout saat belanja.
-                        </p>
+                                    {{ promoBadge(promo) }}
+                                </span>
+                            </div>
+
+                            <p
+                                v-if="promo.promo_type === 'fixed'"
+                                class="text-xs text-article-muted"
+                            >
+                                Harga tetap
+                                <Money
+                                    :value="promo.promo_value ?? 0"
+                                    class="font-medium text-article-ink"
+                                />
+                                per buku
+                            </p>
+
+                            <ul
+                                v-if="promo.books.length"
+                                class="divide-y divide-article-border"
+                            >
+                                <li
+                                    v-for="book in promo.books"
+                                    :key="book.id"
+                                    class="flex items-center gap-3 py-2.5"
+                                >
+                                    <Link
+                                        :href="showRoute.url(bookShowUrl(book))"
+                                        class="size-12 shrink-0 overflow-hidden rounded-md border border-article-border bg-article-bg"
+                                    >
+                                        <img
+                                            v-if="book.cover_url"
+                                            :src="book.cover_url"
+                                            :alt="book.judul"
+                                            class="h-full w-full object-cover"
+                                        />
+                                        <BookCoverPlaceholder
+                                            v-else
+                                            :title="book.judul"
+                                            class="h-full w-full"
+                                        />
+                                    </Link>
+                                    <div class="min-w-0 flex-1">
+                                        <Link
+                                            :href="
+                                                showRoute.url(bookShowUrl(book))
+                                            "
+                                            class="line-clamp-1 text-sm font-medium text-article-ink hover:underline"
+                                        >
+                                            {{ book.judul }}
+                                        </Link>
+                                        <p class="text-xs text-article-muted">
+                                            <template
+                                                v-if="
+                                                    book.price_breakdown &&
+                                                    book.price_breakdown
+                                                        .final_price <
+                                                        book.price_breakdown
+                                                            .original_price
+                                                "
+                                            >
+                                                <span class="line-through">
+                                                    <Money
+                                                        :value="
+                                                            book.price_breakdown
+                                                                .original_price
+                                                        "
+                                                    />
+                                                </span>
+                                                <span
+                                                    class="ml-1.5 font-medium text-article-primary"
+                                                >
+                                                    <Money
+                                                        :value="
+                                                            book.price_breakdown
+                                                                .final_price
+                                                        "
+                                                    />
+                                                </span>
+                                            </template>
+                                            <Money v-else :value="book.harga" />
+                                        </p>
+                                    </div>
+                                </li>
+                            </ul>
+                            <p
+                                v-else-if="promo.is_global"
+                                class="text-xs text-article-muted"
+                            >
+                                Berlaku otomatis untuk semua buku di katalog.
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </template>
+
+                <!-- ── Voucher diskon ── -->
+                <div v-if="props.vouchers.length" class="flex flex-col gap-3">
+                    <div class="flex items-center gap-2">
+                        <h2
+                            class="font-serif text-xl font-bold tracking-tight text-article-ink"
+                        >
+                            Voucher
+                        </h2>
+                        <span
+                            class="flex size-6 items-center justify-center rounded-full bg-article-accent text-white"
+                        >
+                            <TicketPercent class="size-3" aria-hidden="true" />
+                        </span>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div
+                            v-for="voucher in props.vouchers"
+                            :key="voucher.id"
+                            class="flex flex-col gap-2 rounded-xl border border-article-border bg-article-surface p-4 transition-shadow hover:shadow-md"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <p
+                                    class="min-w-0 font-semibold text-article-ink"
+                                >
+                                    {{ voucher.nama }}
+                                </p>
+                                <span
+                                    class="shrink-0 rounded-md bg-article-accent px-1.5 py-0.5 text-xs font-bold text-white"
+                                >
+                                    {{ voucherValueLabel(voucher) }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-article-muted">
+                                {{ countdownLabel(voucher.end_date) }}
+                                <template v-if="voucher.min_order_amount > 0">
+                                    · min. belanja
+                                    {{
+                                        voucher.min_order_amount.toLocaleString(
+                                            'id-ID',
+                                        )
+                                    }}
+                                </template>
+                            </p>
+                            <p class="text-xs text-article-muted">
+                                <template v-if="voucher.kode">
+                                    Kode
+                                    <code
+                                        class="rounded bg-article-bg px-1 py-0.5 font-mono font-medium text-article-ink"
+                                        >{{ voucher.kode }}</code
+                                    >
+                                </template>
+                                <template v-if="voucher.max_uses !== null">
+                                    · sisa
+                                    {{
+                                        voucher.max_uses - voucher.usages_count
+                                    }}
+                                </template>
+                            </p>
+                            <p class="mt-auto text-xs text-article-muted">
+                                Pilih di halaman Checkout saat belanja.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
     </div>
 
     <!-- ── Modal: Detail Paket Hemat ── -->
@@ -562,7 +630,8 @@ function voucherValueLabel(voucher: Voucher): string {
                                     v-if="book.unit_discount > 0"
                                     class="ml-1.5 font-medium text-destructive"
                                 >
-                                    − <Money :value="book.unit_discount" />
+                                    −
+                                    <Money :value="book.unit_discount" />
                                 </span>
                                 <span
                                     v-if="book.stok <= 0"

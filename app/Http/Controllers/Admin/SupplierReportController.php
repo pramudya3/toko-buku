@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use App\Services\SupplierXlsxExporter;
+use App\Support\Pagination;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -30,7 +31,7 @@ class SupplierReportController extends Controller
         $rows = $this->exporter->buildRows($from, $to, $supplierId, $jenis);
 
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = 10;
+        $perPage = Pagination::perPage($request);
 
         $paginated = new LengthAwarePaginator(
             $rows->forPage($page, $perPage)->values(),

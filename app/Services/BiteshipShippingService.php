@@ -261,7 +261,7 @@ final class BiteshipShippingService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer '.(Setting::getSecret('biteship_api_key') ?: config('biteship.key')),
                 'Accept' => 'application/json',
-            ])->timeout(15)
+            ])->timeout(10)->retry(2, 200, throw: false)
                 ->{$method}(config('biteship.base_url').$path, $payload);
         } catch (ConnectionException $e) {
             throw new RuntimeException('Layanan Biteship sedang tidak tersedia, coba lagi nanti.');

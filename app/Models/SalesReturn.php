@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,17 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property int|null $user_id
  */
+#[Fillable(['order_id', 'return_date', 'total_refund', 'notes', 'user_id'])]
 class SalesReturn extends Model
 {
     use HasUuids;
-
-    protected $fillable = [
-        'order_id',
-        'return_date',
-        'total_refund',
-        'notes',
-        'user_id',
-    ];
 
     /**
      * @return BelongsTo<Order, $this>

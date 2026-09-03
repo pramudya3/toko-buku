@@ -17,14 +17,13 @@ use RuntimeException;
 final class AccountingService
 {
     /**
-     * Order selesai → 1 transaksi DB atomik (BR-06):
-     * 2 entry cash flow (revenue & shipping).
-     *
-     * Catatan: deduksi stok sudah terjadi saat order diproses
-     * (InventoryService::deductForOrder) — bukan lagi di sini.
+     * Order selesai → OPSI A: Kas sumber sendiri — tidak buat entry cash flow otomatis.
+     * Penjualan tetap tercatat di orders/sales_reports, Kas hanya manual (income/expense).
      */
     public function recordOrderCompleted(Order $order, ?string $userId): void
     {
+        // OPSI A: Kas mandiri — penjualan tidak masuk Kas.
+        return;
         DB::transaction(function () use ($order): void {
             $lockedOrder = Order::query()
                 ->lockForUpdate()
@@ -53,11 +52,12 @@ final class AccountingService
     }
 
     /**
-     * Order batal yang sudah lunas → 1 entry refund (outflow) otomatis.
-     * Idempotent: entry refund hanya dibuat sekali per order.
+     * Order batal yang sudah lunas → OPSI A: Kas mandiri — tidak buat refund otomatis di Kas.
      */
     public function recordOrderRefund(Order $order, ?string $userId = null): void
     {
+        // OPSI A: Kas mandiri — refund tidak masuk Kas manual.
+        return;
         DB::transaction(function () use ($order): void {
             $lockedOrder = Order::query()
                 ->whereKey($order->getKey())

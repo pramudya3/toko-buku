@@ -7,6 +7,7 @@ use App\Enums\FlowType;
 use App\Enums\MovementType;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreSalesReturnRequest;
 use App\Models\CashFlow;
 use App\Models\Order;
 use App\Models\SalesReturn;
@@ -15,6 +16,7 @@ use App\Models\Setting;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
 use App\Support\ActivityLogger;
+use App\Support\Pagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,7 +47,7 @@ class SalesReturnController extends Controller
             })
             ->orderByDesc('return_date')
             ->orderByDesc('id')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/sales-returns/Index', [
@@ -158,18 +160,9 @@ class SalesReturnController extends Controller
     /**
      * Catat retur penjualan: stok kembali + refund.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreSalesReturnRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'order_id' => ['required', 'string', 'exists:orders,id'],
-            'return_date' => ['required', 'date'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.order_item_id' => ['required', 'string', 'distinct', 'exists:order_items,id'],
-            'items.*.qty' => ['required', 'integer', 'min:1'],
-            'items.*.condition' => ['required', 'string', 'in:baik,rusak'],
-            'items.*.reason' => ['nullable', 'string', 'max:500'],
-        ]);
+        $validated = $request->validated();
 
         // Lock baris order supaya dua request retur paralel tidak bisa
         // melebihi sisa qty yang sama (race condition).

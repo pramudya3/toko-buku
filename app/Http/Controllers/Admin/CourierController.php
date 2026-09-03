@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CourierBulkUpdateRequest;
+use App\Http\Requests\Admin\CourierStoreRequest;
+use App\Http\Requests\Admin\CourierUpdateRequest;
 use App\Models\Courier;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class CourierController extends Controller
@@ -16,13 +17,9 @@ class CourierController extends Controller
     /**
      * Simpan ekspedisi baru (custom).
      */
-    public function store(Request $request): RedirectResponse
+    public function store(CourierStoreRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9_-]+$/', Rule::unique('couriers', 'code')->withoutTrashed()],
-            'name' => ['required', 'string', 'max:100'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         Courier::create([
             ...$validated,
@@ -43,12 +40,9 @@ class CourierController extends Controller
     /**
      * Update ekspedisi (nama / aktif-nonaktif).
      */
-    public function update(Request $request, Courier $courier): RedirectResponse
+    public function update(CourierUpdateRequest $request, Courier $courier): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $courier->update($validated);
 
@@ -65,13 +59,9 @@ class CourierController extends Controller
     /**
      * Aktifkan / nonaktifkan beberapa ekspedisi sekaligus.
      */
-    public function bulkUpdate(Request $request): RedirectResponse
+    public function bulkUpdate(CourierBulkUpdateRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
-            'ids.*' => ['required', 'string', Rule::exists('couriers', 'id')],
-            'is_active' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $count = Courier::whereIn('id', $validated['ids'])->update([
             'is_active' => $validated['is_active'],

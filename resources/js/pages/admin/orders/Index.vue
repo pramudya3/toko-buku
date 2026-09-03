@@ -54,6 +54,8 @@ type Props = {
     filters: {
         search?: string;
         status?: string;
+        from?: string;
+        to?: string;
         dropship?: string;
         sumber_pembelian?: string;
         preorder?: string;
@@ -83,6 +85,8 @@ const allStatuses = '__all_statuses__';
 const allSources = '__all_sources__';
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? allStatuses);
+const from = ref(props.filters.from ?? '');
+const to = ref(props.filters.to ?? '');
 const dropship = ref(props.filters.dropship === '1');
 const preorder = ref(props.filters.preorder === '1');
 const sumberPembelian = ref(props.filters.sumber_pembelian ?? allSources);
@@ -91,6 +95,8 @@ const hasActiveFilters = computed(
     () =>
         search.value !== '' ||
         status.value !== allStatuses ||
+        from.value !== '' ||
+        to.value !== '' ||
         dropship.value !== false ||
         preorder.value !== false ||
         sumberPembelian.value !== allSources,
@@ -106,12 +112,18 @@ function applyFilters() {
             {
                 search: search.value || undefined,
                 status: status.value === allStatuses ? undefined : status.value,
+                from: from.value || undefined,
+                to: to.value || undefined,
                 dropship: dropship.value ? '1' : undefined,
                 preorder: preorder.value ? '1' : undefined,
                 sumber_pembelian:
                     sumberPembelian.value === allSources
                         ? undefined
                         : sumberPembelian.value,
+                per_page:
+                    new URLSearchParams(window.location.search).get(
+                        'per_page',
+                    ) || undefined,
             },
             {
                 preserveState: true,
@@ -124,13 +136,18 @@ function applyFilters() {
 function resetFilters() {
     search.value = '';
     status.value = allStatuses;
+    from.value = '';
+    to.value = '';
     dropship.value = false;
     preorder.value = false;
     sumberPembelian.value = allSources;
     applyFilters();
 }
 
-watch([search, status, dropship, preorder, sumberPembelian], applyFilters);
+watch(
+    [search, status, from, to, dropship, preorder, sumberPembelian],
+    applyFilters,
+);
 
 const statusVariant: Record<
     string,
@@ -147,7 +164,7 @@ const statusVariant: Record<
 <template>
     <Head title="Pesanan" />
 
-    <div class="flex flex-col gap-4 p-4 md:p-6">
+    <div class="mx-auto flex w-full max-w-7xl flex-col gap-3 p-3 md:p-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-semibold tracking-tight">Pesanan</h1>
@@ -202,6 +219,32 @@ const statusVariant: Record<
                         </SelectItem>
                     </SelectContent>
                 </Select>
+            </div>
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Dari
+                </p>
+                <Input
+                    v-model="from"
+                    type="date"
+                    class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-36"
+                    aria-label="Dari tanggal"
+                />
+            </div>
+            <div class="md:flex md:items-center">
+                <p
+                    class="px-3 pt-2 text-xs font-medium text-muted-foreground md:hidden"
+                >
+                    Sampai
+                </p>
+                <Input
+                    v-model="to"
+                    type="date"
+                    class="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 md:h-9 md:w-36"
+                    aria-label="Sampai tanggal"
+                />
             </div>
             <div class="md:flex md:items-center">
                 <p

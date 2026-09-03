@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ArticleCategoryRequest;
 use App\Models\ArticleCategory;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -24,7 +25,7 @@ class ArticleCategoryController extends Controller
                 $query->whereLike('nama', '%'.$request->string('search')->toString().'%');
             })
             ->orderBy('nama')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/article-categories/Index', [

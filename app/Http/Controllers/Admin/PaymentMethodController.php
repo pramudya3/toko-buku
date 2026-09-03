@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReorderPaymentMethodRequest;
+use App\Http\Requests\Admin\StorePaymentMethodRequest;
+use App\Http\Requests\Admin\UpdatePaymentMethodRequest;
 use App\Models\PaymentMethod;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class PaymentMethodController extends Controller
@@ -16,13 +17,9 @@ class PaymentMethodController extends Controller
     /**
      * Simpan metode pembayaran baru (custom).
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StorePaymentMethodRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9_-]+$/', Rule::unique('payment_methods', 'code')->withoutTrashed()],
-            'name' => ['required', 'string', 'max:100'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         PaymentMethod::create([
             ...$validated,
@@ -43,12 +40,9 @@ class PaymentMethodController extends Controller
     /**
      * Update metode pembayaran (nama / aktif-nonaktif).
      */
-    public function update(Request $request, PaymentMethod $paymentMethod): RedirectResponse
+    public function update(UpdatePaymentMethodRequest $request, PaymentMethod $paymentMethod): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $paymentMethod->update($validated);
 
@@ -65,13 +59,9 @@ class PaymentMethodController extends Controller
     /**
      * Aktifkan / nonaktifkan beberapa metode pembayaran sekaligus.
      */
-    public function bulkUpdate(Request $request): RedirectResponse
+    public function bulkUpdate(ReorderPaymentMethodRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
-            'ids.*' => ['required', 'string', Rule::exists('payment_methods', 'id')],
-            'is_active' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $count = PaymentMethod::whereIn('id', $validated['ids'])->update([
             'is_active' => $validated['is_active'],

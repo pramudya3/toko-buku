@@ -17,6 +17,7 @@ import {
     FolderTree,
     HandCoins,
     HelpCircle,
+    Handshake,
     History,
     // KeyRound, // API Key — disembunyikan sementara (lihat grup Pengaturan)
     Landmark,
@@ -27,6 +28,7 @@ import {
     PackageX,
     Scale,
     ScrollText,
+    Search,
     ShieldCheck,
     ShoppingCart,
     Store,
@@ -38,9 +40,11 @@ import {
     Wallet,
     Warehouse,
 } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import AppCommandPalette from '@/components/AppCommandPalette.vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
+import { Button } from '@/components/ui/button';
 import {
     Sidebar,
     SidebarContent,
@@ -63,6 +67,9 @@ import { index as inventoryAdjustmentsIndex } from '@/routes/admin/inventory-adj
 import { index as inventoryReportsIndex } from '@/routes/admin/inventory-reports';
 import { index as kasIndex } from '@/routes/admin/kas';
 import { laporan as kasLaporan } from '@/routes/admin/kas';
+import { index as kasKategoriIndex } from '@/routes/admin/kas/categories';
+import { laporan as konsinyasiLaporan } from '@/routes/admin/konsinyasi';
+import { index as konsinyasiIndex } from '@/routes/admin/konsinyasi';
 import {
     index as ordersIndex,
     preorder as preorderIndex,
@@ -81,6 +88,7 @@ import {
     sumberPenjualan as sumberPenjualanRoute,
     waTemplate as waTemplateRoute,
 } from '@/routes/admin/settings';
+import { alasanRetur as alasanReturRoute } from '@/routes/admin/settings';
 import { index as stockRequestsIndex } from '@/routes/admin/stock-requests';
 import { index as supplierDebtsIndex } from '@/routes/admin/supplier-debts';
 import { index as supplierReportsIndex } from '@/routes/admin/supplier-reports';
@@ -99,6 +107,14 @@ const pendingOrdersCount = computed<number>(() =>
 const preorderPendingCount = computed<number>(() =>
     Number(page.props.preorderPendingCount ?? 0),
 );
+const paletteOpen = ref(false);
+const isMac = ref(false);
+
+if (typeof navigator !== 'undefined') {
+    isMac.value =
+        /Mac|iPhone|iPad|iPod/.test(navigator.platform) ||
+        /Mac/.test(navigator.userAgent);
+}
 
 // Item mandiri di atas — akses cepat ke menu yang paling sering dipakai.
 const mainItems = computed<NavItem[]>(() => [
@@ -210,12 +226,22 @@ const navGroups = computed<NavGroup[]>(() => [
                 icon: HandCoins,
             },
             {
+                title: 'Konsinyasi',
+                href: konsinyasiIndex(),
+                icon: Handshake,
+            },
+            {
+                title: 'Laporan Konsinyasi',
+                href: konsinyasiLaporan(),
+                icon: FileSpreadsheet,
+            },
+            {
                 title: 'Laporan Penjualan',
                 href: salesReportsIndex(),
                 icon: ChartColumn,
             },
             {
-                title: 'Rekap Harian',
+                title: 'Laporan Harian',
                 href: dailyRecapIndex(),
                 icon: CalendarDays,
             },
@@ -263,6 +289,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 title: 'Laporan Kas',
                 href: kasLaporan(),
                 icon: ChartPie,
+            },
+            {
+                title: 'Kategori Kas',
+                href: kasKategoriIndex(),
+                icon: FolderTree,
             },
         ],
     },
@@ -325,6 +356,11 @@ const navGroups = computed<NavGroup[]>(() => [
                 icon: MessageCircle,
             },
             {
+                title: 'Alasan',
+                href: alasanReturRoute(),
+                icon: Undo2,
+            },
+            {
                 title: 'Staf',
                 href: usersIndex(),
                 icon: ShieldCheck,
@@ -354,6 +390,30 @@ const navGroups = computed<NavGroup[]>(() => [
             </SidebarMenu>
         </SidebarHeader>
 
+        <div class="px-2 py-2 group-data-[collapsible=icon]:hidden">
+            <Button
+                variant="outline"
+                class="w-full justify-start gap-2 bg-muted/50 px-3 font-normal text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                @click="paletteOpen = true"
+            >
+                <Search class="size-4 shrink-0" />
+                <span class="flex-1 text-left text-sm">Cari menu</span>
+                <span
+                    class="hidden items-center gap-1 group-data-[collapsible=icon]:hidden sm:inline-flex"
+                >
+                    <kbd
+                        class="rounded border bg-background px-1.5 py-0.5 font-mono text-xs"
+                        >{{ isMac ? '⌘' : 'Ctrl' }}</kbd
+                    >
+                    <span class="text-xs text-muted-foreground">+</span>
+                    <kbd
+                        class="rounded border bg-background px-1.5 py-0.5 font-mono text-xs"
+                        >K</kbd
+                    >
+                </span>
+            </Button>
+        </div>
+
         <SidebarContent>
             <NavMain
                 :items="mainItems"
@@ -362,5 +422,11 @@ const navGroups = computed<NavGroup[]>(() => [
             />
         </SidebarContent>
     </Sidebar>
+    <AppCommandPalette
+        v-model:open="paletteOpen"
+        :groups="navGroups"
+        :items="mainItems"
+        :footer-items="footerItems"
+    />
     <slot />
 </template>

@@ -7,6 +7,7 @@ use App\Enums\VoucherType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\VoucherRequest;
 use App\Models\Voucher;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -30,7 +31,7 @@ class VoucherController extends Controller
                 });
             })
             ->orderByDesc('created_at')
-            ->paginate(10)
+            ->paginate(Pagination::perPage($request))
             ->withQueryString();
 
         return Inertia::render('admin/vouchers/Index', [

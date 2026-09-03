@@ -139,6 +139,61 @@ it('stores a transfer proof from the order owner', function (): void {
         ->and(Storage::disk('public')->exists($order->bukti_transfer_path))->toBeTrue();
 });
 
+it('replaces a transfer proof and deletes the old file while unverified', function (): void {
+    Storage::fake('public');
+
+    $order = orderIn(OrderStatus::MenungguKonfirmasi->value, [
+        'payment_status' => PaymentStatus::Menunggu,
+        'user_id' => $this->customer->id,
+    ]);
+
+    // Bukti pertama.
+    $this->actingAs($this->customer)
+        ->post(route('my-orders.upload-bukti', $order), [
+            'bukti' => UploadedFile::fake()->image('salah.jpg', 800, 600),
+        ])
+        ->assertRedirect();
+
+    $oldPath = $order->refresh()->bukti_transfer_path;
+
+    // Bukti kedua — salah kirim → ganti.
+    $this->actingAs($this->customer)
+        ->post(route('my-orders.upload-bukti', $order), [
+            'bukti' => UploadedFile::fake()->image('benar.jpg', 800, 600),
+        ])
+        ->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->bukti_transfer_path)->not->toBe($oldPath)
+        ->and(Storage::disk('public')->exists($order->bukti_transfer_path))->toBeTrue()
+        // File lama terhapus — tidak menumpuk orphan di storage.
+        ->and(Storage::disk('public')->exists($oldPath))->toBeFalse();
+});
+
+it('rejects replacing a transfer proof after payment is verified', function (): void {
+    Storage::fake('public');
+
+    $order = orderIn(OrderStatus::MenungguKonfirmasi->value, [
+        'payment_status' => PaymentStatus::Lunas,
+        'bukti_transfer_path' => 'bukti-transfer/terverifikasi.jpg',
+        'user_id' => $this->customer->id,
+    ]);
+
+    Storage::disk('public')->put('bukti-transfer/terverifikasi.jpg', 'lama');
+
+    $this->actingAs($this->customer)
+        ->post(route('my-orders.upload-bukti', $order), [
+            'bukti' => UploadedFile::fake()->image('baru.jpg', 800, 600),
+        ])
+        ->assertRedirect();
+
+    $order->refresh();
+
+    expect($order->bukti_transfer_path)->toBe('bukti-transfer/terverifikasi.jpg')
+        ->and(Storage::disk('public')->exists('bukti-transfer/terverifikasi.jpg'))->toBeTrue();
+});
+
 it('hides upload bukti endpoint from strangers', function (): void {
     $order = orderIn(OrderStatus::MenungguKonfirmasi->value, [
         'payment_status' => PaymentStatus::Menunggu,
@@ -305,7 +360,8 @@ it('finalizes order with cash flow on delivered webhook', function (): void {
     $order->refresh();
 
     expect($order->status)->toBe(OrderStatus::Selesai)
-        ->and($order->cashFlows()->count())->toBe(2);
+        // OPSI A: Kas mandiri — tidak ada cash flow otomatis.
+        ->and($order->cashFlows()->count())->toBe(0);
 });
 
 it('rejects webhooks with an invalid signature', function (): void {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,15 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $warehouse_id
  * @property int $qty
  */
+#[Fillable(['book_edition_id', 'warehouse_id', 'qty'])]
 class BookEditionStock extends Model
 {
     use HasUuids;
-
-    protected $fillable = [
-        'book_edition_id',
-        'warehouse_id',
-        'qty',
-    ];
 
     /**
      * @return BelongsTo<BookEdition, $this>

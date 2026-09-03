@@ -19,6 +19,7 @@ type PurchaseProps = {
     total: number;
     notes: string | null;
     warehouse_kode: string | null;
+    warehouse_kodes?: string[] | null;
     supplier: {
         nama: string;
         telepon: string | null;
@@ -28,6 +29,7 @@ type PurchaseProps = {
         qty: number;
         price: number;
         subtotal: number;
+        allocations?: Array<{ warehouse_kode: string; qty: number }>;
         book: { judul: string; kode_sku: string | null } | null;
     }>;
 };
@@ -59,15 +61,32 @@ const columns: InvoiceColumn[] = [
     { key: 'jumlah', label: 'Jumlah', align: 'right' },
 ];
 
+const warehouseLabel = computed(() => {
+    const kodes = props.purchase.warehouse_kodes;
+
+    if (Array.isArray(kodes) && kodes.length > 0) {
+        return kodes.join(', ');
+    }
+
+    return props.purchase.warehouse_kode ?? '—';
+});
+
 const rows = computed(() =>
-    props.purchase.items.map((item, i) => ({
-        no: String(i + 1),
-        buku: item.book?.judul ?? '—',
-        sku: item.book?.kode_sku ?? '—',
-        qty: String(item.qty),
-        harga: idr(item.price),
-        jumlah: idr(item.subtotal),
-    })),
+    props.purchase.items.map((item, i) => {
+        const qtyText =
+            item.allocations && item.allocations.length > 1
+                ? `${item.qty} (${item.allocations.map((a) => `${a.warehouse_kode}: ${a.qty}`).join(', ')})`
+                : String(item.qty);
+
+        return {
+            no: String(i + 1),
+            buku: item.book?.judul ?? '—',
+            sku: item.book?.kode_sku ?? '—',
+            qty: qtyText,
+            harga: idr(item.price),
+            jumlah: idr(item.subtotal),
+        };
+    }),
 );
 
 const supplierLines = computed(() => [
@@ -114,7 +133,7 @@ const supplierLines = computed(() => [
                     :lines="[
                         {
                             label: 'Gudang',
-                            value: purchase.warehouse_kode ?? '—',
+                            value: warehouseLabel,
                         },
                     ]"
                 />
@@ -134,10 +153,7 @@ const supplierLines = computed(() => [
 
             <InvoiceFooter
                 :notes="purchase.notes"
-                :signatures="[
-                    { label: 'Diterima oleh' },
-                    { label: 'Supplier' },
-                ]"
+                thanks="Jazakumullah Khoiron"
             />
         </InvoiceSheet>
     </div>
