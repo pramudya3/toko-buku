@@ -8,14 +8,14 @@ use App\Models\OrderItem;
 use App\Models\PaymentMethod;
 use App\Models\Receivable;
 use App\Models\User;
-use Database\Seeders\PenerbitPcpMasterSeeder;
-use Database\Seeders\PenerbitPcpSalesSeeder;
+use Database\Seeders\PenerbitMasterSeeder;
+use Database\Seeders\PenerbitSalesSeeder;
 
 /**
- * Seeder data riil dari dump db_penerbitpcp — penjualan 1–14 Agustus.
+ * Seeder data riil dari dump db_penerbit — penjualan 1–14 Agustus.
  */
-it('membuat kategori, buku, dan customer dari dump db_penerbitpcp', function (): void {
-    $this->seed(PenerbitPcpMasterSeeder::class);
+it('membuat kategori, buku, dan customer dari dump db_penerbit', function (): void {
+    $this->seed(PenerbitMasterSeeder::class);
 
     expect(Category::query()->whereIn('kode', ['ALQ', 'ANK', 'Bdl', 'BI', 'KSH', 'PRN', 'PST'])->count())->toBe(7)
         ->and(Book::query()->where('kode_sku', 'BI000021')->whereNotNull('category_id')->exists())->toBeTrue()
@@ -23,8 +23,8 @@ it('membuat kategori, buku, dan customer dari dump db_penerbitpcp', function ():
 });
 
 it('membuat order penjualan Agustus full (112 order non-konsinyasi + 16 piutang konsinyasi) dengan matematika konsisten', function (): void {
-    $this->seed(PenerbitPcpMasterSeeder::class);
-    $this->seed(PenerbitPcpSalesSeeder::class);
+    $this->seed(PenerbitMasterSeeder::class);
+    $this->seed(PenerbitSalesSeeder::class);
 
     $orders = Order::query()->where('no_order', 'like', 'ORD-202608%')->with('items')->get();
 
@@ -53,8 +53,8 @@ it('membuat order penjualan Agustus full (112 order non-konsinyasi + 16 piutang 
 });
 
 it('memetakan metode bayar dan channel dengan benar', function (): void {
-    $this->seed(PenerbitPcpMasterSeeder::class);
-    $this->seed(PenerbitPcpSalesSeeder::class);
+    $this->seed(PenerbitMasterSeeder::class);
+    $this->seed(PenerbitSalesSeeder::class);
 
     // Shopee order (nurafni 01/08 shopee)
     expect(Order::query()->where('nama_pembeli', 'nurafni')->value('metode_bayar'))->toBe('shopee')
@@ -66,10 +66,10 @@ it('memetakan metode bayar dan channel dengan benar', function (): void {
 });
 
 it('idempotent — dipanggil ulang tidak menduplikasi data', function (): void {
-    $this->seed(PenerbitPcpMasterSeeder::class);
-    $this->seed(PenerbitPcpSalesSeeder::class);
-    $this->seed(PenerbitPcpMasterSeeder::class);
-    $this->seed(PenerbitPcpSalesSeeder::class);
+    $this->seed(PenerbitMasterSeeder::class);
+    $this->seed(PenerbitSalesSeeder::class);
+    $this->seed(PenerbitMasterSeeder::class);
+    $this->seed(PenerbitSalesSeeder::class);
 
     expect(Order::query()->where('no_order', 'like', 'ORD-202608%')->count())->toBe(112)
         ->and(ConsignmentSale::count())->toBe(16)
@@ -79,7 +79,7 @@ it('idempotent — dipanggil ulang tidak menduplikasi data', function (): void {
 });
 
 it('sku sesuai singkatan kategori dan urut tanpa jeda', function (): void {
-    $this->seed(PenerbitPcpMasterSeeder::class);
+    $this->seed(PenerbitMasterSeeder::class);
 
     $books = Book::query()->whereNotNull('kode_sku')->with('category')->get();
 
@@ -105,7 +105,7 @@ it('sku sesuai singkatan kategori dan urut tanpa jeda', function (): void {
 });
 
 it('judul duplikat tidak membuat buku baru, hanya update field kosong', function (): void {
-    $this->seed(PenerbitPcpMasterSeeder::class);
+    $this->seed(PenerbitMasterSeeder::class);
 
     $category = Category::query()->where('kode', 'PRN')->firstOrFail();
 
@@ -118,7 +118,7 @@ it('judul duplikat tidak membuat buku baru, hanya update field kosong', function
         'category_id' => $category->id,
     ]);
 
-    // Simulasi data pcp dengan judul sama tapi ada penulis
+    // Simulasi data penerbit dengan judul sama tapi ada penulis
     // Kita panggil seeder lagi dengan data yang sudah ada — update harus isi penulis
     // Untuk test ini, kita buat manual update seperti seeder lakukan
     $duplicateRow = [

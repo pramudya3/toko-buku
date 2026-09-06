@@ -53,7 +53,7 @@ const bodyClass = 'mt-2 text-sm leading-relaxed text-article-muted';
             name="description"
             :content="
                 props.tagline ||
-                'Tentang Pustaka Cahaya Peradaban — cerita, visi, misi, dan kontak toko buku kami.'
+                'Tentang Toko Buku — cerita, visi, misi, dan kontak toko buku kami.'
             "
         />
     </Head>

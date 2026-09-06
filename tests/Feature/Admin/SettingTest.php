@@ -344,5 +344,5 @@ it('removes the lembaga logo via explicit action', function (): void {
         ->assertRedirect();
 
     Storage::disk('r2')->assertMissing('logos/logo.png');
-    expect(Setting::get('store_logo_url'))->toBe('/logo-pcp.png');
+    expect(Setting::get('store_logo_url'))->toBe('');
 });

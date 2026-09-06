@@ -45,7 +45,7 @@ use Illuminate\Support\Str;
  * Idempotent via firstOrCreate (no_order ORD-YYYYMMDD-XXXX, consignment notes Import CSV).
  * Bersihkan data lama FK26-08-XXXX (dump 01–14) agar tidak duplikat.
  */
-class PenerbitPcpSalesSeeder extends Seeder
+class PenerbitSalesSeeder extends Seeder
 {
     public function run(): void
     {

@@ -1,6 +1,6 @@
 {
  "meta": {
-  "source": "db_penerbitpcp.sql (dump MariaDB 19/08/2026)",
+  "source": "db_penerbit.sql (dump MariaDB 19/08/2026)",
   "scope": "Penjualan jual_faktur 2026-08-01 s/d 2026-08-14",
   "jumlah_order": 54,
   "jumlah_customer": 51,

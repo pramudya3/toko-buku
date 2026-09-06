@@ -163,7 +163,6 @@ const hasActiveFilter = computed(
 
             <EmptyState
                 v-if="hasActiveFilter && orders.data.length === 0"
-                icon="/img/empty-orders.png"
                 title="Tidak ada pesanan"
                 description="Tidak ada pesanan dengan filter ini — coba ubah filter."
             >
@@ -282,7 +281,6 @@ const hasActiveFilter = computed(
 
             <EmptyState
                 v-else
-                icon="/img/empty-orders.png"
                 title="Belum ada pesanan"
                 description="Yuk belanja buku pertama Anda!"
             >

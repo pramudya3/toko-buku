@@ -137,7 +137,7 @@ const address = ref<AddressValue>({
                                 type="text"
                                 required
                                 :default-value="nama_lembaga"
-                                placeholder="Pustaka Cahaya Peradaban"
+                                placeholder="Toko Buku"
                             />
                         </div>
 

@@ -102,7 +102,7 @@ class CustomerWilayahBackfillSeeder extends Seeder
     }
 
     /**
-     * Pecah alamat bebas menjadi kolom wilayah — copy dari PenerbitPcpMasterSeeder::resolveWilayah
+     * Pecah alamat bebas menjadi kolom wilayah — copy dari PenerbitMasterSeeder::resolveWilayah
      * agar seeder ini standalone tanpa dependensi cross-seeder.
      *
      * @return array{alamat: string|null, provinsi: string|null, kabupaten_kota: string|null, kecamatan: string|null, kelurahan: string|null, village_code: string|null, kode_pos: string|null}

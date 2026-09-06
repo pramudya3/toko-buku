@@ -7,7 +7,7 @@ import AdaptiveLayout from '@/layouts/settings/AdaptiveLayout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
 const appName =
-    import.meta.env.VITE_APP_NAME || 'Penerbit Pustaka Cahaya Peradaban';
+    import.meta.env.VITE_APP_NAME || 'Toko Buku';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

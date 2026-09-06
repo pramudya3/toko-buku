@@ -5,7 +5,7 @@
  * Desain editorial Islami: latar hangat, tipografi Inter + Lora, aksen hijau
  * tua & emas lembut, banyak ruang kosong. Header sticky + pencarian
  * (beranda/katalog/promo), menu mobile, lonceng notifikasi customer,
- * dan footer "Pustaka" dengan daftar menu.
+ * dan footer "Toko Buku" dengan daftar menu.
  */
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
@@ -38,7 +38,7 @@ import { edit as storefrontProfileEdit } from '@/routes/storefront/profile';
 
 const page = usePage();
 const storeName = computed(() =>
-    String(page.props.storeName ?? 'Pemberdayaan Masyarakat PCP'),
+    String(page.props.storeName ?? 'Toko Buku'),
 );
 const storeLogoUrl = computed(() => String(page.props.storeLogoUrl ?? ''));
 const storeAddress = computed(() => String(page.props.storeAddress ?? ''));
@@ -318,9 +318,15 @@ function runSearch(value: string): void {
                         :aria-label="`${storeName} — beranda`"
                     >
                         <img
-                            :src="storeLogoUrl || '/logo-pcp.png'"
+                            v-if="storeLogoUrl"
+                            :src="storeLogoUrl"
                             :alt="storeName"
                             class="h-9 w-auto object-contain"
+                        />
+                        <BookOpen
+                            v-else
+                            class="h-9 w-9 text-article-primary"
+                            aria-hidden="true"
                         />
                         <span
                             class="hidden text-[17px] font-extrabold tracking-tight lg:inline"
@@ -533,9 +539,15 @@ function runSearch(value: string): void {
                             :aria-label="`${storeName} — beranda`"
                         >
                             <img
-                                :src="storeLogoUrl || '/logo-pcp.png'"
+                                v-if="storeLogoUrl"
+                                :src="storeLogoUrl"
                                 :alt="storeName"
                                 class="h-8 w-auto object-contain"
+                            />
+                            <BookOpen
+                                v-else
+                                class="h-8 w-8 text-article-primary"
+                                aria-hidden="true"
                             />
                         </Link>
 
@@ -588,9 +600,15 @@ function runSearch(value: string): void {
                             :aria-label="`${storeName} — beranda`"
                         >
                             <img
-                                :src="storeLogoUrl || '/logo-pcp.png'"
+                                v-if="storeLogoUrl"
+                                :src="storeLogoUrl"
                                 :alt="storeName"
                                 class="h-8 w-auto object-contain"
+                            />
+                            <BookOpen
+                                v-else
+                                class="h-8 w-8 text-article-primary"
+                                aria-hidden="true"
                             />
                             <span
                                 class="truncate text-sm font-extrabold tracking-tight"
@@ -628,9 +646,15 @@ function runSearch(value: string): void {
                             :aria-label="`${storeName} — beranda`"
                         >
                             <img
-                                :src="storeLogoUrl || '/logo-pcp.png'"
+                                v-if="storeLogoUrl"
+                                :src="storeLogoUrl"
                                 :alt="storeName"
                                 class="h-8 w-auto object-contain"
+                            />
+                            <BookOpen
+                                v-else
+                                class="h-8 w-8 text-article-primary"
+                                aria-hidden="true"
                             />
                             <span
                                 class="truncate text-sm font-extrabold tracking-tight"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { BookOpen } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -42,10 +43,9 @@ const description = computed(() => {
     <div
         class="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center"
     >
-        <img
-            src="/logo-pcp.png"
-            alt="Pustaka Cahaya Peradaban"
-            class="mb-6 h-16 w-16 object-contain"
+        <BookOpen
+            class="mb-6 h-16 w-16 text-muted-foreground"
+            aria-hidden="true"
         />
         <h1 class="text-3xl font-bold tracking-tight">
             {{ status }} — {{ title }}

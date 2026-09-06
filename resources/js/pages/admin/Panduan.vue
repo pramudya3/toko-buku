@@ -164,7 +164,7 @@ const sections: Section[] = [
         ],
         tips: [
             'Pastikan <code>admin@miniapps.id</code> sudah verified di Brevo — jika tidak, email reset tidak akan terkirim.',
-            'Jika <em>redirect_uri_mismatch</em> saat login Google, tambahkan <code>https://penerbitpcp.com/auth/google/callback</code> di Google Console.',
+            'Jika <em>redirect_uri_mismatch</em> saat login Google, tambahkan <code>https://toko-buku.miniapps.id/auth/google/callback</code> di Google Console.',
             'Akun nonaktif (<code>is_active=false</code>) tidak bisa login via email maupun Google.',
         ],
     },
@@ -191,7 +191,7 @@ const sections: Section[] = [
         content: [
             '<strong>Brevo API</strong>: Semua email transaksi (reset password, notifikasi) dikirim via Brevo API (<code>admin@miniapps.id</code>).',
             '<strong>Status Pengiriman</strong>: Cek log di <code>storage/logs/laravel.log</code> jika email tidak masuk — biasanya sender belum verified atau API key salah.',
-            '<strong>Template</strong>: Email reset menggunakan template default Laravel + brand Pustaka Cahaya Peradaban.',
+            '<strong>Template</strong>: Email reset menggunakan template default Laravel + brand Toko Buku.',
         ],
         tips: [
             'Verifikasi domain <code>miniapps.id</code> di Brevo (SPF/DKIM) agar tidak masuk spam.',

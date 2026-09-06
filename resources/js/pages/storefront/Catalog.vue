@@ -448,7 +448,7 @@ function loadMore() {
         />
         <meta
             property="og:title"
-            content="Katalog Buku — Pustaka Cahaya Peradaban"
+            content="Katalog Buku — Toko Buku"
         />
         <meta
             property="og:description"

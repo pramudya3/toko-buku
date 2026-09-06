@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Master data dari dump db_penerbitpcp (MariaDB → PostgreSQL):
+ * Master data dari dump db_penerbit (MariaDB → PostgreSQL):
  * kategori (mst_tipebarang), buku (mst_item), dan customer yang tercatat
  * pada penjualan 1–14 Agustus (mst_customer).
  *
@@ -38,7 +38,7 @@ use Illuminate\Support\Str;
  *
  * Idempotent — aman dipanggil ulang.
  */
-class PenerbitPcpMasterSeeder extends Seeder
+class PenerbitMasterSeeder extends Seeder
 {
     public function run(): void
     {
@@ -349,13 +349,13 @@ class PenerbitPcpMasterSeeder extends Seeder
     }
 
     /**
-     * Data hasil parsing dump db_penerbitpcp.sql.
+     * Data hasil parsing dump db_penerbit.sql.
      *
      * @return array{meta: array<string, mixed>, categories: array<int, array<string, mixed>>, books: array<int, array<string, mixed>>, customers: array<int, array<string, mixed>>, orders: array<int, array<string, mixed>>}
      */
     private function readData(): array
     {
-        $path = database_path('data/db_penerbitpcp_penjualan_agustus.json');
+        $path = database_path('data/db_penerbit_penjualan_agustus.json');
 
         $decoded = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
 

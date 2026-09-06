@@ -178,7 +178,7 @@ class StorefrontController extends Controller
             'categories' => $this->articleCategoriesForStorefront(),
             'books' => $books,
             'filters' => $request->only(['search', 'category_id']),
-            'tagline' => Setting::get('store_tagline') ?: 'Pustaka Cahaya Peradaban',
+            'tagline' => Setting::get('store_tagline') ?: 'Toko Buku',
         ]);
     }
 

@@ -48,7 +48,7 @@ class HandleInertiaRequests extends Middleware
             'lowStockThreshold' => (int) config('pricing.low_stock_threshold', 5),
             // Identitas toko dari pengaturan Lembaga — dipakai di judul sidebar.
             'storeName' => Setting::get('store_nama_lembaga') ?: config('app.name'),
-            'storeLogoUrl' => Setting::get('store_logo_url', '') ?: '/logo-pcp.png',
+            'storeLogoUrl' => (string) Setting::get('store_logo_url', ''),
             'storeAddress' => Setting::get('store_alamat', ''),
             'storePhone' => Setting::get('store_telepon', ''),
             'auth' => [

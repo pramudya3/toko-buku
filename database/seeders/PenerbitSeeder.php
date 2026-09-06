@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
  * (full 01–31 Agustus, source terbaru) ke skema aplikasi.
  *
  * Satu perintah:
- *   php artisan db:seed --class=PenerbitPcpSeeder
+ *   php artisan db:seed --class=PenerbitSeeder
  *
  * Menghasilkan: 7 kategori, 80+ buku, 100+ customer, dan ~120 faktur
  * (01–31 Agustus full) senilai ~Rp 37.4jt.
@@ -18,13 +18,13 @@ use Illuminate\Database\Seeder;
  *   - Konsinyasi dropship (Pak Nuris -> Namira) -> customer_id = Dropshiped, notes "via Pak Nuris"
  * - Bundling tetap 1 SKU Bdl, tidak di-split (historis append-only).
  */
-class PenerbitPcpSeeder extends Seeder
+class PenerbitSeeder extends Seeder
 {
     public function run(): void
     {
         $this->call([
-            PenerbitPcpMasterSeeder::class,
-            PenerbitPcpSalesSeeder::class,
+            PenerbitMasterSeeder::class,
+            PenerbitSalesSeeder::class,
         ]);
     }
 }

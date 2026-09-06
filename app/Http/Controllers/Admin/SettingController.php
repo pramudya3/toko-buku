@@ -177,7 +177,7 @@ class SettingController extends Controller
             Setting::set('store_logo_url', Storage::disk('public')->url($path));
         } elseif ($request->boolean('hapus_logo') && $current !== '') {
             $this->deleteStoredFile($current);
-            Setting::set('store_logo_url', '/logo-pcp.png');
+            Setting::set('store_logo_url', '');
         }
     }
 

@@ -164,7 +164,7 @@ function loadMore(): void {
                 class="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-article-accent uppercase"
             >
                 <BookOpen class="size-3.5" aria-hidden="true" />
-                Pustaka
+                Toko Buku
             </p>
             <h1
                 class="mx-auto mt-3 max-w-2xl font-serif text-3xl leading-tight font-bold tracking-tight text-article-ink md:text-4xl"

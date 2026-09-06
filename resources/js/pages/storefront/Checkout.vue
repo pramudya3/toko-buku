@@ -1509,7 +1509,6 @@ function onFormError() {
 
                 <EmptyState
                     v-else
-                    icon="/img/empty-cart.png"
                     title="Keranjang kosong"
                     description="Belum ada buku di keranjang."
                 >

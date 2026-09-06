@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BookOpen } from '@lucide/vue';
 import type { HTMLAttributes } from 'vue';
 
 defineOptions({
@@ -13,10 +14,5 @@ defineProps<Props>();
 </script>
 
 <template>
-    <img
-        src="/logo-pcp.png"
-        alt="Pustaka Cahaya Peradaban"
-        :class="className"
-        v-bind="$attrs"
-    />
+    <BookOpen :class="className" v-bind="$attrs" aria-hidden="true" />
 </template>
