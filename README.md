@@ -106,8 +106,6 @@ Proyek internal — hubungi pemilik repository untuk detail lisensi.
 
 ## Deployment
 
-- Push ke `main` → auto-deploy via GitHub webhook (deploy.sh di server).
+- Untuk production, build assets: `npm run build`
 - Wayfinder (resources/js/{routes,actions,wayfinder}) di-generate otomatis
   di dalam Docker build — tidak perlu generate manual.
-# test
-# e2e test 2
