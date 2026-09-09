@@ -95,13 +95,13 @@ class BookSeeder extends Seeder
             $url = null;
 
             try {
-                // Redirect-nya diikuti otomatis; status 200 = cover ada.
-                $response = Http::timeout(5)->get(
-                    "https://covers.openlibrary.org/b/isbn/{$isbn}-L.jpg",
-                );
+                // ?default=false → 404 bila tak ada cover (tanpa itu,
+                // Open Library selalu 200 + piksel kosong).
+                $coverApi = "https://covers.openlibrary.org/b/isbn/{$isbn}-L.jpg?default=false";
+                $response = Http::timeout(5)->get($coverApi);
 
                 if ($response->successful()) {
-                    $url = "https://covers.openlibrary.org/b/isbn/{$isbn}-L.jpg";
+                    $url = $coverApi;
                 }
             } catch (Throwable) {
                 // Offline / timeout — fallback di bawah.
